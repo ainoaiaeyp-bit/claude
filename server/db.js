@@ -66,14 +66,14 @@ const DEFAULT_HOURS = {
 };
 
 const DEFAULTS = {
-  businessName: 'Noelia Duque Make up Artist',
-  tagline: 'Maquillaje profesional que realza tu belleza natural',
-  city: 'España',
+  businessName: 'Noelia Duque · Cejas, Maquillaje y Estética',
+  tagline: 'Más de 10 años diseñando cejas en Murcia. Microblading, micropigmentación, maquillaje y estética.',
+  city: 'Murcia',
   address: '',
   phone: '',
   whatsapp: '',
   email: '',
-  instagram: 'https://www.instagram.com/',
+  instagram: 'https://www.instagram.com/noeliaduque_brows/',
   notificationEmail: '',
   hours: JSON.stringify(DEFAULT_HOURS),
   slotStep: '30',
@@ -126,12 +126,21 @@ export function seed() {
       (name, category, description, duration_min, price_cents, price_from, allow_home, sort)
       VALUES (?,?,?,?,?,?,?,?)`);
     const list = [
-      ['Maquillaje social', 'Eventos', 'Look elegante y duradero para cenas, celebraciones y ocasiones especiales. Incluye preparación de la piel y fijación para todo el día.', 60, 6000, 0, 1],
-      ['Maquillaje de novia', 'Novias', 'Tu look de boda diseñado a medida, resistente a emociones, fotos y largas horas. Incluye retoque de labios para llevar.', 90, 15000, 0, 1],
-      ['Prueba de novia', 'Novias', 'Una sesión previa para definir juntas tu look perfecto antes del gran día, con fotografías de referencia.', 90, 7500, 0, 0],
-      ['Maquillaje de invitada', 'Eventos', 'Bodas, comuniones y bautizos: un acabado luminoso y favorecedor que aguanta de la ceremonia al último baile.', 60, 5500, 0, 1],
-      ['Sesión de fotografía / editorial', 'Profesional', 'Maquillaje técnico para books, campañas y producciones, pensado para cámara y luz de estudio.', 75, 8000, 1, 1],
-      ['Clase de automaquillaje', 'Formación', 'Aprende a maquillarte según tu rostro, tu piel y tu día a día, con tu propia bolsa de maquillaje y una guía personalizada.', 90, 8500, 0, 0]
+      ['Microblading pelo a pelo', 'Micropigmentación', 'Trazos finos dibujados pelo a pelo para rellenar y definir tus cejas con un resultado natural. Diseño personalizado según la forma de tu rostro.', 120, 25000, 0, 0],
+      ['Powder brows (sombreado)', 'Micropigmentación', 'Efecto maquillado suave y difuminado, ideal para pieles mixtas o grasas y para quien busca cejas definidas con acabado polvo.', 120, 25000, 0, 0],
+      ['Hiperrealismo', 'Micropigmentación', 'Cejas con aspecto de vello real, combinando técnicas para un resultado extremadamente natural y a medida.', 120, 28000, 0, 0],
+      ['Retoque de cejas', 'Micropigmentación', 'Sesión de perfeccionamiento tras tu tratamiento para ajustar y consolidar el color y el diseño.', 60, 6000, 0, 0],
+      ['Micropigmentación de labios', 'Micropigmentación', 'Define el contorno y aporta color y volumen visual a tus labios con un acabado suave y natural.', 120, 25000, 1, 0],
+      ['Valoración y diseño de cejas', 'Micropigmentación', 'Estudiamos tu rostro, tu piel y lo que buscas, y diseñamos juntas tus cejas antes de decidir el tratamiento.', 20, 0, 0, 0],
+      ['Diseño de cejas con hilo', 'Cejas', 'Perfilado preciso con hilo para definir la forma ideal de tu ceja, con máxima limpieza y suavidad.', 30, 1200, 0, 0],
+      ['Henna de cejas', 'Cejas', 'Tinte natural que rellena y define la ceja con efecto no invasivo y duración de varias semanas.', 45, 2000, 0, 0],
+      ['Depilación con hilo (facial)', 'Depilación', 'Técnica milenaria que ofrece precisión y suavidad en las zonas delicadas del rostro.', 20, 1000, 1, 0],
+      ['Depilación con cera', 'Depilación', 'Depilación eficaz para una piel suave durante más tiempo. Consulta zonas disponibles.', 30, 1500, 1, 0],
+      ['Higiene facial profunda', 'Facial', 'Limpieza que purifica y revitaliza tu piel, adaptada a tus necesidades.', 60, 5000, 0, 0],
+      ['Peeling con ácidos', 'Facial', 'Renovación profunda de la piel con ácidos, tras valoración previa de tu tipo de piel.', 60, 6000, 0, 0],
+      ['Maquillaje social', 'Maquillaje', 'Look elegante y duradero para cenas, celebraciones y ocasiones especiales.', 60, 4500, 0, 1],
+      ['Maquillaje de novia', 'Maquillaje', 'Tu look de boda diseñado a medida, resistente a emociones, fotos y largas horas.', 90, 14000, 1, 1],
+      ['Maderoterapia', 'Corporal', 'Sesión corporal con instrumentos de madera para tonificar y revitalizar.', 60, 5000, 0, 0]
     ];
     list.forEach((s, i) => svc.run(s[0], s[1], s[2], s[3], s[4], s[5], s[6], i));
     setSetting('_seeded', '1');

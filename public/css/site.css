@@ -176,3 +176,25 @@ textarea{min-height:90px;resize:vertical}
   .sticky-cta{display:block}
 }
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}html{scroll-behavior:auto}.reveal{opacity:1;transform:none}}
+
+/* brows hero art */
+.brow-art{width:72%;position:relative;z-index:1}
+.arch img+.brow-art{display:none}
+
+/* microblading showcase */
+.micro{background:linear-gradient(180deg,var(--paper),var(--cream))}
+.tech-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1.4rem}
+.tech{background:var(--ink);color:var(--cream);border-radius:24px;padding:2.2rem;display:flex;flex-direction:column;gap:.5rem;position:relative;overflow:hidden;transition:transform .35s}
+.tech:hover{transform:translateY(-6px)}
+.tech::after{content:"";position:absolute;right:-60px;top:-60px;width:180px;height:180px;border-radius:50%;background:radial-gradient(circle,rgba(181,112,95,.45),transparent 70%)}
+.tech-n{font:italic 500 2.6rem var(--serif);color:var(--gold);line-height:1}
+.tech h3{font-size:2rem;margin:.2rem 0}.tech p{color:#d8c9bf;margin:0 0 .6rem}
+.tech ul{list-style:none;margin:0 0 1.2rem;padding:0;display:grid;gap:.35rem;font-size:.92rem;flex:1}
+.tech li{padding-left:1.4rem;position:relative}.tech li::before{content:"✦";position:absolute;left:0;color:var(--gold);font-size:.75rem;top:.15rem}
+.tech .btn{background:var(--cream);color:var(--ink);border-color:var(--cream);position:relative;z-index:1}.tech .btn:hover{background:var(--blush);border-color:var(--blush);color:var(--ink)}
+.micro-cta{margin-top:1.4rem;background:linear-gradient(120deg,var(--rose),var(--rose-d));color:#fff;border-radius:24px;padding:2rem 2.4rem;display:flex;justify-content:space-between;align-items:center;gap:1.5rem;flex-wrap:wrap}
+.micro-cta h3{margin:0 0 .3rem}.micro-cta p{margin:0;opacity:.92}
+.aftercare{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:2rem;margin-top:3rem}
+.aftercare div{border-top:1px solid var(--ink);padding-top:1rem}.aftercare h4{font:italic 500 1.7rem var(--serif);margin:0 0 .3rem;color:var(--rose)}.aftercare p{color:var(--ink-2);margin:0}
+.card.star{border-color:var(--rose)}.card.star .cat::after{content:" · Especialidad";color:var(--gold)}
+.note{background:#fbf1e4;border:1px solid #efd9b8;color:#7a5520;border-radius:12px;padding:.8rem 1rem;font-size:.88rem}

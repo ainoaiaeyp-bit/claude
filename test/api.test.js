@@ -35,13 +35,14 @@ test('reserva, evita doble reserva y respeta el buffer', async () => {
   const date = await firstFreeDay(1);
   const { data: a } = await j(`/api/availability?service_id=1&date=${date}`);
   const slot = a.slots[0].start_min;
+  const dur = (await j('/api/services')).data.find((x) => x.id === 1).duration_min;
   const r1 = await j('/api/bookings', { method: 'POST', body: { ...person, service_id: 1, date, start_min: slot } });
   assert.equal(r1.status, 201);
   assert.equal(r1.data.booking.status, 'pending');
   const r2 = await j('/api/bookings', { method: 'POST', body: { ...person, service_id: 1, date, start_min: slot } });
   assert.equal(r2.status, 409);
   const { data: b } = await j(`/api/availability?service_id=1&date=${date}`);
-  assert.ok(!b.slots.some((s) => s.start_min > slot - 60 && s.start_min < slot + 60 + 15), 'solape/buffer excluido');
+  assert.ok(!b.slots.some((s) => s.start_min > slot - dur && s.start_min < slot + dur + 15), 'solape/buffer excluido');
   globalThis.token = r1.data.booking.token;
 });
 

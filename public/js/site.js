@@ -1,6 +1,7 @@
 const $ = (s, r = document) => r.querySelector(s);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const eur = (c) => (c / 100).toLocaleString('es-ES', { style: 'currency', currency: 'EUR', minimumFractionDigits: c % 100 ? 2 : 0 });
+const money = (c) => (c ? eur(c) : 'Gratis');
 const dur = (m) => (m >= 60 ? `${Math.floor(m / 60)} h${m % 60 ? ` ${m % 60} min` : ''}` : `${m} min`);
 const api = async (url, opts) => {
   const r = await fetch(url, opts);
@@ -33,6 +34,12 @@ const sticky = $('.sticky-cta'), bookSec = $('#reservar');
 new IntersectionObserver(([e]) => sticky.classList.toggle('show', scrollY > 500 && !e.isIntersecting)).observe(bookSec);
 addEventListener('scroll', () => { if (scrollY < 500) sticky.classList.remove('show'); }, { passive: true });
 
+document.addEventListener('click', (e) => {
+  const b = e.target.closest('[data-book-name]'); if (!b) return;
+  const svc = services.find((x) => x.name.toLowerCase().includes(b.dataset.bookName.toLowerCase()));
+  if (svc) { wizard.pick(svc.id); $('#reservar').scrollIntoView({ behavior: 'smooth' }); }
+});
+
 /* ───── data ───── */
 async function init() {
   [settings, services] = await Promise.all([api('/api/settings'), api('/api/services')]);
@@ -54,11 +61,11 @@ function renderServices() {
   f.hidden = cats.length < 3;
   const draw = (c) => {
     $('#svc-grid').innerHTML = services.filter((s) => c === 'Todos' || s.category === c).map((s) => `
-      <article class="card">
+      <article class="card${s.category === 'Micropigmentación' ? ' star' : ''}">
         <span class="cat">${esc(s.category)}</span>
         <h3>${esc(s.name)}</h3>
         <p>${esc(s.description)}</p>
-        <div class="meta"><span class="price">${s.price_from ? '<small>desde</small>' : ''}${eur(s.price_cents)}</span><span class="dur">⏱ ${dur(s.duration_min)}</span></div>
+        <div class="meta"><span class="price">${s.price_from && s.price_cents ? '<small>desde</small>' : ''}${money(s.price_cents)}</span><span class="dur">⏱ ${dur(s.duration_min)}</span></div>
         <button class="btn" data-book="${s.id}">Reservar este servicio</button>
       </article>`).join('') || '<p class="hint">Próximamente.</p>';
   };
@@ -79,7 +86,7 @@ function renderGallery(list) {
   if (!list.length) { $('#nav-portfolio').parentElement.hidden = true; return; }
   $('#portfolio').hidden = false;
   $('#gallery').innerHTML = list.map((u, i) => `<figure class="reveal"><img src="${esc(u)}" alt="Trabajo de maquillaje ${i + 1}" loading="lazy"></figure>`).join('');
-  $('#hero-arch').innerHTML = `<img src="${esc(list[0])}" alt="Maquillaje por Noelia Duque">`;
+  $('#hero-arch').insertAdjacentHTML('afterbegin', `<img src="${esc(list[0])}" alt="Cejas por Noelia Duque">`);
   observe();
 }
 
@@ -142,7 +149,7 @@ const wizard = (() => {
       <div class="opt-list">${services.map((s) => `
         <button class="opt" data-id="${s.id}" aria-pressed="${s.id === st.service}">
           <span><b>${esc(s.name)}</b><small>${dur(s.duration_min)} · ${esc(s.category)}</small></span>
-          <span class="p">${s.price_from ? 'desde ' : ''}${eur(s.price_cents)}</span>
+          <span class="p">${s.price_from && s.price_cents ? 'desde ' : ''}${money(s.price_cents)}</span>
         </button>`).join('')}</div>
       <div id="loc"></div>
       <div class="wz-nav"><span></span><button class="btn" id="next1" ${st.service ? '' : 'disabled'}>Continuar</button></div>`;
@@ -255,7 +262,8 @@ const wizard = (() => {
     const v = st.form || {};
     body.innerHTML = `<h3 class="wz-title">Tus datos</h3>
       <div class="summary"><b>${esc(s.name)}</b><span>${longDate(st.date)} · ${fm(st.slot)}–${fm(st.slot + s.duration_min)}</span>
-        <span>${st.location === 'home' ? 'A domicilio' : 'En el estudio'} · ${s.price_from ? 'desde ' : ''}${eur(s.price_cents)}</span></div>
+        <span>${st.location === 'home' ? 'A domicilio' : 'En el estudio'} · ${s.price_from && s.price_cents ? 'desde ' : ''}${money(s.price_cents)}</span></div>
+      ${s.category === 'Micropigmentación' && s.price_cents ? '<p class="note" style="margin:1rem 0 0">Si estás embarazada, en lactancia o tienes alguna condición de piel o de salud, indícalo en las notas: te asesoraremos antes del tratamiento.</p>' : ''}
       <form class="form" id="form" style="margin-top:1.4rem" novalidate>
         <label>Nombre y apellidos<input name="name" autocomplete="name" required maxlength="80" value="${esc(v.name)}"></label>
         <label>Teléfono / WhatsApp<input name="phone" type="tel" autocomplete="tel" required value="${esc(v.phone)}"></label>
