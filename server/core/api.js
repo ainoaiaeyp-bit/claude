@@ -109,6 +109,12 @@ export function createApi(store, ctx) {
 
   /* ───── administración ───── */
   const A = [];
+  const rangeOf = (o) => {
+    if (o.all) { const b = dataBounds(store); return { from: b.first || today(), to: today() }; }
+    if (!o.from && !o.to) return null;
+    if (!isDate(o.from) || !isDate(o.to) || o.from > o.to) throw new ApiError('Fechas no válidas.');
+    return { from: o.from, to: o.to };
+  };
   const route = (method, re, fn) => A.push([method, re, fn]);
 
   route('GET', /^\/api\/admin\/me$/, () => ok({ ok: true, ai: !!ctx.aiEnabled, mail: !!ctx.mailEnabled }));
@@ -419,23 +425,25 @@ export function createApi(store, ctx) {
   });
   route('GET', /^\/api\/admin\/accounting$/, (r) => {
     const t = today(), y = Number(r.query.year) || Number(t.slice(0, 4)), q = Number(r.query.q) || quarterOf(t);
-    const s = quarterSummary(store, y, q, now());
-    return ok({ summary: s, income: incomeLedger(store, s.from, s.to), expenses: expenseLedger(store, s.from, s.to).map(expView), year: y, q, gestoria: getSettings(store).gestoria, mail: !!ctx.mailEnabled });
+    const range = rangeOf(r.query);
+    const s = quarterSummary(store, y, q, now(), range);
+    return ok({ summary: s, income: incomeLedger(store, s.from, s.to), expenses: expenseLedger(store, s.from, s.to).map(expView), year: range ? null : y, q: range ? null : q, bounds: dataBounds(store), gestoria: getSettings(store).gestoria, mail: !!ctx.mailEnabled });
   });
   route('GET', /^\/api\/admin\/accounting\/package$/, async (r) => {
-    const y = Number(r.query.year), q = Number(r.query.q); if (!y || !(q >= 1 && q <= 4)) throw new ApiError('Indica año y trimestre.');
-    const { bytes } = await buildQuarterZip(store, y, q, (id) => (ctx.files ? ctx.files.read(id) : null));
-    return { status: 200, bytes, headers: { 'Content-Type': 'application/zip', 'Content-Disposition': `attachment; filename="Paquete-T${q}-${y}.zip"` } };
+    const range = rangeOf(r.query), y = Number(r.query.year), q = Number(r.query.q); if (!range && (!y || !(q >= 1 && q <= 4))) throw new ApiError('Indica año y trimestre, o fechas.');
+    const { bytes } = await buildQuarterZip(store, y, q, (id) => (ctx.files ? ctx.files.read(id) : null), range);
+    return { status: 200, bytes, headers: { 'Content-Type': 'application/zip', 'Content-Disposition': `attachment; filename="Paquete-${range ? range.from + '_a_' + range.to : 'T' + q + '-' + y}.zip"` } };
   });
   route('POST', /^\/api\/admin\/accounting\/send$/, async (r) => {
-    const st = getSettings(store), y = Number(r.body?.year), q = Number(r.body?.q);
-    if (!y || !(q >= 1 && q <= 4)) throw new ApiError('Indica año y trimestre.');
+    const st = getSettings(store), y = Number(r.body?.year), q = Number(r.body?.q), range = rangeOf(r.body || {});
+    if (!range && (!y || !(q >= 1 && q <= 4))) throw new ApiError('Indica año y trimestre, o fechas.');
+    const plabel = range ? `periodo del ${range.from} al ${range.to}` : `${q}.º trimestre de ${y}`, ptag = range ? `${range.from}_a_${range.to}` : `T${q} ${y}`;
     if (!st.gestoria.email) throw new ApiError('Añade el email de la asesoría en Ajustes.');
     if (!ctx.mailEnabled) throw new ApiError('El correo (SMTP) no está configurado en el servidor. Descarga el paquete y envíalo desde tu correo.', 409);
-    const { bytes, summary } = await buildQuarterZip(store, y, q, (id) => ctx.files.read(id));
-    const body = clean(r.body?.message, 1500) || `Hola${st.gestoria.name ? ' ' + st.gestoria.name : ''},\n\nTe adjunto el paquete del ${q}.º trimestre de ${y} de ${st.legalName || st.businessName}${st.nif ? ' (NIF ' + st.nif + ')' : ''}: libro de ingresos, libro de gastos, resumen y las facturas recibidas.\n\nUn saludo.`;
-    await ctx.sendMail({ to: st.gestoria.email, cc: st.gestoria.cc || undefined, subject: `${st.legalName || st.businessName} · Documentación T${q} ${y}`, text: body, attachments: [{ filename: `Paquete-T${q}-${y}.zip`, content: bytes, contentType: 'application/zip' }] });
-    store.insert('outbox', { kind: 'gestoria', client_id: null, booking_id: null, to: st.gestoria.email, subject: `Paquete T${q} ${y}`, text: body, status: 'enviado', error: '', created_at: now().toISOString() });
+    const { bytes, summary } = await buildQuarterZip(store, y, q, (id) => ctx.files.read(id), range);
+    const body = clean(r.body?.message, 1500) || `Hola${st.gestoria.name ? ' ' + st.gestoria.name : ''},\n\nTe adjunto el paquete del ${plabel} de ${st.legalName || st.businessName}${st.nif ? ' (NIF ' + st.nif + ')' : ''}: libro de ingresos, libro de gastos, resumen y las facturas recibidas.\n\nUn saludo.`;
+    await ctx.sendMail({ to: st.gestoria.email, cc: st.gestoria.cc || undefined, subject: `${st.legalName || st.businessName} · Documentación ${ptag}`, text: body, attachments: [{ filename: `Paquete-${ptag.replace(' ', '-')}.zip`, content: bytes, contentType: 'application/zip' }] });
+    store.insert('outbox', { kind: 'gestoria', client_id: null, booking_id: null, to: st.gestoria.email, subject: `Paquete ${ptag}`, text: body, status: 'enviado', error: '', created_at: now().toISOString() });
     return ok({ ok: true, to: st.gestoria.email, size: bytes.length, warnings: summary.warnings });
   });
 

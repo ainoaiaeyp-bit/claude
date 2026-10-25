@@ -56,3 +56,5 @@ El panel funciona como una app de iPhone: barra de pestañas inferior, hojas des
 - **Interruptor «Reservas online»** (Resumen y Agenda): al pausarlo, la web no deja reservar y muestra tu aviso y tu contacto. Las citas ya hechas no cambian.
 - **Aceptación manual** (por defecto) o automática desde Horarios y bloqueos. Con aceptación manual, cada solicitud puede **aceptarse, rechazarse o responderse con otra hora**. Al proponer otra hora se reserva el hueco nuevo y la clienta recibe un email con enlace para aceptarla o decir que no le viene bien (en ese caso la cita se cancela y el hueco queda libre).
 - Los textos de «Propuesta de otra hora» y «Solicitud rechazada» se editan en Automatizaciones. Sin SMTP quedan en la bandeja de salida para enviarlos a mano.
+
+La contabilidad y el paquete para la asesoría también se pueden sacar por **año, todo el historial o fechas a medida**, no solo por trimestre. Para un periodo que no es un trimestre, las cifras de los modelos 303 y 130 son acumuladas del periodo y no llevan fecha de presentación.

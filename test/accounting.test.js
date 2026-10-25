@@ -136,3 +136,17 @@ test('resultados: año completo y desde el principio', async () => {
   assert.equal((await t2.call('/api/admin/results?from=2026-05-01&to=2026-01-01')).status, 400);
   await t2.close();
 });
+
+test('contabilidad y paquete para fechas a medida y todo el historial', async () => {
+  const t2 = await boot(); await t2.login();
+  seedDemo(t2.app.store, new Date(), { saveFile: () => 'f'.repeat(32) });
+  const yr = new Date().getFullYear();
+  const a = await t2.call(`/api/admin/accounting?from=${yr}-01-01&to=${yr}-12-31`);
+  assert.equal(a.status, 200); assert.equal(a.data.summary.range, true); assert.equal(a.data.summary.deadline, null);
+  const all = await t2.call('/api/admin/accounting?all=1');
+  assert.ok(all.data.summary.income.total >= a.data.summary.income.total);
+  const z = await t2.call(`/api/admin/accounting/package?from=${yr}-01-01&to=${yr}-12-31`);
+  assert.equal(z.status, 200); assert.equal(z.data[0], 0x50); // «PK»
+  assert.equal((await t2.call('/api/admin/accounting?from=2026-05-01&to=2026-01-01')).status, 400);
+  await t2.close();
+});

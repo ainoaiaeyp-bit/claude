@@ -86,8 +86,9 @@ export function expenseLedger(store, from, to) {
   return store.list('expenses').filter((e) => !e.draft && e.date >= from && e.date <= to).sort((a, b) => a.date.localeCompare(b.date) || a.id - b.id);
 }
 
-export function quarterSummary(store, year, q, now = new Date()) {
-  const st = getSettings(store), { from, to } = quarterRange(year, q);
+/** Resumen de un trimestre o, con `range`, de cualquier periodo (año, todo el historial, fechas a medida). */
+export function quarterSummary(store, year, q, now = new Date(), range = null) {
+  const st = getSettings(store), { from, to } = range || quarterRange(year, q);
   const inc = incomeLedger(store, from, to), exp = expenseLedger(store, from, to);
   const byRate = {};
   for (const r of inc) { const x = (byRate[r.vat_rate] ||= { rate: r.vat_rate, base: 0, vat: 0 }); x.base += r.base; x.vat += r.vat; }
@@ -100,7 +101,10 @@ export function quarterSummary(store, year, q, now = new Date()) {
   // modelo 130: acumulado del año hasta el final del trimestre
   const ytd = [];
   let prevPaid = 0;
-  for (let k = 1; k <= q; k++) {
+  if (range) {
+    const ib = sum(inc, (r) => r.base), net = ib - expBase, calc = Math.max(0, Math.round(net * st.irpfFractionRate / 100));
+    ytd.push({ q: 0, income_base: ib, expenses: expBase, net, calc, retained: sum(exp, (e) => e.irpf_cents || 0), to_pay: calc });
+  } else for (let k = 1; k <= q; k++) {
     const rg = quarterRange(year, k);
     const y0 = `${year}-01-01`;
     const ib = sum(incomeLedger(store, y0, rg.to), (r) => r.base);
@@ -112,7 +116,7 @@ export function quarterSummary(store, year, q, now = new Date()) {
     prevPaid += pagar;
   }
   const cur = ytd[ytd.length - 1];
-  const m130 = { rate: st.irpfFractionRate, income_ytd: cur.income_base, expenses_ytd: cur.expenses, net_ytd: cur.net, previous_paid: prevPaid - cur.to_pay, to_pay: cur.to_pay };
+  const m130 = { rate: st.irpfFractionRate, income_ytd: cur.income_base, expenses_ytd: cur.expenses, net_ytd: cur.net, previous_paid: range ? 0 : prevPaid - cur.to_pay, to_pay: cur.to_pay };
   const m115 = { retenciones: sum(exp.filter((e) => e.category === 'alquiler'), (e) => e.irpf_cents || 0) };
   const warnings = [];
   const noFile = exp.filter((e) => !(e.files || []).length);
@@ -126,7 +130,7 @@ export function quarterSummary(store, year, q, now = new Date()) {
   if (!st.nif) warnings.push('Falta el NIF del negocio en Ajustes. Aparecerá en el resumen para la asesoría.');
   if (!st.gestoria.email) warnings.push('Falta el email de la asesoría en Ajustes para poder enviarle el paquete.');
   return {
-    year, q, from, to, deadline: deadlines(year, q),
+    year: range ? null : year, q: range ? null : q, from, to, range: !!range, label: range ? `del ${from} al ${to}` : `${q}.º trimestre de ${year}`, deadline: range ? null : deadlines(year, q),
     income: { count: inc.length, total: sum(inc, (r) => r.total), base: sum(inc, (r) => r.base), vat: m303.repercutido, by_rate: Object.values(byRate) },
     expenses: { count: exp.length, total: sum(exp, (e) => e.total_cents), base_deductible: expBase, vat_deductible: expVat, irpf_withheld: sum(exp, (e) => e.irpf_cents || 0), by_category: Object.values(byCat).sort((a, b) => b.total - a.total) },
     m303, m130, m115, ytd, warnings,
@@ -138,36 +142,37 @@ const bizName = (st) => st.legalName || st.businessName;
 
 export function summaryHtml(sum, st) {
   const row = (a, b) => `<tr><td>${a}</td><td class="r">${b}</td></tr>`;
-  return `<!doctype html><html lang="es"><meta charset="utf-8"><title>Resumen T${sum.q} ${sum.year}</title>
+  return `<!doctype html><html lang="es"><meta charset="utf-8"><title>Resumen ${sum.label}</title>
 <style>body{font:14px/1.5 system-ui,sans-serif;max-width:760px;margin:2rem auto;padding:0 1rem;color:#111}h1{font-size:1.5rem}h2{font-size:1.05rem;margin-top:2rem;border-bottom:1px solid #ccc;padding-bottom:.3rem}table{width:100%;border-collapse:collapse}td{padding:.35rem 0;border-bottom:1px solid #eee}.r{text-align:right;font-variant-numeric:tabular-nums}.n{color:#666;font-size:.85rem}.w{background:#fff6dc;padding:.6rem .8rem;margin:.3rem 0}</style>
-<h1>${bizName(st)} · Resumen del ${sum.q}.º trimestre de ${sum.year}</h1>
-<p class="n">NIF: ${st.nif || '—'} · Periodo ${sum.from} a ${sum.to} · Plazo de presentación: ${sum.deadline.date} · Estimación orientativa generada por el panel; la presentación corresponde a la asesoría.</p>
+<h1>${bizName(st)} · Resumen ${sum.range ? '' : 'del '}${sum.label}</h1>
+<p class="n">NIF: ${st.nif || '—'} · Periodo ${sum.from} a ${sum.to} ${sum.deadline ? ' · Plazo de presentación: ' + sum.deadline.date : ''} · Estimación orientativa generada por el panel; la presentación corresponde a la asesoría.</p>
 <h2>Ingresos</h2><table>${row('Cobros registrados', sum.income.count)}${row('Base imponible', eur(sum.income.base))}${sum.income.by_rate.map((r) => row(`IVA repercutido al ${r.rate}% (sobre ${eur(r.base)})`, eur(r.vat))).join('')}${row('Total cobrado', eur(sum.income.total))}</table>
 <h2>Gastos</h2><table>${row('Facturas recibidas', sum.expenses.count)}${row('Base deducible', eur(sum.expenses.base_deductible))}${row('IVA soportado deducible', eur(sum.expenses.vat_deductible))}${row('Retenciones practicadas (IRPF)', eur(sum.expenses.irpf_withheld))}${row('Total gastos', eur(sum.expenses.total))}</table>
 <table style="margin-top:.6rem">${sum.expenses.by_category.map((c) => row(c.label + ` (${c.count})`, eur(c.total))).join('')}</table>
 <h2>Modelo 303 · IVA</h2><table>${row('IVA repercutido', eur(sum.m303.repercutido))}${row('IVA soportado deducible', eur(sum.m303.soportado))}${row('<b>Resultado</b>', '<b>' + eur(sum.m303.resultado) + (sum.m303.resultado < 0 ? ' (a compensar o devolver)' : ' (a ingresar)') + '</b>')}</table>
-<h2>Modelo 130 · IRPF fraccionado (${sum.m130.rate}%)</h2><table>${row('Ingresos acumulados del año (base)', eur(sum.m130.income_ytd))}${row('Gastos deducibles acumulados', eur(sum.m130.expenses_ytd))}${row('Rendimiento neto acumulado', eur(sum.m130.net_ytd))}${row('Pagos de trimestres anteriores (estimados)', eur(sum.m130.previous_paid))}${row('<b>Importe estimado a ingresar</b>', '<b>' + eur(sum.m130.to_pay) + '</b>')}</table>
-<h2>Modelo 115 · Retenciones de alquiler</h2><table>${row('Retenciones del trimestre', eur(sum.m115.retenciones))}</table>
+<h2>Modelo 130 · IRPF fraccionado (${sum.m130.rate}%)</h2><table>${row('Ingresos acumulados (base)', eur(sum.m130.income_ytd))}${row('Gastos deducibles acumulados', eur(sum.m130.expenses_ytd))}${row('Rendimiento neto acumulado', eur(sum.m130.net_ytd))}${row('Pagos de trimestres anteriores (estimados)', eur(sum.m130.previous_paid))}${row('<b>Importe estimado a ingresar</b>', '<b>' + eur(sum.m130.to_pay) + '</b>')}</table>
+<h2>Modelo 115 · Retenciones de alquiler</h2><table>${row('Retenciones del periodo', eur(sum.m115.retenciones))}</table>
 ${sum.warnings.length ? '<h2>Avisos</h2>' + sum.warnings.map((w) => `<div class="w">${w}</div>`).join('') : ''}
 </html>`;
 }
 
 /** Construye los ficheros del paquete trimestral. readFile(id) -> Uint8Array|null */
-export async function buildQuarterFiles(store, year, q, readFile) {
-  const st = getSettings(store), s = quarterSummary(store, year, q), { from, to } = s;
+export async function buildQuarterFiles(store, year, q, readFile, range = null) {
+  const st = getSettings(store), s = quarterSummary(store, year, q, new Date(), range), { from, to } = s;
+  const tag = range ? `${from}_a_${to}` : `T${q}-${year}`;
   const files = [];
   const fmt = (c) => money(c);
-  files.push({ name: `libro-ingresos-T${q}-${year}.csv`, data: toCSV(incomeLedger(store, from, to), [
+  files.push({ name: `libro-ingresos-${tag}.csv`, data: toCSV(incomeLedger(store, from, to), [
     { label: 'Fecha', key: 'date' }, { label: 'Clienta', key: 'client' }, { label: 'Concepto', key: 'concept' }, { label: 'Método de pago', key: 'method' },
     { label: 'Base imponible', get: (r) => fmt(r.base) }, { label: 'Tipo IVA', get: (r) => r.vat_rate + '%' }, { label: 'Cuota IVA', get: (r) => fmt(r.vat) }, { label: 'Total', get: (r) => fmt(r.total) }]) });
   const exp = expenseLedger(store, from, to);
-  files.push({ name: `libro-gastos-T${q}-${year}.csv`, data: toCSV(exp, [
+  files.push({ name: `libro-gastos-${tag}.csv`, data: toCSV(exp, [
     { label: 'Fecha', key: 'date' }, { label: 'Nº factura', key: 'number' }, { label: 'Proveedor', key: 'supplier' }, { label: 'NIF proveedor', key: 'supplier_nif' },
     { label: 'Concepto', key: 'concept' }, { label: 'Categoría', get: (e) => catLabel(e.category) }, { label: 'Base imponible', get: (e) => fmt(e.base_cents) },
     { label: 'Tipo IVA', get: (e) => e.vat_rate + '%' }, { label: 'Cuota IVA', get: (e) => fmt(e.vat_cents) }, { label: 'Retención IRPF', get: (e) => fmt(e.irpf_cents || 0) },
     { label: 'Total', get: (e) => fmt(e.total_cents) }, { label: '% deducible', key: 'deductible_pct' }, { label: 'Pagada', get: (e) => (e.paid ? 'Sí' : 'No') },
     { label: 'Archivo', get: (e) => (e.files || []).map((f) => f.name).join(' | ') }]) });
-  files.push({ name: `resumen-T${q}-${year}.html`, data: summaryHtml(s, st) });
+  files.push({ name: `resumen-${tag}.html`, data: summaryHtml(s, st) });
   let n = 0;
   for (const e of exp) for (const f of e.files || []) {
     const data = await readFile(f.id); if (!data) continue;
@@ -176,11 +181,11 @@ export async function buildQuarterFiles(store, year, q, readFile) {
     files.push({ name: `facturas-recibidas/${e.date}_${slug}_${(e.number || String(e.id)).replace(/[^A-Za-z0-9-]/g, '')}${ext}`, data });
     n++;
   }
-  files.push({ name: 'LEEME.txt', data: `Paquete trimestral T${q} ${year} · ${bizName(st)}${st.nif ? ' (NIF ' + st.nif + ')' : ''}\r\n\r\nContenido:\r\n- libro-ingresos: cobros del trimestre con base, IVA y total.\r\n- libro-gastos: facturas recibidas con proveedor, NIF, IVA y retenciones.\r\n- resumen: estimación de los modelos 303, 130 y 115 (orientativa).\r\n- facturas-recibidas/: ${n} archivos adjuntos.\r\n\r\n${st.gestoria.note ? 'Nota: ' + st.gestoria.note + '\r\n' : ''}Generado por el panel de gestión el ${new Date().toISOString().slice(0, 10)}.\r\n` });
+  files.push({ name: 'LEEME.txt', data: `Paquete ${range ? 'del periodo ' + s.label : 'trimestral T' + q + ' ' + year} · ${bizName(st)}${st.nif ? ' (NIF ' + st.nif + ')' : ''}\r\n\r\nContenido:\r\n- libro-ingresos: cobros del periodo con base, IVA y total.\r\n- libro-gastos: facturas recibidas con proveedor, NIF, IVA y retenciones.\r\n- resumen: estimación de los modelos 303, 130 y 115 del periodo (orientativa).\r\n- facturas-recibidas/: ${n} archivos adjuntos.\r\n\r\n${st.gestoria.note ? 'Nota: ' + st.gestoria.note + '\r\n' : ''}Generado por el panel de gestión el ${new Date().toISOString().slice(0, 10)}.\r\n` });
   return { files, summary: s };
 }
 
-export async function buildQuarterZip(store, year, q, readFile) {
-  const { files, summary } = await buildQuarterFiles(store, year, q, readFile);
+export async function buildQuarterZip(store, year, q, readFile, range = null) {
+  const { files, summary } = await buildQuarterFiles(store, year, q, readFile, range);
   return { bytes: zip(files), summary, count: files.length };
 }
