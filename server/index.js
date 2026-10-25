@@ -115,12 +115,19 @@ export async function createApp({ dataDir = process.env.DATA_DIR || path.resolve
     let p = decodeURIComponent(url.pathname);
     const pretty = { '/admin': '/admin.html', '/cita': '/cita.html', '/bono': '/bono.html', '/privacidad': '/privacidad.html' };
     if (pretty[p]) p = pretty[p]; if (p.endsWith('/')) p += 'index.html';
+    if (!path.extname(p) && /^\/[a-z0-9-]+$/.test(p) && fs.existsSync(path.join(PUBLIC, p + '.html'))) p += '.html';
     const file = path.normalize(path.join(PUBLIC, p));
     if (!file.startsWith(PUBLIC + path.sep) || p.includes('\0')) return send(res, 403, 'Forbidden');
     fs.stat(file, (err, st) => {
       if (err || !st.isFile()) return send(res, 404, fs.existsSync(path.join(PUBLIC, '404.html')) ? fs.readFileSync(path.join(PUBLIC, '404.html')) : 'Not found', { 'Content-Type': 'text/html; charset=utf-8' });
       const ext = path.extname(file).toLowerCase();
       const priv = ['/admin.html', '/cita.html'].includes(p);
+      if (ext === '.html' && !priv) {
+        const base = (process.env.SITE_URL || `${req.headers['x-forwarded-proto'] === 'https' ? 'https' : 'http'}://${req.headers.host}`).replace(/\/$/, '');
+        const body = fs.readFileSync(file, 'utf8').replaceAll('%SITE%', base);
+        res.writeHead(200, { ...SEC, 'Content-Type': MIME[ext], 'Content-Length': Buffer.byteLength(body), 'Cache-Control': 'public, max-age=300' });
+        return req.method === 'HEAD' ? res.end() : res.end(body);
+      }
       res.writeHead(200, { ...SEC, 'Content-Type': MIME[ext] || 'application/octet-stream', 'Content-Length': st.size, 'Cache-Control': priv ? 'no-store' : /\.(jpe?g|png|webp|svg|ico)$/.test(ext) ? 'public, max-age=86400' : /\.(css|js)$/.test(ext) ? 'public, max-age=300' : 'no-cache', ...(priv ? { 'X-Robots-Tag': 'noindex' } : {}) });
       if (req.method === 'HEAD') return res.end(); fs.createReadStream(file).pipe(res);
     });
@@ -132,8 +139,12 @@ export async function createApp({ dataDir = process.env.DATA_DIR || path.resolve
       if (url.pathname.startsWith('/api/') || url.pathname === '/baja') return await handleApi(req, res, url);
       if (!['GET', 'HEAD'].includes(req.method)) return send(res, 405, 'Method not allowed');
       const base = process.env.SITE_URL || `http://${req.headers.host}`;
-      if (url.pathname === '/sitemap.xml') return send(res, 200, `<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"><url><loc>${base}/</loc></url><url><loc>${base}/privacidad</loc></url></urlset>`, { 'Content-Type': 'application/xml' });
-      if (url.pathname === '/robots.txt') return send(res, 200, `User-agent: *\nDisallow: /admin\nDisallow: /cita\nDisallow: /api/\nSitemap: ${base}/sitemap.xml\n`, { 'Content-Type': 'text/plain' });
+      if (url.pathname === '/sitemap.xml') {
+        const skip = new Set(['admin.html', 'cita.html', 'bono.html', '404.html']);
+        const pages = fs.readdirSync(PUBLIC).filter((f) => f.endsWith('.html') && !skip.has(f)).map((f) => ({ loc: f === 'index.html' ? `${base}/` : `${base}/${f.slice(0, -5)}`, mod: fs.statSync(path.join(PUBLIC, f)).mtime.toISOString().slice(0, 10), prio: f === 'index.html' ? '1.0' : f === 'privacidad.html' ? '0.2' : '0.8' }));
+        return send(res, 200, `<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${pages.map((x) => `<url><loc>${x.loc}</loc><lastmod>${x.mod}</lastmod><priority>${x.prio}</priority></url>`).join('')}</urlset>`, { 'Content-Type': 'application/xml' });
+      }
+      if (url.pathname === '/robots.txt') return send(res, 200, `User-agent: *\nDisallow: /admin\nDisallow: /cita\nDisallow: /bono\nDisallow: /api/\nSitemap: ${base}/sitemap.xml\n`, { 'Content-Type': 'text/plain' });
       serveStatic(req, res, url);
     } catch (e) {
       if (e.status) return send(res, e.status, JSON.stringify({ error: e.message }), { 'Content-Type': 'application/json' });

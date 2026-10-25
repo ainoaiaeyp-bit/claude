@@ -179,3 +179,14 @@ test('referidos: código, validación y premio doble al realizarse la cita', asy
   assert.equal(t.app.store.list('vouchers').length, before + 2, 'el premio se da una sola vez');
   const rf = (await t.call('/api/admin/referrals')).data; assert.equal(rf.referrers[0].friends.length, 1);
 });
+
+test('SEO: páginas por tratamiento, canonical con la URL real, sitemap y robots', async () => {
+  const home = await t.call('/', { admin: false });
+  assert.match(home.data, /<link rel="canonical" href="http:\/\/127\.0\.0\.1:\d+\/">/);
+  assert.match(home.data, /"@type":"FAQPage"/); assert.doesNotMatch(home.data, /%SITE%/);
+  const mb = await t.call('/microblading-alcantarilla-murcia', { admin: false });
+  assert.equal(mb.status, 200); assert.match(mb.data, /<h1>Microblading en Alcantarilla, Murcia<\/h1>/); assert.match(mb.data, /rel="canonical" href="http:\/\/127\.0\.0\.1:\d+\/microblading-alcantarilla-murcia"/);
+  const sm = new TextDecoder().decode((await t.call('/sitemap.xml', { admin: false })).data);
+  assert.match(sm, /powder-brows-murcia/); assert.doesNotMatch(sm, /admin|cita<|bono/);
+  assert.match((await t.call('/robots.txt', { admin: false })).data, /Disallow: \/admin/);
+});

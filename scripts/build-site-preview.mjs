@@ -18,6 +18,6 @@ html = html.replace(/src="\/img\//g, 'src="img/').replace(/content="\/img\//g, '
   .replace('<script src="/js/site.js" type="module"></script>', () => `<script>${entry}</script><script type="module">${rd('js/site.js')}</script>`)
   .replace('<script src="/js/extras.js" type="module"></script>', () => `<script type="module">${rd('js/extras.js')}</script>`)
   .replace('<script src="/js/fx.js" defer></script>', () => `<script>window.addEventListener('DOMContentLoaded',function(){${rd('js/fx.js')}\n});</script>`)
-  .replace(/<link rel="canonical"[^>]*>/, '');
+  .replace(/<link rel="canonical"[^>]*>/, '').replaceAll('%SITE%', '');
 fs.writeFileSync(out, html);
 console.log(`Vista previa de la web escrita en ${out} (${(fs.statSync(out).size / 1024).toFixed(0)} KB)`);

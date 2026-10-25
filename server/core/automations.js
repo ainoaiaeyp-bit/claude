@@ -13,6 +13,7 @@ export function templateVars(st, client, booking, ctx) {
     nombre: (client.name || '').split(' ')[0] || 'hola', estudio: st.businessName, direccion: st.address || st.city, web,
     servicio: booking ? booking.service_name : '', fecha: booking ? longDate(booking.date) : '', hora: booking ? fmtMin(booking.start_min) : '',
     mensaje: (booking && booking.proposal_message) || '', fecha_anterior: booking && booking.prev_date ? longDate(booking.prev_date) : '', hora_anterior: booking && booking.prev_start_min != null ? fmtMin(booking.prev_start_min) : '',
+    resena: st.googleReviewUrl || web,
     enlace_amiga: client.referral_code && web ? `${web}/?ref=${client.referral_code}` : web, importe_regalo: `${((Number(st.referralRewardCents) || 0) / 100).toFixed(0)} €`,
     enlace: booking && web ? `${web}/cita?t=${booking.token}` : web,
   };

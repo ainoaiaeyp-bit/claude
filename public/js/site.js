@@ -41,12 +41,12 @@ async function init() {
   renderMore();
   renderFooter();
   renderPolicy();
-  renderLd();
   renderGallery(await api('/api/gallery').catch(() => []));
   wizard.start();
   leadForm();
   const pre = new URLSearchParams(location.search).get('servicio');
-  if (pre && services.some((s) => s.id === Number(pre))) wizard.pick(Number(pre));
+  const hit = pre && services.find((s) => String(s.id) === pre || s.name.toLowerCase() === pre.toLowerCase());
+  if (hit) wizard.pick(hit.id);
 }
 
 /* precio y duración dentro de cada tarjeta de técnica */
@@ -98,14 +98,6 @@ function renderPolicy() {
   $('#faq-cancel').textContent = `Sí. Desde el enlace de tu cita puedes cancelarla hasta ${c} horas antes. Si necesitas cambiarla, escríbeme y la movemos.`;
 }
 
-function renderLd() {
-  $('#ld').textContent = JSON.stringify({
-    '@context': 'https://schema.org', '@type': 'BeautySalon', name: settings.businessName, description: settings.tagline,
-    url: location.origin, telephone: settings.phone || undefined, email: settings.email || undefined,
-    address: { '@type': 'PostalAddress', streetAddress: settings.address || undefined, addressLocality: settings.city },
-    sameAs: settings.instagram ? [settings.instagram] : undefined
-  });
-}
 
 /* ───── reserva en una sola pantalla ───── */
 const wizard = (() => {

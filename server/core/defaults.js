@@ -13,7 +13,7 @@ export const DEFAULT_SETTINGS = {
   phone: '606 10 24 00', whatsapp: '34606102400', email: 'noeliaduquebrowandmakeup@gmail.com',
   instagram: 'https://www.instagram.com/noeliaduque_brows/', notificationEmail: 'noeliaduquebrowandmakeup@gmail.com',
   siteUrl: '',
-  hours: DEFAULT_HOURS, slotStep: 30, buffer: 15, minNoticeHours: 24, maxDaysAhead: 120, cancelHours: 24, autoConfirm: false, bookingsOpen: true, referralOn: true, referralRewardCents: 1000, voucherMinCents: 2000, voucherValidMonths: 12,
+  hours: DEFAULT_HOURS, slotStep: 30, buffer: 15, minNoticeHours: 24, maxDaysAhead: 120, cancelHours: 24, autoConfirm: false, bookingsOpen: true, googleReviewUrl: '', referralOn: true, referralRewardCents: 1000, voucherMinCents: 2000, voucherValidMonths: 12,
   voucherPaymentInfo: 'Paga por Bizum o transferencia indicando tu nombre y activaremos el bono en cuanto lo recibamos.', shopPaymentInfo: 'Reserva tus productos y los recoges y pagas en el estudio en tu próxima cita.', bookingsClosedMessage: 'Ahora mismo no estoy aceptando reservas online. Escríbeme por WhatsApp o déjame tus datos y te contesto en cuanto pueda.',
   depositInfo: '', homeFeeInfo: 'Desplazamiento a domicilio con suplemento según zona.',
   templates: DEFAULT_TEMPLATES,
@@ -27,7 +27,7 @@ export const DEFAULT_SETTINGS = {
   automations: {
     confirmation: { on: true, subject: 'Tu cita en {estudio}', body: 'Hola {nombre},\n\nTe confirmo tu cita de {servicio} el {fecha} a las {hora} en {direccion}.\n\nPuedes consultarla o cancelarla aquí: {enlace}\n\nUn abrazo,\nNoelia' },
     reminder: { on: true, hoursBefore: 24, subject: 'Mañana tienes cita en {estudio}', body: 'Hola {nombre},\n\nTe recuerdo tu cita de mañana, {fecha} a las {hora}, para {servicio}.\n\nSi no puedes venir, avísame con tiempo desde {enlace} y la movemos.\n\nNoelia' },
-    review: { on: false, daysAfter: 2, subject: '¿Qué tal tu experiencia?', body: 'Hola {nombre},\n\nGracias por venir a {estudio}. Si el resultado te ha gustado, ¿me dejas una reseña? Me ayuda muchísimo.\n\nUn abrazo,\nNoelia' },
+    review: { on: false, daysAfter: 2, subject: '¿Qué tal tu experiencia?', body: 'Hola {nombre},\n\nGracias por venir a {estudio}. Si el resultado te ha gustado, ¿me dejas una reseña en Google? Me ayuda muchísimo a que más personas me encuentren: {resena}\n\nUn abrazo,\nNoelia' },
     proposal: { on: true, subject: 'Te propongo otra hora para tu cita', body: 'Hola {nombre},\n\nGracias por pedir cita para {servicio}. No me viene bien el {fecha_anterior} a las {hora_anterior}, pero te propongo el {fecha} a las {hora}.\n\n{mensaje}\n\nPuedes aceptarla o decirme que no te viene bien aquí: {enlace}\n\nUn abrazo,\nNoelia' },
     rejection: { on: true, subject: 'Sobre tu solicitud de cita', body: 'Hola {nombre},\n\nGracias por escribirme. Lamentablemente no puedo atender tu solicitud de {servicio} el {fecha} a las {hora}.\n\n{mensaje}\n\nSi quieres, puedes elegir otro día en {web}.\n\nUn abrazo,\nNoelia' },
     voucher: { on: true, subject: '{comprador} te regala un bono de {importe} en {estudio}', body: 'Hola {nombre},\n\n{comprador} te ha regalado un bono de {importe} para disfrutar en {estudio}.\n\n{mensaje}\n\nTu código es {codigo}. Puedes verlo aquí: {enlace}\nCaduca el {caduca}. Para usarlo, reserva tu cita en {web} y dile el código a Noelia al llegar.\n\nUn abrazo,\nNoelia' },

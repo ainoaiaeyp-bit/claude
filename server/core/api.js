@@ -238,7 +238,7 @@ export function createApi(store, ctx) {
   });
 
   /* ajustes */
-  const TEXT = ['businessName', 'tagline', 'city', 'address', 'phone', 'whatsapp', 'email', 'instagram', 'notificationEmail', 'depositInfo', 'voucherPaymentInfo', 'shopPaymentInfo', 'homeFeeInfo', 'siteUrl', 'legalName', 'nif', 'fiscalAddress'];
+  const TEXT = ['businessName', 'tagline', 'city', 'address', 'phone', 'whatsapp', 'email', 'instagram', 'notificationEmail', 'depositInfo', 'googleReviewUrl', 'voucherPaymentInfo', 'shopPaymentInfo', 'homeFeeInfo', 'siteUrl', 'legalName', 'nif', 'fiscalAddress'];
   const NUMS = { referralRewardCents: [0, 100000], voucherMinCents: [500, 100000], voucherValidMonths: [1, 36], slotStep: [5, 120], buffer: [0, 240], minNoticeHours: [0, 720], maxDaysAhead: [1, 730], cancelHours: [0, 720], defaultVat: [0, 30], irpfFractionRate: [0, 50], targetNetMonthlyCents: [0, 1e8], autonomoFeeMonthlyCents: [0, 1e7], fixedExtraMonthlyCents: [0, 1e8] };
   route('GET', /^\/api\/admin\/settings$/, () => ok({ ...getSettings(store), categories: EXPENSE_CATEGORIES, mail: !!ctx.mailEnabled, ai: !!ctx.aiEnabled }));
   route('PUT', /^\/api\/admin\/settings$/, (r) => {
