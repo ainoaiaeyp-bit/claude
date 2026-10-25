@@ -12,17 +12,11 @@ const api = async (url, opts) => {
 const longDate = (d) => new Date(d + 'T12:00:00').toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' });
 const pad = (n) => String(n).padStart(2, '0');
 const DAYS = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+const goTo = (sel) => (window.goTo ? window.goTo(sel) : document.querySelector(sel).scrollIntoView({ behavior: 'smooth' }));
 const fm = (m) => `${pad(Math.floor(m / 60))}:${pad(m % 60)}`;
 
 let settings = {}, services = [];
 
-/* nav */
-const nav = $('#nav'), menu = $('#menu'), burger = $('#burger');
-burger.addEventListener('click', () => {
-  const open = menu.classList.toggle('open');
-  burger.setAttribute('aria-expanded', open);
-});
-menu.addEventListener('click', (e) => { if (e.target.closest('a')) { menu.classList.remove('open'); burger.setAttribute('aria-expanded', false); } });
 $('#yr').textContent = new Date().getFullYear();
 
 /* CTA fija en móvil */
@@ -33,7 +27,7 @@ addEventListener('scroll', stickyUpdate, { passive: true });
 document.addEventListener('click', (e) => {
   const b = e.target.closest('[data-book-name]'); if (!b) return;
   const svc = services.find((x) => x.name.toLowerCase().includes(b.dataset.bookName.toLowerCase()));
-  if (svc) { wizard.pick(svc.id); $('#reservar').scrollIntoView({ behavior: 'smooth' }); }
+  if (svc) { wizard.pick(svc.id); goTo('#reservar'); }
 });
 
 /* ───── data ───── */
@@ -57,18 +51,23 @@ function renderServices() {
     if (!g) groups.push((g = { name: s.category, items: [] }));
     g.items.push(s);
   });
-  $('#svc-grid').innerHTML = groups.map((g) => `
-    <div class="pgroup" data-reveal><h3>${esc(g.name)}<span>${String(g.items.length).padStart(2, '0')}</span></h3>${g.items.map((s) => `
-      <div class="prow">
-        <div><h4>${esc(s.name)}</h4><p>${esc(s.description)}</p></div>
-        <span class="dur">${dur(s.duration_min)}</span>
-        <span class="price">${s.price_from && s.price_cents ? '<small>desde</small>' : ''}${money(s.price_cents)}</span>
-        <button class="link-btn" data-book="${s.id}">Reservar</button>
-      </div>`).join('')}</div>`).join('') || '<p class="hint">Próximamente.</p>';
+  $('#svc-grid').innerHTML = `<div class="acc">${groups.map((g, gi) => `
+    <div class="acc-item${gi === 0 ? ' open' : ''}">
+      <button class="acc-head" aria-expanded="${gi === 0}"><h3>${esc(g.name)}</h3><span class="meta">${g.items.length} ${g.items.length === 1 ? 'tratamiento' : 'tratamientos'}<span class="pm"></span></span></button>
+      <div class="acc-body"><div>${g.items.map((s) => `
+        <div class="prow">
+          <div><h4>${esc(s.name)}</h4><p>${esc(s.description)}</p></div>
+          <span class="dur">${dur(s.duration_min)}</span>
+          <span class="price">${s.price_from && s.price_cents ? '<small>desde</small>' : ''}${money(s.price_cents)}</span>
+          <button class="link-btn" data-book="${s.id}">Reservar</button>
+        </div>`).join('')}</div></div>
+    </div>`).join('')}</div>` || '<p class="hint">Próximamente.</p>';
   $('#svc-grid').onclick = (e) => {
+    const h = e.target.closest('.acc-head');
+    if (h) { const it = h.parentElement; const open = it.classList.toggle('open'); h.setAttribute('aria-expanded', open); return; }
     const b = e.target.closest('[data-book]'); if (!b) return;
     wizard.pick(Number(b.dataset.book));
-    $('#reservar').scrollIntoView({ behavior: 'smooth' });
+    goTo('#reservar');
   };
 }
 
@@ -85,9 +84,7 @@ function renderFooter() {
   if (settings.whatsapp) c.push(`<li><a href="https://wa.me/${esc(settings.whatsapp.replace(/\D/g, ''))}" rel="noopener">WhatsApp</a></li>`);
   if (settings.phone) c.push(`<li><a href="tel:${esc(settings.phone.replace(/\s/g, ''))}">${esc(settings.phone)}</a></li>`);
   if (settings.email) c.push(`<li><a href="mailto:${esc(settings.email)}">${esc(settings.email)}</a></li>`);
-  if (settings.instagram) c.push(`<li><a href="${esc(settings.instagram)}" rel="noopener" target="_blank">Instagram</a></li>`);
-  if (settings.address) c.push(`<li><a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(settings.address.replace(/\s*\(.*\)\s*$/, ''))}" target="_blank" rel="noopener">${esc(settings.address)}</a></li>`);
-  else if (settings.city) c.push(`<li>${esc(settings.city)}</li>`);
+    if (settings.address) c.push(`<li><a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(settings.address.replace(/\s*\(.*\)\s*$/, ''))}" target="_blank" rel="noopener">Cómo llegar</a></li>`);
   $('#ft-contact').innerHTML = c.join('') || '<li>Reserva online las 24 h.</li>';
   if (settings.phone) { const c = $('#call'); c.textContent = settings.phone; c.href = `tel:${settings.phone.replace(/\s/g, '')}`; }
   const order = [1, 2, 3, 4, 5, 6, 0];

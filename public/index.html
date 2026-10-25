@@ -3,184 +3,201 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Noelia Duque · Cejas y micropigmentación en Alcantarilla, Murcia</title>
-<meta name="description" content="Noelia Duque, especialista en cejas con más de diez años de oficio. Microblading, powder brows e hiperrealismo en Alcantarilla, Murcia. Reserva tu cita en línea.">
-<meta name="theme-color" content="#ffffff">
+<title>Noelia Duque · Brow artist en Alcantarilla, Murcia</title>
+<meta name="description" content="Noelia Duque, brow artist con más de diez años de oficio. Microblading, powder brows, hiperrealismo y labios en Alcantarilla, Murcia. Reserva tu cita en línea.">
+<meta name="theme-color" content="#120e0c">
 <meta property="og:type" content="website">
-<meta property="og:title" content="Noelia Duque · Cejas y micropigmentación">
-<meta property="og:description" content="Microblading, powder brows e hiperrealismo en Alcantarilla, Murcia. Reserva en línea.">
+<meta property="og:title" content="Noelia Duque · Brow artist">
+<meta property="og:description" content="El arte de diseñar tu mirada. Microblading, powder brows e hiperrealismo en Alcantarilla, Murcia.">
 <meta property="og:image" content="/img/work/clienta-sonrisa.webp">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500&family=Geist+Mono:wght@500&display=swap" rel="stylesheet">
-<link rel="preload" as="image" href="/img/work/clienta-sonrisa.webp">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif&family=Instrument+Sans:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/css/site.css">
 <script src="/js/boot.js"></script>
 <script type="application/ld+json" id="ld"></script>
 </head>
-<body>
+<body class="tone-dark">
 <a class="skip" href="#contenido">Saltar al contenido</a>
 
+<div class="loader" id="loader" aria-hidden="true">
+  <div class="row"><span>Brow artist</span><span>Alcantarilla, Murcia</span></div>
+  <div class="ln"><span>Noelia Duque</span></div>
+  <div class="row"><span>Cargando</span><span class="count" id="count">0</span></div>
+  <i class="bar" id="bar"></i>
+</div>
+
+<div class="cursor" id="cursor" aria-hidden="true"><span class="ring" id="ring"></span><span class="dot"></span></div>
+
 <header class="nav" id="nav">
-  <a class="brand" href="#top" aria-label="Noelia Duque, inicio">Noelia Duque <small>Brow &amp; Make Up</small></a>
-  <nav aria-label="Principal">
-    <button class="burger" id="burger" aria-expanded="false" aria-controls="menu" aria-label="Abrir menú"><span></span><span></span></button>
-    <ul id="menu">
-      <li><a href="#tecnicas">Técnicas</a></li>
-      <li><a href="#trabajos">Trabajos</a></li>
-      <li><a href="#precios">Precios</a></li>
-      <li><a href="#sobre-mi">Sobre mí</a></li>
-      <li><a href="#contacto">Contacto</a></li>
-    </ul>
-  </nav>
-  <div class="nav-cta"><span class="status">Agenda abierta</span><a class="btn btn-sm" href="#reservar">Reservar cita</a></div>
+  <a class="brand" href="#top" aria-label="Noelia Duque, inicio">Noelia Duque</a>
+  <div class="nav-r">
+    <a class="book-link" href="#reservar">Reservar cita</a>
+    <button class="menu-btn" id="burger" aria-expanded="false" aria-controls="menu"><span id="menu-label">Menú</span><i></i></button>
+  </div>
 </header>
 
+<div class="menu" id="menu-panel" aria-hidden="true">
+  <ul id="menu">
+    <li style="--k:0"><a href="#tecnicas">Técnicas</a></li>
+    <li style="--k:1"><a href="#portfolio">Portfolio</a></li>
+    <li style="--k:2"><a href="#sobre-mi">Sobre mí</a></li>
+    <li style="--k:3"><a href="#tarifas">Tarifas</a></li>
+    <li style="--k:4"><a href="#reservar">Reservar</a></li>
+  </ul>
+  <div class="info">
+    <div><b>Estudio</b>C. Joaquín Martínez López, 3<br>30820 Alcantarilla, Murcia<br>En Peluquería Fina Carpe</div>
+    <div><b>Contacto</b><a href="tel:+34606102400">606 10 24 00</a><br><a href="mailto:noeliaduquebrowandmakeup@gmail.com">noeliaduquebrowandmakeup@gmail.com</a></div>
+    <div><b>Instagram</b><a href="https://www.instagram.com/noeliaduque_brows/" target="_blank" rel="noopener">@noeliaduque_brows</a></div>
+  </div>
+</div>
+
 <main id="contenido">
-<section class="hero" id="top">
+<section class="hero" id="top" data-tone="dark">
+  <div class="hero-txt">
+    <span class="label" data-hero>Brow artist · Alcantarilla, Murcia</span>
+    <h1 class="split" id="hero-title">El arte de diseñar tu mirada</h1>
+    <p class="lead" data-hero>Microblading, powder brows e hiperrealismo con más de diez años de oficio. Cejas diseñadas a medida de tu rostro, pelo a pelo.</p>
+    <div class="cta" data-hero><a class="btn magnetic" href="#reservar">Reservar cita</a><a class="btn btn-ghost magnetic" href="#tecnicas">Ver técnicas</a></div>
+    <div class="hero-foot" data-hero><span class="scroll-hint"><i></i>Desliza</span><span>Desde hace más de 10 años</span></div>
+  </div>
+  <div class="hero-cols" aria-hidden="true">
+    <div class="col"><div class="track"><div class="ph"><img src="/img/work/clienta-sonrisa.webp" alt="" width="780" height="850"></div><div class="ph"><img src="/img/work/ceja-macro-1.webp" alt="" width="780" height="850"></div><div class="ph"><img src="/img/work/labios.webp" alt="" width="780" height="850"></div><div class="ph"><img src="/img/work/clienta-cejas.webp" alt="" width="780" height="850"></div><div class="ph"><img src="/img/work/clienta-sonrisa.webp" alt="" width="780" height="850"></div><div class="ph"><img src="/img/work/ceja-macro-1.webp" alt="" width="780" height="850"></div><div class="ph"><img src="/img/work/labios.webp" alt="" width="780" height="850"></div><div class="ph"><img src="/img/work/clienta-cejas.webp" alt="" width="780" height="850"></div></div></div>
+    <div class="col rev"><div class="track"><div class="ph"><img src="/img/work/maquillaje.webp" alt="" width="780" height="850"></div><div class="ph"><img src="/img/work/ceja-perfil.webp" alt="" width="780" height="850"></div><div class="ph"><img src="/img/work/ceja-ojos-cerrados.webp" alt="" width="780" height="850"></div><div class="ph"><img src="/img/work/ceja-macro-2.webp" alt="" width="780" height="850"></div><div class="ph"><img src="/img/work/maquillaje.webp" alt="" width="780" height="850"></div><div class="ph"><img src="/img/work/ceja-perfil.webp" alt="" width="780" height="850"></div><div class="ph"><img src="/img/work/ceja-ojos-cerrados.webp" alt="" width="780" height="850"></div><div class="ph"><img src="/img/work/ceja-macro-2.webp" alt="" width="780" height="850"></div></div></div>
+  </div>
+</section>
+
+<div class="band" data-tone="dark" aria-hidden="true"><div class="belt" id="belt"><span>Microblading<b>·</b></span><span>Powder brows<b>·</b></span><span>Hiperrealismo<b>·</b></span><span>Labios<b>·</b></span><span>Maquillaje<b>·</b></span></div></div>
+
+<section class="section" data-tone="sand">
+  <div class="wrap philo">
+    <div><span class="label">Filosofía</span><div class="ph" data-reveal-img><img src="/img/work/ceja-macro-1.webp" alt="Detalle de una ceja trabajada por Noelia Duque" loading="lazy" data-parallax></div></div>
+    <p class="big" id="philo">Cada rostro tiene su propia arquitectura. Estudio tus proporciones, tu piel y tu expresión para diseñar unas cejas que parezcan haber estado siempre ahí.</p>
+  </div>
+</section>
+
+<section class="section" id="tecnicas" data-tone="sand" style="padding-top:0">
   <div class="wrap">
-    <h1 class="sr-only" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)">Noelia Duque, especialista en cejas en Alcantarilla, Murcia</h1>
-    <div class="giant-mask"><span class="giant fit" aria-hidden="true"><span class="ch" style="--i:0">N</span><span class="ch" style="--i:1">o</span><span class="ch" style="--i:2">e</span><span class="ch" style="--i:3">l</span><span class="ch" style="--i:4">i</span><span class="ch" style="--i:5">a</span><span class="ch" style="--i:6">&nbsp;</span><span class="ch" style="--i:7">D</span><span class="ch" style="--i:8">u</span><span class="ch" style="--i:9">q</span><span class="ch" style="--i:10">u</span><span class="ch" style="--i:11">e</span></span></div>
-    <div class="grid hero-meta">
-      <p class="lead">Especialista en cejas con más de diez años de oficio. Diseño cada ceja a partir de las proporciones de tu rostro y la dibujo pelo a pelo.</p>
-      <ul class="services" style="--d:.1s" aria-label="Especialidades">
-        <li>Microblading</li><li>Powder brows</li><li>Hiperrealismo</li><li>Labios</li><li>Maquillaje</li><li>Estética</li>
-      </ul>
-      <div class="ctas" style="--d:.2s">
-        <a class="btn" href="#reservar">Reservar cita</a>
-        <span class="mono">Alcantarilla, Murcia</span>
+    <div class="head"><div><span class="label">Técnicas</span><h2 class="split" data-split>Tres técnicas, un mismo rigor</h2></div><p data-fade>Elegimos la técnica en la consulta, según tu piel y el resultado que buscas. Los datos de cada ficha son orientativos.</p></div>
+    <div class="stack" id="stack">
+      <article class="card" style="--i:0">
+        <div class="ph"><img src="/img/work/ceja-macro-2.webp" alt="Trabajo de microblading" loading="lazy" data-parallax></div>
+        <div class="body"><div><span class="label">Técnica</span><h3>Microblading</h3></div><p>Trazos finos dibujados pelo a pelo que imitan el vello natural. Rellena, ordena y define la ceja con delicadeza.</p><dl><div><dt>Trazo</dt><dd>Pelo a pelo</dd></div><div><dt>Piel</dt><dd>Normal o seca</dd></div><div><dt>Acabado</dt><dd>Natural y ligero</dd></div></dl><button class="btn magnetic" data-book-name="Microblading">Reservar microblading</button></div>
+      </article>
+      <article class="card" style="--i:1">
+        <div class="ph"><img src="/img/work/ceja-perfil.webp" alt="Trabajo de powder brows" loading="lazy" data-parallax></div>
+        <div class="body"><div><span class="label">Técnica</span><h3>Powder brows</h3></div><p>Sombreado suave y difuminado con efecto de maquillaje en polvo. Más densidad y definición, sin aspecto dibujado.</p><dl><div><dt>Trazo</dt><dd>Sombreado</dd></div><div><dt>Piel</dt><dd>Mixta o grasa</dd></div><div><dt>Acabado</dt><dd>Maquillado y suave</dd></div></dl><button class="btn magnetic" data-book-name="Powder">Reservar powder brows</button></div>
+      </article>
+      <article class="card" style="--i:2">
+        <div class="ph"><img src="/img/work/clienta-cejas.webp" alt="Trabajo de hiperrealismo" loading="lazy" data-parallax></div>
+        <div class="body"><div><span class="label">Técnica</span><h3>Hiperrealismo</h3></div><p>Técnicas combinadas por capas para una ceja que no se distingue del vello real, con matices de color y densidad a medida.</p><dl><div><dt>Trazo</dt><dd>Mixto, por capas</dd></div><div><dt>Piel</dt><dd>Según consulta</dd></div><div><dt>Acabado</dt><dd>Ultra natural</dd></div></dl><button class="btn magnetic" data-book-name="Hiperrealismo">Reservar hiperrealismo</button></div>
+      </article>
+      <article class="card" style="--i:3">
+        <div class="ph"><img src="/img/work/labios.webp" alt="Trabajo de labios" loading="lazy" data-parallax></div>
+        <div class="body"><div><span class="label">Técnica</span><h3>Labios</h3></div><p>Micropigmentación que define el contorno y aporta color a los labios, con un acabado suave y natural.</p><dl><div><dt>Técnica</dt><dd>Micropigmentación</dd></div><div><dt>Efecto</dt><dd>Color y contorno</dd></div><div><dt>Acabado</dt><dd>Suave y natural</dd></div></dl><button class="btn magnetic" data-book-name="labios">Reservar labios</button></div>
+      </article>
+    </div>
+    <div class="consult" data-fade><div><h3>¿No sabes qué técnica elegir?</h3><p>Reserva una consulta de diseño de veinte minutos. Estudiamos tu rostro y lo decidimos juntas.</p></div><button class="btn magnetic" data-book-name="Consulta">Reservar consulta</button></div>
+  </div>
+</section>
+
+<section class="gal" id="portfolio" data-tone="dark">
+  <div class="pin" id="gal-pin">
+    <div class="wrap row"><div><span class="label">Portfolio</span><h2 class="split" data-split>Trabajos recientes</h2></div><span class="count" id="gal-count">01 / 07</span></div>
+    <div class="track" id="gallery"><figure data-cursor="Ver"><div class="ph"><img src="/img/work/clienta-cejas.webp" alt="Trabajo de cejas de Noelia Duque" loading="lazy"></div><figcaption><span>Cejas</span><span>01</span></figcaption></figure><figure data-cursor="Ver"><div class="ph"><img src="/img/work/ceja-macro-1.webp" alt="Trabajo de cejas de Noelia Duque" loading="lazy"></div><figcaption><span>Cejas</span><span>02</span></figcaption></figure><figure data-cursor="Ver"><div class="ph"><img src="/img/work/labios.webp" alt="Trabajo de labios de Noelia Duque" loading="lazy"></div><figcaption><span>Labios</span><span>03</span></figcaption></figure><figure data-cursor="Ver"><div class="ph"><img src="/img/work/ceja-ojos-cerrados.webp" alt="Trabajo de cejas de Noelia Duque" loading="lazy"></div><figcaption><span>Cejas</span><span>04</span></figcaption></figure><figure data-cursor="Ver"><div class="ph"><img src="/img/work/clienta-sonrisa.webp" alt="Trabajo de cejas de Noelia Duque" loading="lazy"></div><figcaption><span>Cejas</span><span>05</span></figcaption></figure><figure data-cursor="Ver"><div class="ph"><img src="/img/work/ceja-perfil.webp" alt="Trabajo de cejas de Noelia Duque" loading="lazy"></div><figcaption><span>Cejas</span><span>06</span></figcaption></figure><figure data-cursor="Ver"><div class="ph"><img src="/img/work/maquillaje.webp" alt="Trabajo de maquillaje de Noelia Duque" loading="lazy"></div><figcaption><span>Maquillaje</span><span>07</span></figcaption></figure></div>
+    <div class="wrap"><div class="progress"><i id="gal-bar"></i></div></div>
+  </div>
+</section>
+
+<section class="section" id="sobre-mi" data-tone="sand">
+  <div class="wrap about">
+    <div class="ph" data-reveal-img><img src="/img/work/noelia-estudio.webp" alt="Noelia Duque trabajando en su estudio" loading="lazy" data-parallax></div>
+    <div>
+      <span class="label">Sobre mí</span>
+      <h2 class="split" data-split>Noelia Duque</h2>
+      <p class="first" data-fade>Más de diez años dedicada al diseño de cejas.</p>
+      <p data-fade>Atiendo en Peluquería Fina Carpe, en Alcantarilla. Cada cita tiene su tiempo: empezamos hablando, estudio tu rostro y no tocamos la piel hasta que el diseño te convence.</p>
+      <p data-fade>Me formo de forma continua en las técnicas actuales de micropigmentación y completo el trabajo de cejas con maquillaje, depilación y tratamientos de estética.</p>
+      <div class="stats" data-fade>
+        <div><b><span data-count="10">10</span>+</b><span>Años de oficio</span></div>
+        <div><b>3</b><span>Técnicas de cejas</span></div>
+        <div><b>1:1</b><span>Atención personal</span></div>
       </div>
     </div>
-    <div class="grid hero-figs">
-      <figure class="ph-wrap f1" data-speed="-0.04"><div class="ph" style="--d:0s"><img src="/img/work/clienta-sonrisa.webp" alt="Clienta sonriendo tras un tratamiento de cejas" width="780" height="850"></div><figcaption><span>Cejas</span><span>01</span></figcaption></figure>
-      <figure class="ph-wrap f2" data-speed="0.06"><div class="ph" style="--d:.12s"><img src="/img/work/ceja-macro-2.webp" alt="Detalle de una ceja trabajada pelo a pelo" width="762" height="850"></div><figcaption><span>Detalle</span><span>02</span></figcaption></figure>
-      <figure class="ph-wrap f3" data-speed="-0.03"><div class="ph" style="--d:.24s"><img src="/img/work/labios.webp" alt="Labios con micropigmentación" width="780" height="850"></div><figcaption><span>Labios</span><span>03</span></figcaption></figure>
-      <figure class="ph-wrap f4" data-speed="0.1"><div class="ph" style="--d:.36s"><img src="/img/work/maquillaje.webp" alt="Retrato con maquillaje y cejas definidas" width="762" height="850"></div><figcaption><span>Maquillaje</span><span>04</span></figcaption></figure>
-    </div>
   </div>
 </section>
 
-<section class="section statement" style="padding-top:clamp(2rem,4vw,4rem)">
-  <div class="wrap grid">
-    <span class="label">Enfoque</span>
-    <p class="words">Una ceja bien diseñada cambia toda la expresión. Mi trabajo consiste en encontrar la forma, el tono y la densidad que ya pertenecen a tu rostro, y dibujarlos con precisión. El resultado tiene que parecer que siempre estuvo ahí.</p>
-  </div>
-</section>
-
-<section class="section" id="tecnicas" style="padding-top:0">
+<section class="section" data-tone="sand" style="padding-top:0">
   <div class="wrap">
-    <div class="grid sec-head" data-reveal><span class="label">Técnicas</span><h2>Cada piel pide una técnica distinta</h2><p>En la consulta estudiamos tu piel y tu estilo para elegir la adecuada. Los datos de cada técnica son orientativos.</p></div>
-    <div class="tech-list" id="tech-list">
-      <div class="trow" data-img="/img/work/ceja-macro-1.webp" data-reveal><h3>Microblading</h3><div class="td"><p>Trazos finos dibujados pelo a pelo que imitan el vello natural.</p><span class="mono">Pelo a pelo · Piel normal o seca</span></div><button class="link-btn" data-book-name="Microblading">Reservar</button></div>
-      <div class="trow" data-img="/img/work/ceja-perfil.webp" data-reveal><h3>Powder brows</h3><div class="td"><p>Sombreado suave y difuminado, con efecto de maquillaje en polvo.</p><span class="mono">Sombreado · Piel mixta o grasa</span></div><button class="link-btn" data-book-name="Powder">Reservar</button></div>
-      <div class="trow" data-img="/img/work/clienta-cejas.webp" data-reveal><h3>Hiperrealismo</h3><div class="td"><p>Técnicas combinadas por capas para una ceja que no se distingue del vello real.</p><span class="mono">Mixto · Según consulta</span></div><button class="link-btn" data-book-name="Hiperrealismo">Reservar</button></div>
-      <div class="trow" data-img="/img/work/labios.webp" data-reveal><h3>Labios</h3><div class="td"><p>Contorno y color para unos labios definidos, con un acabado suave.</p><span class="mono">Micropigmentación</span></div><button class="link-btn" data-book-name="labios">Reservar</button></div>
-      <div class="trow" data-img="/img/work/ceja-ojos-cerrados.webp" data-reveal><h3>Consulta de diseño</h3><div class="td"><p>Estudiamos tus proporciones y probamos la forma sobre tu rostro antes de decidir.</p><span class="mono">20 minutos</span></div><button class="link-btn" data-book-name="Consulta">Reservar</button></div>
-    </div>
-  </div>
-</section>
-<div class="cursor-img" id="cursor-img" aria-hidden="true"></div>
-
-<section class="hs" id="trabajos">
-  <div class="hs-sticky">
-    <div class="wrap hs-head"><div><span class="label">Trabajos</span><h2>Resultados de clientas del estudio</h2></div><span class="hs-count" id="hs-count">01 / 07</span></div>
-    <div class="hs-track" id="gallery">
-      <figure><div class="ph"><img src="/img/work/clienta-cejas.webp" alt="Cejas de clienta tras el tratamiento" loading="lazy"></div><figcaption><span>Cejas</span><span>01</span></figcaption></figure>
-      <figure><div class="ph"><img src="/img/work/ceja-macro-1.webp" alt="Detalle de ceja y mirada" loading="lazy"></div><figcaption><span>Cejas</span><span>02</span></figcaption></figure>
-      <figure><div class="ph"><img src="/img/work/labios.webp" alt="Labios micropigmentados" loading="lazy"></div><figcaption><span>Labios</span><span>03</span></figcaption></figure>
-      <figure><div class="ph"><img src="/img/work/ceja-ojos-cerrados.webp" alt="Cejas con ojos cerrados" loading="lazy"></div><figcaption><span>Cejas</span><span>04</span></figcaption></figure>
-      <figure><div class="ph"><img src="/img/work/clienta-sonrisa.webp" alt="Clienta sonriendo" loading="lazy"></div><figcaption><span>Cejas</span><span>05</span></figcaption></figure>
-      <figure><div class="ph"><img src="/img/work/ceja-perfil.webp" alt="Ceja de perfil" loading="lazy"></div><figcaption><span>Cejas</span><span>06</span></figcaption></figure>
-      <figure><div class="ph"><img src="/img/work/maquillaje.webp" alt="Retrato con maquillaje" loading="lazy"></div><figcaption><span>Maquillaje</span><span>07</span></figcaption></figure>
-    </div>
-  </div>
-</section>
-
-<section class="section" id="precios">
-  <div class="wrap grid prices">
-    <div class="side" data-reveal><span class="label">Precios</span><h2>Tratamientos</h2><p>Precios orientativos. El importe final se confirma en la consulta, según la técnica y el estado de la piel.</p></div>
-    <div id="svc-grid" aria-live="polite"><div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div></div>
-  </div>
-</section>
-
-<section class="section" id="sobre-mi" style="padding-top:0">
-  <div class="wrap grid about">
-    <figure class="portrait ph-wrap" data-reveal="img"><div class="ph"><img src="/img/work/noelia-estudio.webp" alt="Noelia Duque trabajando en su estudio" loading="lazy"></div><figcaption><span>El estudio</span><span>Alcantarilla</span></figcaption></figure>
-    <div class="txt" data-reveal>
-      <span class="label" style="margin:0">Sobre mí</span>
-      <h2>Más de diez años dedicada al diseño de cejas.</h2>
-      <p>Atiendo en Peluquería Fina Carpe, en Alcantarilla. Cada cita tiene su tiempo: empezamos hablando, estudio tu rostro y no tocamos la piel hasta que el diseño te convence.</p>
-      <p>Me formo de forma continua en las técnicas actuales de micropigmentación y completo el trabajo de cejas con maquillaje, depilación y tratamientos de estética.</p>
-      <dl class="facts">
-        <div><dt>Experiencia</dt><dd>Más de 10 años</dd></div>
-        <div><dt>Especialidad</dt><dd>Micropigmentación de cejas</dd></div>
-        <div><dt>Estudio</dt><dd>Peluquería Fina Carpe</dd></div>
-        <div><dt>También</dt><dd>Maquillaje y estética</dd></div>
-      </dl>
-    </div>
-  </div>
-</section>
-
-<section class="section" style="padding-top:0">
-  <div class="wrap">
-    <div class="grid sec-head" data-reveal><span class="label">Proceso</span><h2>Cómo trabajo</h2></div>
-    <ol class="steps">
-      <li data-reveal><h3>Consulta</h3><p>Hablamos de lo que buscas y estudiamos tu piel y tus proporciones.</p></li>
-      <li data-reveal style="--d:.1s"><h3>Diseño</h3><p>Dibujo la forma con lápiz sobre tu rostro. No empezamos hasta que te convence.</p></li>
-      <li data-reveal style="--d:.2s"><h3>Tratamiento y cuidado</h3><p>Realizo la técnica elegida, te explico los cuidados y, tras la cicatrización, hacemos el retoque.</p></li>
+    <div class="head"><div><span class="label">El proceso</span><h2 class="split" data-split>Tu cita, paso a paso</h2></div></div>
+    <ol class="steps" id="steps"><i class="fill" id="steps-fill"></i>
+      <li data-fade><span class="n">1</span><h3>Consulta</h3><p>Hablamos de lo que buscas y estudiamos tu piel y tus proporciones.</p></li>
+      <li data-fade><span class="n">2</span><h3>Diseño</h3><p>Dibujo la forma con lápiz sobre tu rostro. No empezamos hasta que te convence.</p></li>
+      <li data-fade><span class="n">3</span><h3>Tratamiento</h3><p>Realizo la técnica elegida con material de un solo uso y te explico los cuidados.</p></li>
+      <li data-fade><span class="n">4</span><h3>Retoque</h3><p>Tras la cicatrización, afinamos y consolidamos el resultado.</p></li>
     </ol>
   </div>
 </section>
 
-<section class="section dark" id="reservar">
-  <div class="wrap grid book">
-    <div class="side" data-reveal>
+<section class="section" id="tarifas" data-tone="dark">
+  <div class="wrap prices">
+    <div class="side"><span class="label">Tarifas</span><h2 class="split" data-split>Tratamientos y precios</h2><p data-fade>Precios orientativos. El importe final se confirma en la consulta, según la técnica y el estado de la piel.</p></div>
+    <div id="svc-grid" aria-live="polite"><div class="skeleton"></div><div class="skeleton"></div></div>
+  </div>
+</section>
+
+<section class="section" id="reservar" data-tone="sand">
+  <div class="wrap book">
+    <div class="side">
       <span class="label">Reserva</span>
-      <h2>Reserva tu cita</h2>
+      <h2 class="split" data-split>Reserva tu cita</h2>
       <p id="book-policy">Elige tratamiento, día y hora.</p>
       <p>¿Prefieres hablar antes?</p>
       <a class="call" id="call" href="tel:+34606102400">606 10 24 00</a>
     </div>
-    <div class="wizard" id="wizard" data-reveal>
+    <div class="wizard" id="wizard">
       <ol class="wz-steps" id="wz-steps" aria-label="Progreso">
-        <li class="on" data-s="1"><span>1</span>Tratamiento</li><li data-s="2"><span>2</span>Fecha y hora</li><li data-s="3"><span>3</span>Tus datos</li><li data-s="4"><span>4</span>Confirmación</li>
+        <li class="on" data-s="1"><span>01</span>Tratamiento</li><li data-s="2"><span>02</span>Fecha y hora</li><li data-s="3"><span>03</span>Tus datos</li><li data-s="4"><span>04</span>Confirmación</li>
       </ol>
       <div class="wz-body" id="wz-body" aria-live="polite"></div>
     </div>
   </div>
 </section>
 
-<section class="section" id="faq">
-  <div class="wrap grid faqwrap">
-    <div class="side" data-reveal><span class="label">Preguntas</span><h2>Antes de reservar</h2></div>
-    <div class="faq" data-reveal>
+<section class="section" id="faq" data-tone="sand" style="padding-top:0">
+  <div class="wrap faqwrap">
+    <div><span class="label">Preguntas</span><h2 class="split" data-split>Antes de reservar</h2></div>
+    <div class="faq">
       <details><summary>¿Qué diferencia hay entre microblading, powder brows e hiperrealismo?</summary><p>El microblading dibuja trazos pelo a pelo; el powder brows crea un sombreado suave con efecto de maquillaje; el hiperrealismo combina técnicas por capas para un acabado muy natural. En la consulta te recomiendo la que mejor encaja con tu piel.</p></details>
       <details><summary>¿Duele?</summary><p>La sensibilidad varía de una persona a otra. Trabajo con cuidado y con productos pensados para tu comodidad; la mayoría de clientas lo describe como una molestia leve.</p></details>
       <details><summary>¿Cuánto dura el resultado?</summary><p>Depende de tu piel, tu estilo de vida y los cuidados. Tras la cicatrización hacemos un retoque para afinar el resultado, y más adelante retoques de mantenimiento.</p></details>
       <details><summary>¿Quién no debería hacerse micropigmentación?</summary><p>En embarazo o lactancia, con algunas condiciones de la piel o de salud y con ciertos tratamientos puede no ser recomendable. Indícalo al reservar y lo valoramos juntas.</p></details>
-      <details><summary>¿Cómo funciona la reserva en línea?</summary><p>Eliges tratamiento, día y hora, y dejas tus datos. Recibes un enlace privado para consultar o cancelar tu cita.</p></details>
       <details><summary>¿Puedo cancelar o cambiar la cita?</summary><p id="faq-cancel">Sí, desde el enlace de tu cita. Si necesitas cambiarla, escríbeme y la movemos.</p></details>
-      <details><summary>¿Cómo tratáis mis datos?</summary><p>Solo se usan para gestionar tu cita. Tienes los detalles en la <a href="/privacidad">política de privacidad</a>.</p></details>
+      <details><summary>¿Cómo se tratan mis datos?</summary><p>Solo se usan para gestionar tu cita. Tienes los detalles en la <a href="/privacidad">política de privacidad</a>.</p></details>
     </div>
   </div>
 </section>
 </main>
 
-<footer class="footer dark" id="contacto">
+<footer class="footer" id="contacto" data-tone="dark">
   <div class="wrap">
-    <div class="grid foot-grid">
-      <div class="big"><p>Cejas, labios y maquillaje en Alcantarilla, Murcia.</p><a class="btn" href="#reservar">Reservar cita</a></div>
-      <div class="fc1"><h3>Contacto</h3><ul class="plain" id="ft-contact"></ul></div>
-      <div class="fc2"><h3>Horario</h3><ul class="plain" id="ft-hours"></ul></div>
+    <div class="f-cta"><h2 class="split" data-split>¿Empezamos?</h2><a class="circle magnetic" href="#reservar">Reservar<br>cita</a></div>
+    <div class="foot-grid">
+      <div><h3>Estudio</h3><p class="muted" style="margin:0">C. Joaquín Martínez López, 3<br>30820 Alcantarilla, Murcia<br>En Peluquería Fina Carpe</p></div>
+      <div><h3>Contacto</h3><ul class="plain" id="ft-contact"></ul></div>
+      <div><h3>Horario</h3><ul class="plain" id="ft-hours"></ul></div>
+      <div><h3>Síguenos</h3><ul class="plain"><li><a href="https://www.instagram.com/noeliaduque_brows/" target="_blank" rel="noopener">Instagram</a></li><li><a href="/privacidad">Privacidad</a></li></ul></div>
     </div>
-    <div class="foot-bottom"><span>© <span id="yr"></span> Noelia Duque · Brow &amp; Make Up</span><span id="ft-tag" hidden></span><a href="/privacidad">Privacidad</a></div>
-    <div class="giant-mask"><span class="giant fit foot" aria-hidden="true"><span class="ch" style="--i:0">N</span><span class="ch" style="--i:1">o</span><span class="ch" style="--i:2">e</span><span class="ch" style="--i:3">l</span><span class="ch" style="--i:4">i</span><span class="ch" style="--i:5">a</span><span class="ch" style="--i:6">&nbsp;</span><span class="ch" style="--i:7">D</span><span class="ch" style="--i:8">u</span><span class="ch" style="--i:9">q</span><span class="ch" style="--i:10">u</span><span class="ch" style="--i:11">e</span></span></div>
+    <div class="foot-bottom"><span>© <span id="yr"></span> Noelia Duque · Brow &amp; Make Up</span><span id="ft-tag" hidden></span><span>Alcantarilla, Murcia</span></div>
   </div>
 </footer>
 
 <a class="btn sticky-cta" href="#reservar">Reservar cita</a>
+<script src="/vendor/gsap.min.js"></script>
+<script src="/vendor/ScrollTrigger.min.js"></script>
+<script src="/vendor/lenis.min.js"></script>
 <script src="/js/site.js" type="module"></script>
-<script src="/js/motion.js" type="module"></script>
+<script src="/js/fx.js" defer></script>
 </body>
 </html>
