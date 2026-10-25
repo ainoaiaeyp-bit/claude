@@ -118,11 +118,14 @@
   });
   mm.add('(max-width: 900px)', () => { gal.classList.add('static'); });
 
-  /* cambio de tono */
-  $$('[data-tone]').forEach((s) => ScrollTrigger.create({
-    trigger: s, start: 'top 55%', end: 'bottom 55%',
-    onToggle: (self) => self.isActive && setTone(s.dataset.tone),
-  }));
+  /* si el contenido cambia de altura (tienda, reserva, fuentes), recalcula las posiciones de los efectos */
+  let refreshT;
+  new ResizeObserver(() => { clearTimeout(refreshT); refreshT = setTimeout(() => ScrollTrigger.refresh(), 250); }).observe(document.body);
+  addEventListener('load', () => ScrollTrigger.refresh());
+
+  /* cambio de tono: el observador usa la posición real en pantalla, así no depende de cálculos previos */
+  const toneIO = new IntersectionObserver((es) => es.forEach((e) => e.isIntersecting && setTone(e.target.dataset.tone)), { rootMargin: '-50% 0px -50% 0px' });
+  $$('[data-tone]').forEach((sec) => toneIO.observe(sec));
 
   /* titulares por palabras */
   $$('[data-split]').forEach((el) => {
