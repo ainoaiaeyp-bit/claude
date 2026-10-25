@@ -44,6 +44,7 @@ async function init() {
   renderLd();
   renderGallery(await api('/api/gallery').catch(() => []));
   wizard.start();
+  leadForm();
   const pre = new URLSearchParams(location.search).get('servicio');
   if (pre && services.some((s) => s.id === Number(pre))) wizard.pick(Number(pre));
 }
@@ -140,6 +141,7 @@ const wizard = (() => {
           <label class="full">Notas (opcional)<textarea id="bk-notes" name="notes" maxlength="600" placeholder="Ocasión, tipo de piel, referencias…"></textarea></label>
           <input class="hp" name="website" tabindex="-1" autocomplete="off" aria-hidden="true">
           <label class="check full"><input type="checkbox" id="bk-consent" name="consent" required><span>Acepto la <a href="/privacidad" target="_blank">política de privacidad</a>.</span></label>
+          <label class="check full"><input type="checkbox" id="bk-marketing" name="marketing"><span>Quiero recibir novedades y promociones (opcional, puedes darte de baja cuando quieras).</span></label>
           <div id="bk-err" class="full" role="alert"></div>
           <div class="full bk-sum" id="bk-sum"></div>
           <button class="btn full" id="bk-send" type="submit">Solicitar cita</button>
@@ -230,7 +232,7 @@ const wizard = (() => {
     try {
       const r = await api('/api/bookings', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...f, consent: f.consent === 'on', service_id: st.service, date: st.date, start_min: st.slot, location: st.location })
+        body: JSON.stringify({ ...f, consent: f.consent === 'on', marketing: f.marketing === 'on', service_id: st.service, date: st.date, start_min: st.slot, location: st.location })
       });
       done(r.booking);
     } catch (ex) {
@@ -258,3 +260,29 @@ const wizard = (() => {
 init().catch((e) => {
   $('#svc-grid').innerHTML = `<p class="err">No se pudo cargar la información. ${esc(e.message)}</p>`;
 });
+
+/* formulario de contacto: crea una ficha y una tarea en el panel */
+function leadForm() {
+  const box = $('#lead'); if (!box) return;
+  box.innerHTML = `<button class="link-btn" id="lead-open" type="button">Prefiero que me escribas tú</button>
+    <form class="form lead-form" id="lead-form" hidden novalidate>
+      <label>Nombre<input name="name" id="ld-name" autocomplete="name" required maxlength="80"></label>
+      <label>Email o teléfono<input name="contact" id="ld-contact" autocomplete="email" required></label>
+      <label class="full">¿Qué te gustaría saber?<textarea name="message" id="ld-msg" maxlength="600" placeholder="Precio, duración, si es adecuado para tu piel…"></textarea></label>
+      <input class="hp" name="website" tabindex="-1" autocomplete="off" aria-hidden="true">
+      <label class="check full"><input type="checkbox" name="consent" id="ld-consent"><span>Acepto la <a href="/privacidad" target="_blank">política de privacidad</a>.</span></label>
+      <div id="ld-err" class="full" role="alert"></div>
+      <button class="btn full" id="ld-send" type="submit">Enviar mensaje</button>
+    </form>`;
+  $('#lead-open').onclick = () => { $('#lead-form').hidden = !$('#lead-form').hidden; };
+  $('#lead-form').onsubmit = async (e) => {
+    e.preventDefault();
+    const f = Object.fromEntries(new FormData(e.target)), err = $('#ld-err'), btn = $('#ld-send');
+    const isMail = /@/.test(f.contact);
+    btn.disabled = true; btn.textContent = 'Enviando…'; err.innerHTML = '';
+    try {
+      await api('/api/leads', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: f.name, email: isMail ? f.contact : '', phone: isMail ? '' : f.contact, message: f.message, website: f.website, consent: f.consent === 'on', source: 'web' }) });
+      box.innerHTML = '<p class="bk-info">Gracias. Te escribiré lo antes posible.</p>';
+    } catch (ex) { err.innerHTML = `<div class="err">${esc(ex.message)}</div>`; btn.disabled = false; btn.textContent = 'Enviar mensaje'; }
+  };
+}

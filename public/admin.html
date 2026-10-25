@@ -2,76 +2,27 @@
 <html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Panel · Noelia Duque</title><meta name="robots" content="noindex,nofollow">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
-<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif&family=Instrument+Sans:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/css/site.css"><link rel="stylesheet" href="/css/admin.css"></head>
-<body class="adm">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/admin.css"></head>
+<body>
 <section id="login" class="login" hidden>
   <form class="login-card" id="login-form">
-    <h1>Panel de citas</h1><p class="muted">Acceso privado</p>
+    <h1>Panel de gestión</h1><p class="muted">Acceso privado del estudio</p>
     <label>Contraseña<input type="password" id="pw" autocomplete="current-password" required autofocus></label>
     <div id="login-err" role="alert"></div>
     <button class="btn">Entrar</button>
   </form>
 </section>
-
 <div id="app" hidden>
-  <aside class="side">
-    <a class="brand" href="/"><span class="brand-text">Panel<small>Noelia Duque</small></span></a>
-    <nav id="tabs">
-      <button data-tab="agenda" class="on">Agenda</button>
-      <button data-tab="services">Servicios</button>
-      <button data-tab="hours">Horarios</button>
-      <button data-tab="gallery">Portfolio</button>
-      <button data-tab="settings">Ajustes</button>
-    </nav>
-    <div class="side-foot"><a href="/" target="_blank">Ver web ↗</a><button id="logout" class="link">Cerrar sesión</button></div>
+  <aside class="side" id="side">
+    <a class="brand" href="#resumen">Noelia Duque<small>Panel de gestión</small></a>
+    <nav class="nav" id="nav" aria-label="Secciones"></nav>
+    <div class="side-foot"><a href="/" target="_blank" rel="noopener">Ver la web ↗</a><button id="logout">Cerrar sesión</button></div>
   </aside>
-
-  <main class="main">
-    <section data-pane="agenda">
-      <div class="top"><h2>Agenda</h2><button class="btn btn-sm" id="new-booking">+ Nueva cita</button></div>
-      <div class="stats" id="stats"></div>
-      <div class="toolbar">
-        <div class="seg-tabs" id="range">
-          <button data-r="today">Hoy</button><button data-r="week">Semana</button><button data-r="month" class="on">30 días</button><button data-r="pending">Pendientes</button>
-        </div>
-        <div><button class="icon-btn" id="prev-r" aria-label="Anterior">‹</button><button class="icon-btn" id="next-r" aria-label="Siguiente">›</button></div>
-        <strong id="range-label"></strong>
-      </div>
-      <div id="bookings"></div>
-    </section>
-
-    <section data-pane="services" hidden>
-      <div class="top"><h2>Servicios</h2><button class="btn btn-sm" id="new-service">+ Nuevo servicio</button></div>
-      <div id="services"></div>
-    </section>
-
-    <section data-pane="hours" hidden>
-      <div class="top"><h2>Horarios y disponibilidad</h2></div>
-      <div class="panel"><h3>Horario semanal</h3><p class="muted">Puedes añadir varios tramos al día (p. ej. mañana y tarde).</p><div id="hours"></div><button class="btn btn-sm" id="save-hours">Guardar horario</button></div>
-      <div class="panel"><h3>Días bloqueados</h3><p class="muted">Vacaciones, festivos o días sin servicio. No aparecerán en el calendario público.</p>
-        <form class="inline" id="block-form"><input type="date" id="block-date" required><input id="block-reason" placeholder="Motivo (opcional)" maxlength="100"><button class="btn btn-sm">Bloquear</button></form>
-        <div id="blocked"></div></div>
-    </section>
-
-    <section data-pane="gallery" hidden>
-      <div class="top"><h2>Portfolio</h2><label class="btn btn-sm" style="cursor:pointer">+ Subir fotos<input type="file" id="upload" accept="image/jpeg,image/png,image/webp" multiple hidden></label></div>
-      <p class="muted">La primera foto se usa también en la portada. Se muestra en la web automáticamente. JPG, PNG o WebP (máx. 8 MB).</p>
-      <div class="gal" id="gal"></div>
-    </section>
-
-    <section data-pane="settings" hidden>
-      <div class="top"><h2>Ajustes</h2></div>
-      <form class="panel" id="settings-form"></form>
-      <form class="panel" id="pw-form"><h3>Cambiar contraseña</h3>
-        <div class="grid2"><label>Contraseña actual<input type="password" name="current" autocomplete="current-password" required></label>
-        <label>Nueva contraseña (mín. 8)<input type="password" name="next" autocomplete="new-password" minlength="8" required></label></div>
-        <button class="btn btn-sm">Actualizar contraseña</button></form>
-    </section>
-  </main>
+  <main class="main" id="main"></main>
 </div>
-
-<dialog id="dlg"><form method="dialog" id="dlg-form"></form></dialog>
+<div class="drawer-bg" id="drawer-bg"></div><aside class="drawer" id="drawer" aria-hidden="true"></aside>
+<dialog id="dlg"><form method="dialog" class="dlg" id="dlg-form"></form></dialog>
 <div id="toast" role="status"></div>
-<script src="/js/admin.js" type="module"></script>
+<script type="module" src="/js/admin/main.js"></script>
 </body></html>

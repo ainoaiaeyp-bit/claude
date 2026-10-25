@@ -82,3 +82,11 @@ test('baja de comunicaciones comerciales por enlace', async () => {
   assert.equal(r.status, 200);
   assert.equal(t.app.store.find('clients', c.id).consent_marketing, false);
 });
+
+test('el formulario de reserva guarda el permiso de novedades', async () => {
+  const date = await freeDay(t.call, 7);
+  await t.call('/api/bookings', { method: 'POST', admin: false, body: { ...person, name: 'Con Permiso', email: 'permiso@example.com', service_id: 7, date, start_min: 600, marketing: true } });
+  assert.equal(t.app.store.list('clients').find((c) => c.email === 'permiso@example.com').consent_marketing, true);
+  await t.call('/api/bookings', { method: 'POST', admin: false, body: { ...person, name: 'Sin Permiso', email: 'sinpermiso@example.com', service_id: 7, date, start_min: 660 } });
+  assert.equal(t.app.store.list('clients').find((c) => c.email === 'sinpermiso@example.com').consent_marketing, false);
+});

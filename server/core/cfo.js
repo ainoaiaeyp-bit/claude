@@ -62,10 +62,12 @@ export function cfoReport(store, now = new Date()) {
     const unitBE = r.contribution > 0 ? Math.ceil(need / r.contribution) : null;
     const minPrice = hourlyNeeded ? Math.round((hourlyNeeded * r.minutes / 60) + r.variable_cost) : 0;
     const minPriceGross = Math.round(minPrice * (1 + (st.pricesIncludeVat ? (services.find((s) => s.id === r.id).vat_rate ?? st.defaultVat) / 100 : 0)));
+    // veredicto: contra lo que necesita aportar cada hora de trabajo para llegar a tu objetivo
+    const bar = hourlyNeeded || avgPerHour;
     let verdict = 'ok';
     if (r.contribution <= 0) verdict = 'perdida';
-    else if (avgPerHour && r.per_hour < avgPerHour * 0.7) verdict = 'revisar';
-    else if (avgPerHour && r.per_hour >= avgPerHour * 1.2) verdict = 'estrella';
+    else if (bar && r.per_hour < bar) verdict = 'revisar';
+    else if (bar && r.per_hour >= bar * 1.6) verdict = 'estrella';
     return { ...r, break_even_alone: unitBE, min_price_cents: minPriceGross, verdict };
   }).sort((a, b) => b.per_hour - a.per_hour);
 
@@ -96,7 +98,7 @@ export function cfoReport(store, now = new Date()) {
   if (beBookings != null && target >= 0 && fixed > 0) advice.push({ level: 'info', text: `Para cubrir ${fixed ? 'costes fijos' : ''}${target ? ' y tu objetivo' : ''} necesitas unas ${beBookings} citas al mes (${beHours} h), el ${beOcc ?? '—'} % de tu capacidad.` });
   if (beOcc != null && beOcc > 85) advice.push({ level: 'warn', text: 'Tu umbral supera el 85 % de la capacidad: es difícil de sostener. Sube precios, reduce costes fijos o amplía horario.' });
   for (const p of perService.filter((x) => x.verdict === 'perdida')) advice.push({ level: 'bad', text: `${p.name} no cubre su coste de material. Revisa el precio.` });
-  for (const p of perService.filter((x) => x.verdict === 'revisar').slice(0, 3)) advice.push({ level: 'warn', text: `${p.name} deja ${(p.per_hour / 100).toFixed(0)} €/h, por debajo de tu media (${(avgPerHour / 100).toFixed(0)} €/h). Precio mínimo recomendado: ${(p.min_price_cents / 100).toFixed(0)} €.` });
+  for (const p of perService.filter((x) => x.verdict === 'revisar').slice(0, 3)) advice.push({ level: 'warn', text: `${p.name} aporta ${(p.per_hour / 100).toFixed(0)} € por hora y necesitas ${(hourlyNeeded / 100).toFixed(0)} € por hora para llegar a tu objetivo.${p.min_price_cents > p.price_cents ? ` Con un precio de ${(p.min_price_cents / 100).toFixed(0)} € lo alcanzarías.` : ' Úsalo como complemento de otros servicios más rentables.'}` });
   const star = perService[0];
   if (star && star.verdict === 'estrella') advice.push({ level: 'good', text: `${star.name} es tu servicio más rentable por hora (${(star.per_hour / 100).toFixed(0)} €/h). Ponlo en primer plano.` });
   if (reserve > 0) advice.push({ level: 'info', text: `Aparta ${(reserve / 100).toFixed(0)} € de lo cobrado este trimestre para IVA e IRPF.` });

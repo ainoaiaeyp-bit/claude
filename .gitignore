@@ -3,3 +3,4 @@ node_modules/
 .env
 public/img/gallery/*
 !public/img/gallery/.gitkeep
+data-demo/

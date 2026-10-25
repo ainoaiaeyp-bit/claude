@@ -1,0 +1,23 @@
+import { $, $$, api, esc, eur, eur0, openDialog, confirmBox, toast, guard, badge, empty } from './core.js';
+
+export async function render(el, ctx) {
+  const redraw = () => render(el, ctx);
+  const list = await api('/api/admin/services');
+  const groups = {}; list.forEach((s) => (groups[s.category] ||= []).push(s));
+  el.innerHTML = `<div class="top"><div><h2>Servicios y costes</h2><p class="sub">Precios, duración, IVA y coste de material de cada tratamiento. El coste de material alimenta el cálculo de rentabilidad.</p></div><div class="actions"><button class="btn" id="new">+ Nuevo servicio</button></div></div>
+    ${Object.entries(groups).map(([cat, items]) => `<div class="card" style="margin-bottom:1rem"><h3>${esc(cat)}</h3><div class="table-wrap" style="margin-top:.7rem"><table><thead><tr><th>Servicio</th><th class="r">Duración</th><th class="r">Precio</th><th class="r">IVA</th><th class="r">Material</th><th class="r">Margen / hora</th><th></th></tr></thead><tbody>${items.map((s) => { const net = Math.round(s.price_cents / (1 + (s.vat_rate ?? 21) / 100)), ph = s.duration_min ? Math.round((net - s.material_cost_cents) * 60 / s.duration_min) : 0; return `<tr class="click ${s.active ? '' : 'off'}" data-s="${s.id}" style="${s.active ? '' : 'opacity:.5'}"><td><b>${esc(s.name)}</b>${s.active ? '' : ' ' + badge('neutral', 'Oculto')}${s.allow_home ? ' ' + badge('info', 'Domicilio') : ''}</td><td class="num">${s.duration_min} min</td><td class="num">${s.price_from ? 'desde ' : ''}${s.price_cents ? eur(s.price_cents) : 'Sin coste'}</td><td class="num">${s.vat_rate ?? 21}%</td><td class="num">${s.material_cost_cents ? eur(s.material_cost_cents) : '<span class="muted">sin indicar</span>'}</td><td class="num">${s.price_cents ? eur0(ph) : '—'}</td><td><button class="btn sm ghost">Editar</button></td></tr>`; }).join('')}</tbody></table></div></div>`).join('') || empty('Sin servicios')}`;
+  $('#new', el).onclick = () => dialog(null, redraw);
+  $$('[data-s]', el).forEach((r) => (r.onclick = () => dialog(list.find((s) => s.id === Number(r.dataset.s)), redraw)));
+}
+
+function dialog(s, after) {
+  s = s || { name: '', category: 'Cejas', description: '', duration_min: 60, price_cents: 0, price_from: false, allow_home: false, active: true, material_cost_cents: 0, vat_rate: 21 };
+  const f = openDialog(`<h3>${s.id ? 'Editar' : 'Nuevo'} servicio</h3>
+    <div class="grid2"><label class="full">Nombre<input name="name" required value="${esc(s.name)}"></label><label>Categoría<input name="category" value="${esc(s.category)}"></label><label>Duración (min)<input type="number" name="duration_min" min="10" max="600" step="5" required value="${s.duration_min}"></label>
+    <label>Precio con IVA (€)<input type="number" name="price" min="0" step="0.5" value="${(s.price_cents / 100).toFixed(2)}"></label><label>IVA<select name="vat_rate">${[21, 10, 4, 0].map((r) => `<option ${r === (s.vat_rate ?? 21) ? 'selected' : ''}>${r}</option>`).join('')}</select></label>
+    <label>Coste de material por servicio (€)<input type="number" name="material" min="0" step="0.5" value="${((s.material_cost_cents || 0) / 100).toFixed(2)}"></label><label class="check" style="align-self:end"><input type="checkbox" name="price_from" ${s.price_from ? 'checked' : ''}> Mostrar “desde”</label>
+    <label class="full">Descripción (se ve en la web)<textarea name="description" maxlength="500">${esc(s.description)}</textarea></label></div>
+    <label class="check"><input type="checkbox" name="allow_home" ${s.allow_home ? 'checked' : ''}> Permite servicio a domicilio</label><label class="check"><input type="checkbox" name="active" ${s.active !== false ? 'checked' : ''}> Visible y reservable en la web</label>`,
+    async (v) => { const body = { name: v.name, category: v.category, description: v.description, duration_min: Number(v.duration_min), price_cents: Math.round(Number(v.price) * 100), price_from: !!v.price_from, allow_home: !!v.allow_home, active: !!v.active, material_cost_cents: Math.round(Number(v.material) * 100), vat_rate: Number(v.vat_rate) }; await api(s.id ? `/api/admin/services/${s.id}` : '/api/admin/services', { method: s.id ? 'PUT' : 'POST', body }); toast('Servicio guardado'); after(); }, { wide: true });
+  if (s.id) { const b = document.createElement('button'); b.type = 'button'; b.className = 'btn danger'; b.textContent = 'Eliminar'; b.style.marginRight = 'auto'; b.onclick = () => confirmBox('¿Eliminar el servicio?', 'Si tiene citas se ocultará en vez de borrarse.', async () => { const r = await api(`/api/admin/services/${s.id}`, { method: 'DELETE' }); toast(r.archived ? 'Servicio ocultado (tiene citas)' : 'Servicio eliminado'); after(); }, { label: 'Eliminar' }); f.querySelector('.dlg-actions').prepend(b); }
+}
