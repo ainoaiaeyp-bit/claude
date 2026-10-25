@@ -39,6 +39,7 @@ export const qs = (o) => Object.entries(o).filter(([, v]) => v !== '' && v != nu
 
 /** Descarga un recurso de la API como archivo. */
 export async function download(url, filename) {
+  if (window.__preview?.download) return window.__preview.download(url, filename);
   const b = await api(url, { blob: true });
   const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = filename; document.body.appendChild(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(a.href), 4000);

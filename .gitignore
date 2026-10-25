@@ -4,3 +4,4 @@ node_modules/
 public/img/gallery/*
 !public/img/gallery/.gitkeep
 data-demo/
+panel-preview.html
