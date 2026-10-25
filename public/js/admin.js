@@ -1,7 +1,7 @@
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-const eur = (c) => (c / 100).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' });
+const eur = (c) => (c ? (c / 100).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' }) : 'Sin coste');
 const pad = (n) => String(n).padStart(2, '0');
 const fm = (m) => `${pad(Math.floor(m / 60))}:${pad(m % 60)}`;
 const toMin = (t) => { const [h, m] = t.split(':').map(Number); return h * 60 + m; };
@@ -77,7 +77,7 @@ const loadAgenda = guard(async () => {
   if (!list.length) { $('#bookings').innerHTML = '<div class="empty">No hay citas en este periodo.</div>'; return; }
   const byDay = {};
   list.forEach((r) => (byDay[r.date] ||= []).push(r));
-  $('#bookings').innerHTML = Object.entries(byDay).map(([d, bs]) => `<div class="day"><h3>${longDate(d)}${d === today ? ' · hoy' : ''}</h3>${bs.map(bookingRow).join('')}</div>`).join('');
+  $('#bookings').innerHTML = Object.entries(byDay).map(([d, bs]) => `<div class="dgroup"><h3>${longDate(d)}${d === today ? ' · hoy' : ''}</h3>${bs.map(bookingRow).join('')}</div>`).join('');
 });
 
 function bookingRow(b) {
