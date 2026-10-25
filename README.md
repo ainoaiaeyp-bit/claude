@@ -47,3 +47,6 @@ y opcionalmente `ANTHROPIC_API_KEY` + `npm install @anthropic-ai/sdk` (lectura a
 
 Scripts: `npm start`, `npm test`, `npm run demo` (datos ficticios, contraseña `demo-1234`), `npm run preview:panel`.
 Copia de seguridad y restauración desde Ajustes. Requiere Node ≥ 22.13 (no funciona en hosting compartido PHP).
+
+### App móvil (PWA)
+El panel funciona como una app de iPhone: barra de pestañas inferior, hojas deslizables, listas en lugar de tablas y recarga arrastrando. Para instalarla, abre `/admin` en Safari, pulsa Compartir y «Añadir a pantalla de inicio» (en Android, «Instalar app»). Requiere HTTPS en producción. Capa móvil: `public/css/mobile.css` y `public/js/admin/shell.js`.

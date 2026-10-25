@@ -1,4 +1,5 @@
 import { $, $$, api, setUnauthorized, esc, toast, closeDrawer } from './core.js';
+import { drawTabs, bindTitle, labelTables, bindGestures } from './shell.js';
 
 const VIEWS = [
   { group: 'Día a día' },
@@ -22,6 +23,7 @@ const nav = $('#nav'), main = $('#main');
 let current = '', counts = {}, token = 0;
 
 function drawNav() {
+  drawTabs(current, counts);
   nav.innerHTML = VIEWS.map((v) => v.group ? `<h5>${esc(v.group)}</h5>` : `<a href="#${v.id}" data-id="${v.id}" class="${v.id === current ? 'on' : ''}">${esc(v.label)}${v.badge && counts[v.badge] ? `<span class="count">${counts[v.badge]}</span>` : ''}</a>`).join('');
 }
 export async function refreshCounts() {
@@ -46,6 +48,8 @@ async function route() {
     if (my !== token) return;
     main.innerHTML = '';
     await mod.render(main, { arg, refreshCounts, go: (hash) => { location.hash = hash; } });
+    labelTables(main); bindTitle(main);
+    if (!matchMedia('(prefers-reduced-motion:reduce)').matches) main.animate([{ opacity: 0, transform: 'translateY(10px)' }, { opacity: 1, transform: 'none' }], { duration: 300, easing: 'cubic-bezier(.2,.7,.1,1)' });
     document.title = `${v.label} · Panel Noelia Duque`;
   } catch (e) { if (my === token) main.innerHTML = `<div class="empty"><b>No se pudo cargar</b>${esc(e.message)}</div>`; }
   window.scrollTo(0, 0);
@@ -67,5 +71,8 @@ async function boot() {
 }
 addEventListener('hashchange', route);
 addEventListener('keydown', (e) => { if (e.key === 'Escape') closeDrawer(); });
+new MutationObserver(() => labelTables(main)).observe(main, { childList: true, subtree: true });
+bindGestures(() => { toast('Actualizando…'); route(); refreshCounts(); });
+if ('serviceWorker' in navigator && location.protocol.startsWith('http') && !window.__preview) navigator.serviceWorker.register('/sw.js').catch(() => {});
 window.__panel = { refreshCounts, toast };
 boot();

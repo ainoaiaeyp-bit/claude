@@ -13,7 +13,7 @@
 
 *{box-sizing:border-box}
 [hidden]{display:none!important}
-html{-webkit-text-size-adjust:100%}
+html{-webkit-text-size-adjust:100%;-webkit-tap-highlight-color:transparent;-webkit-text-size-adjust:100%}
 html.lenis,html.lenis body{height:auto}
 .lenis.lenis-smooth{scroll-behavior:auto!important}
 .lenis.lenis-stopped{overflow:hidden}
@@ -277,10 +277,12 @@ textarea{min-height:84px;resize:vertical;border:1px solid var(--line);border-rad
 @view-transition{navigation:auto}
 
 @media (max-width:900px){
+  .nav{mix-blend-mode:normal;color:#f2ebe3;padding-top:calc(.85rem + env(safe-area-inset-top,0px));padding-bottom:.85rem;background:linear-gradient(rgba(14,11,10,.86),rgba(14,11,10,.62));-webkit-backdrop-filter:saturate(1.5) blur(16px);backdrop-filter:saturate(1.5) blur(16px);border-bottom:1px solid rgba(236,227,217,.08)}
+  .sticky-cta{background:#ece3d9!important;color:#120e0c!important;border-color:#ece3d9!important;box-shadow:0 12px 34px -10px rgba(0,0,0,.65)}
   .nav-r .book-link{display:none}
   .menu{grid-template-columns:1fr;align-items:end}
   .hero{grid-template-columns:1fr;min-height:0}
-  .hero-txt{padding:7.5rem 0 1.5rem}
+  .hero-txt{padding:calc(6.5rem + env(safe-area-inset-top,0px)) 0 1.5rem}
   .hero-cols{height:62vh;order:2;margin-bottom:2rem}
   .head,.philo,.about,.book,.faqwrap{grid-template-columns:1fr}
   .head p{justify-self:start}
@@ -289,7 +291,7 @@ textarea{min-height:84px;resize:vertical;border:1px solid var(--line);border-rad
   .card .ph{aspect-ratio:16/11}
   .consult{grid-template-columns:1fr}
   .about .ph{max-width:520px}
-  .stats{grid-template-columns:1fr 1fr 1fr}.stats div+div{padding-left:.8rem}.stats b{font-size:1.9rem}.stats span{font-size:.58rem;letter-spacing:.1em}
+  .stats{grid-template-columns:1fr 1fr 1fr}.stats div+div{padding-left:.8rem}.stats b{font-size:1.9rem}.stats div>span{font-size:.58rem;letter-spacing:.1em}
   .steps{grid-template-columns:1fr 1fr;row-gap:2.4rem}
   .book .side{position:static}
   .tiles{grid-template-columns:1fr 1fr}.tile{min-height:170px;padding:1.2rem}
