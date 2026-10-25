@@ -14,10 +14,13 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,500..900&family=Hanken+Grotesk:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/css/site.css">
+<script src="/js/boot.js"></script>
 <script type="application/ld+json" id="ld"></script>
 </head>
 <body>
 <a class="skip" href="#contenido">Saltar al contenido</a>
+<div class="intro" aria-hidden="true"><span><b>Noelia Duque</b></span></div>
+<div class="progress" aria-hidden="true"></div>
 
 <header class="nav" id="nav">
   <a class="brand" href="#top" aria-label="Noelia Duque, inicio"><span class="brand-text">Noelia Duque<small>Cejas · Maquillaje · Estética</small></span></a>
@@ -39,10 +42,10 @@
 <section class="hero" id="top">
   <div class="wrap">
     <div class="hero-grid">
-      <h1>Cejas a medida de <em>tu rostro</em></h1>
+      <h1 aria-label="Cejas a medida de tu rostro"><span class="w" aria-hidden="true"><span style="--i:0">Cejas</span></span> <span class="w" aria-hidden="true"><span style="--i:1">a</span></span> <span class="w" aria-hidden="true"><span style="--i:2">medida</span></span> <span class="w" aria-hidden="true"><span style="--i:3">de</span></span> <span class="w" aria-hidden="true"><em><span style="--i:4">tu</span></em></span> <span class="w" aria-hidden="true"><em><span style="--i:5">rostro</span></em></span></h1>
       <div class="hero-side">
-        <p class="lead">Microblading, powder brows e hiperrealismo en Alcantarilla (Murcia). Más de 10 años diseñando cejas, y también maquillaje, depilación y estética.</p>
-        <div class="cta-row">
+        <p class="lead rise" style="--d:.55s">Microblading, powder brows e hiperrealismo en Alcantarilla (Murcia). Más de 10 años diseñando cejas, y también maquillaje, depilación y estética.</p>
+        <div class="cta-row rise" style="--d:.7s">
           <a class="btn btn-accent" href="#reservar">Reservar cita</a>
           <a class="btn btn-ghost" href="#microblading">Ver técnicas</a>
         </div>
@@ -52,33 +55,33 @@
       <canvas id="brow"></canvas>
       <p class="canvas-cap">Mapeo y trazo pelo a pelo</p>
     </div>
-    <div class="facts">
-      <div><b>+10 años</b><span>diseñando cejas</span></div>
+    <div class="facts rise" style="--d:1.2s">
+      <div><b data-count="10" data-prefix="+" data-suffix=" años">+10 años</b><span>diseñando cejas</span></div>
       <div><b>Alcantarilla</b><span>Murcia · estudio y domicilio</span></div>
-      <div><b>24 h</b><span>reserva online</span></div>
+      <div><b data-count="24" data-suffix=" h">24 h</b><span>reserva online</span></div>
     </div>
   </div>
 </section>
 
 <section class="section block" id="microblading">
   <div class="wrap">
-    <header class="section-head"><div><p class="label">Especialidad</p><h2>Tres técnicas, una ceja: la tuya</h2></div><p>Estudiamos tu visagismo, tu piel y tu estilo para elegir la técnica que mejor te favorece. Los datos de cada ficha son orientativos y los confirmamos en la valoración.</p></header>
+    <header data-reveal class="section-head" data-reveal><div><p class="label">Especialidad</p><h2>Tres técnicas, una ceja: la tuya</h2></div><p>Estudiamos tu visagismo, tu piel y tu estilo para elegir la técnica que mejor te favorece. Los datos de cada ficha son orientativos y los confirmamos en la valoración.</p></header>
     <div class="tech-grid">
-      <article class="tech"><h3>Microblading</h3><p>Trazos finos dibujados pelo a pelo que recrean el vello natural. Rellena huecos, da forma y define con un acabado delicado.</p>
+      <article class="tech" data-reveal style="--d:0.00s"><h3>Microblading</h3><p>Trazos finos dibujados pelo a pelo que recrean el vello natural. Rellena huecos, da forma y define con un acabado delicado.</p>
         <dl class="spec"><div><dt>Trazo</dt><dd>Pelo a pelo</dd></div><div><dt>Piel</dt><dd>Normal y seca</dd></div><div><dt>Acabado</dt><dd>Natural, ligero</dd></div></dl>
         <button class="btn btn-accent" data-book-name="Microblading">Reservar microblading</button></article>
-      <article class="tech"><h3>Powder brows</h3><p>Sombreado suave y difuminado que imita un maquillaje en polvo. Más densidad y definición sin efecto dibujado.</p>
+      <article class="tech" data-reveal style="--d:0.12s"><h3>Powder brows</h3><p>Sombreado suave y difuminado que imita un maquillaje en polvo. Más densidad y definición sin efecto dibujado.</p>
         <dl class="spec"><div><dt>Trazo</dt><dd>Sombreado punteado</dd></div><div><dt>Piel</dt><dd>Mixta y grasa</dd></div><div><dt>Acabado</dt><dd>Maquillado, suave</dd></div></dl>
         <button class="btn btn-accent" data-book-name="Powder">Reservar powder brows</button></article>
-      <article class="tech"><h3>Hiperrealismo</h3><p>Combinación de técnicas para lograr cejas con apariencia de vello real, con matices de color y densidad a medida.</p>
+      <article class="tech" data-reveal style="--d:0.24s"><h3>Hiperrealismo</h3><p>Combinación de técnicas para lograr cejas con apariencia de vello real, con matices de color y densidad a medida.</p>
         <dl class="spec"><div><dt>Trazo</dt><dd>Mixto, por capas</dd></div><div><dt>Piel</dt><dd>Según valoración</dd></div><div><dt>Acabado</dt><dd>Ultra natural</dd></div></dl>
         <button class="btn btn-accent" data-book-name="Hiperrealismo">Reservar hiperrealismo</button></article>
     </div>
-    <div class="assess">
+    <div class="assess" data-reveal>
       <div><h3>¿No sabes cuál te conviene?</h3><p>Reserva una valoración y diseño de cejas. Lo vemos juntas, sin compromiso, antes de decidir la técnica.</p></div>
       <button class="btn" data-book-name="Valoración">Reservar valoración</button>
     </div>
-    <div class="care">
+    <div class="care" data-reveal>
       <div><h4>Antes</h4><p>Valoración, estudio de proporciones y prueba del diseño con lápiz hasta que te encante.</p></div>
       <div><h4>Durante</h4><p>Pigmentos de calidad, material de un solo uso y una técnica cuidadosa para tu comodidad.</p></div>
       <div><h4>Después</h4><p>Pautas de cuidado personalizadas y sesión de retoque para consolidar el resultado.</p></div>
@@ -88,14 +91,14 @@
 
 <section class="section" id="servicios">
   <div class="wrap">
-    <header class="section-head"><div><p class="label">Carta de servicios</p><h2>Todo el cuidado de tu belleza</h2></div><p>Micropigmentación, cejas, depilación, faciales, maquillaje y maderoterapia. Elige y reserva el día y la hora que mejor te encajen.</p></header>
+    <header data-reveal class="section-head"><div><p class="label">Carta de servicios</p><h2>Todo el cuidado de tu belleza</h2></div><p>Micropigmentación, cejas, depilación, faciales, maquillaje y maderoterapia. Elige y reserva el día y la hora que mejor te encajen.</p></header>
     <div id="svc-grid" aria-live="polite"><div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div></div>
   </div>
 </section>
 
 <section class="section block" id="sobre-mi">
   <div class="wrap about">
-    <div class="about-copy">
+    <div class="about-copy" data-reveal>
       <p class="label">Sobre mí</p>
       <h2>Más de 10 años diseñando cejas</h2>
       <p style="margin-top:1.5rem">Soy Noelia Duque, especialista en cejas, maquillaje y estética en Alcantarilla, Murcia. Mi trabajo parte de una idea sencilla: unas cejas bien diseñadas cambian la expresión de todo el rostro, y el mejor resultado es el que parece tuyo.</p>
@@ -108,32 +111,32 @@
       </ul>
       <p style="margin-top:2rem"><a class="btn btn-accent" href="#reservar">Reservar cita</a></p>
     </div>
-    <div class="about-photo" id="about-photo" hidden></div>
+    <div class="about-photo" id="about-photo" data-reveal="clip" hidden></div>
   </div>
 </section>
 
 <section class="section" id="portfolio" hidden>
   <div class="wrap">
-    <header class="section-head"><div><p class="label">Portfolio</p><h2>Trabajos recientes</h2></div></header>
+    <header data-reveal class="section-head"><div><p class="label">Portfolio</p><h2>Trabajos recientes</h2></div></header>
     <div class="gallery" id="gallery"></div>
   </div>
 </section>
 
 <section class="section" id="proceso">
   <div class="wrap">
-    <header class="section-head"><div><p class="label">Cómo trabajamos</p><h2>Tu cita, paso a paso</h2></div></header>
-    <ol class="steps">
-      <li><h3>Reserva online</h3><p>Elige servicio, día y hora libres en el calendario. Si dudas de la técnica, empieza por una valoración.</p></li>
-      <li><h3>Diseño a medida</h3><p>Estudiamos tu rostro y tu piel y diseñamos la forma y el color antes de empezar. Nada se hace sin tu visto bueno.</p></li>
-      <li><h3>Resultado y cuidados</h3><p>Realizamos el tratamiento y te damos pautas de cuidado y, si procede, programamos tu retoque.</p></li>
+    <header data-reveal class="section-head"><div><p class="label">Cómo trabajamos</p><h2>Tu cita, paso a paso</h2></div></header>
+    <ol class="steps" data-reveal-line>
+      <li data-reveal style="--d:0.00s"><h3>Reserva online</h3><p>Elige servicio, día y hora libres en el calendario. Si dudas de la técnica, empieza por una valoración.</p></li>
+      <li data-reveal style="--d:0.12s"><h3>Diseño a medida</h3><p>Estudiamos tu rostro y tu piel y diseñamos la forma y el color antes de empezar. Nada se hace sin tu visto bueno.</p></li>
+      <li data-reveal style="--d:0.24s"><h3>Resultado y cuidados</h3><p>Realizamos el tratamiento y te damos pautas de cuidado y, si procede, programamos tu retoque.</p></li>
     </ol>
   </div>
 </section>
 
 <section class="section book" id="reservar">
   <div class="wrap">
-    <header class="section-head"><div><p class="label">Reserva online</p><h2>Reserva tu cita</h2></div><p id="book-policy">Selecciona servicio, fecha y hora.</p></header>
-    <div class="wizard" id="wizard">
+    <header data-reveal class="section-head"><div><p class="label">Reserva online</p><h2>Reserva tu cita</h2></div><p id="book-policy">Selecciona servicio, fecha y hora.</p></header>
+    <div class="wizard" id="wizard" data-reveal>
       <ol class="wz-steps" id="wz-steps" aria-label="Progreso">
         <li class="on" data-s="1"><span>1</span>Servicio</li><li data-s="2"><span>2</span>Fecha y hora</li><li data-s="3"><span>3</span>Tus datos</li><li data-s="4"><span>4</span>Confirmación</li>
       </ol>
@@ -144,8 +147,8 @@
 
 <section class="section" id="faq">
   <div class="wrap narrow">
-    <header class="section-head" style="grid-template-columns:1fr"><div><p class="label">Preguntas frecuentes</p><h2>Resolvemos tus dudas</h2></div></header>
-    <div class="faq">
+    <header data-reveal class="section-head" style="grid-template-columns:1fr"><div><p class="label">Preguntas frecuentes</p><h2>Resolvemos tus dudas</h2></div></header>
+    <div class="faq" data-reveal-line>
       <details><summary>¿Cómo funciona la reserva?</summary><p>Eliges servicio, fecha y hora en el calendario y dejas tus datos. Recibirás un enlace para ver o cancelar tu cita cuando quieras.</p></details>
       <details><summary>¿Qué diferencia hay entre microblading, powder brows e hiperrealismo?</summary><p>El microblading dibuja trazos pelo a pelo; el powder brows crea un sombreado suave tipo maquillaje; y el hiperrealismo combina técnicas para un acabado muy natural. En la valoración te recomendamos la que mejor encaja con tu piel y tu estilo.</p></details>
       <details><summary>¿Duele el microblading?</summary><p>La sensibilidad varía de una persona a otra. Se trabaja con cuidado y con productos para tu comodidad; la mayoría de clientas lo describe como una molestia leve y llevadera.</p></details>
@@ -161,7 +164,7 @@
 
 <footer class="footer" id="contacto">
   <div class="wrap">
-    <p class="wordmark">Noelia Duque</p>
+    <p class="wordmark" data-reveal>Noelia Duque</p>
     <div class="foot-grid">
       <div><h3>Estudio</h3><p class="muted" id="ft-tag"></p></div>
       <div><h3>Contacto</h3><ul class="plain" id="ft-contact"></ul></div>
@@ -174,5 +177,6 @@
 <a class="sticky-cta" href="#reservar">Reservar cita</a>
 <script src="/js/site.js" type="module"></script>
 <script src="/js/brow.js" type="module"></script>
+<script src="/js/motion.js" type="module"></script>
 </body>
 </html>

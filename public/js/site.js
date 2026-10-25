@@ -60,8 +60,8 @@ function renderServices() {
     g.items.push(s);
   });
   $('#svc-grid').innerHTML = groups.map((g) => `
-    <div class="svc-group"><h3>${esc(g.name)}</h3><div class="svc-rows">${g.items.map((s) => `
-      <div class="svc-row">
+    <div class="svc-group" data-reveal-line><h3>${esc(g.name)}</h3><div class="svc-rows">${g.items.map((s, k) => `
+      <div class="svc-row" data-reveal style="--d:${(k * 0.08).toFixed(2)}s">
         <div><h4>${esc(s.name)}</h4><p>${esc(s.description)}</p></div>
         <span class="dur">${dur(s.duration_min)}</span>
         <span class="price">${s.price_from && s.price_cents ? '<small>desde</small>' : ''}${money(s.price_cents)}</span>
@@ -77,7 +77,7 @@ function renderServices() {
 function renderGallery(list) {
   if (!list.length) { $('#nav-portfolio').parentElement.hidden = true; return; }
   $('#portfolio').hidden = false;
-  $('#gallery').innerHTML = list.map((u, i) => `<figure><img src="${esc(u)}" alt="Trabajo de cejas ${i + 1}" loading="lazy"></figure>`).join('');
+  $('#gallery').innerHTML = list.map((u, i) => `<figure data-reveal style="--d:${((i % 3) * 0.1).toFixed(2)}s"><img src="${esc(u)}" alt="Trabajo de cejas ${i + 1}" loading="lazy"></figure>`).join('');
 }
 
 function renderFooter() {
@@ -133,6 +133,7 @@ const wizard = (() => {
 
   function render() {
     ({ 1: step1, 2: step2, 3: step3, 4: step4 })[st.step]();
+    body.classList.remove('enter'); void body.offsetWidth; body.classList.add('enter');
   }
 
   function step1() {
@@ -238,7 +239,7 @@ const wizard = (() => {
     const box = $('#slotbox'); if (!box) return;
     if (!st.date) { box.innerHTML = '<p class="hint">Selecciona un día del calendario para ver las horas libres.</p>'; return; }
     box.innerHTML = `<p class="slots-title">${longDate(st.date)}</p>` + (loading ? '<p class="hint">Buscando huecos…</p>'
-      : st.slots.length ? `<div class="slots">${st.slots.map((s) => `<button class="slot" data-t="${s.start_min}" aria-pressed="${s.start_min === st.slot}">${s.label}</button>`).join('')}</div>`
+      : st.slots.length ? `<div class="slots">${st.slots.map((s, i) => `<button class="slot" style="--i:${i}" data-t="${s.start_min}" aria-pressed="${s.start_min === st.slot}">${s.label}</button>`).join('')}</div>`
         : '<p class="hint">No quedan horas libres este día.</p>');
     box.onclick = (e) => {
       const b = e.target.closest('.slot'); if (!b) return;
