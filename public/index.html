@@ -5,14 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Noelia Duque · Microblading y cejas en Murcia | Reserva online</title>
 <meta name="description" content="Microblading, powder brows e hiperrealismo en Murcia. Más de 10 años diseñando cejas, además de maquillaje, depilación y estética. Reserva tu cita online.">
-<meta name="theme-color" content="#2b1d19">
+<meta name="theme-color" content="#f2f3f4">
 <meta property="og:type" content="website">
 <meta property="og:title" content="Noelia Duque · Microblading y cejas en Murcia">
 <meta property="og:description" content="Más de 10 años diseñando cejas. Reserva tu valoración online.">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,500..900&family=Hanken+Grotesk:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/css/site.css">
 <script type="application/ld+json" id="ld"></script>
 </head>
@@ -20,7 +20,7 @@
 <a class="skip" href="#contenido">Saltar al contenido</a>
 
 <header class="nav" id="nav">
-  <a class="brand" href="#top" aria-label="Noelia Duque, inicio"><span class="brand-mark">ND</span><span class="brand-text">Noelia Duque<small>Cejas · Maquillaje · Estética</small></span></a>
+  <a class="brand" href="#top" aria-label="Noelia Duque, inicio"><span class="brand-text">Noelia Duque<small>Cejas · Maquillaje · Estética</small></span></a>
   <nav aria-label="Principal">
     <button class="burger" id="burger" aria-expanded="false" aria-controls="menu" aria-label="Abrir menú"><span></span><span></span></button>
     <ul id="menu">
@@ -28,117 +28,114 @@
       <li><a href="#servicios">Servicios</a></li>
       <li><a href="#sobre-mi">Sobre mí</a></li>
       <li><a href="#portfolio" id="nav-portfolio">Portfolio</a></li>
-      <li><a href="#proceso">Proceso</a></li>
       <li><a href="#faq">Preguntas</a></li>
       <li><a href="#contacto">Contacto</a></li>
-      <li><a class="btn btn-sm" href="#reservar">Reservar cita</a></li>
+      <li><a class="btn btn-sm btn-accent" href="#reservar">Reservar cita</a></li>
     </ul>
   </nav>
 </header>
 
 <main id="contenido">
 <section class="hero" id="top">
-  <div class="hero-copy reveal">
-    <p class="eyebrow">Cejas · Micropigmentación · Maquillaje · Murcia</p>
-    <h1>Cejas que enmarcan tu mirada, <em>con naturalidad</em>.</h1>
-    <p class="lead">Más de 10 años diseñando cejas. Microblading, powder brows e hiperrealismo a medida de tu rostro, y todo el cuidado de tu belleza en un solo lugar.</p>
-    <div class="cta-row">
-      <a class="btn" href="#reservar">Reservar mi cita</a>
-      <a class="btn btn-ghost" href="#microblading">Descubrir el microblading</a>
+  <div class="wrap">
+    <div class="hero-grid">
+      <h1>Cejas a medida de <em>tu rostro</em></h1>
+      <div class="hero-side">
+        <p class="lead">Microblading, powder brows e hiperrealismo en Murcia. Más de 10 años diseñando cejas, y también maquillaje, depilación y estética.</p>
+        <div class="cta-row">
+          <a class="btn btn-accent" href="#reservar">Reservar cita</a>
+          <a class="btn btn-ghost" href="#microblading">Ver técnicas</a>
+        </div>
+      </div>
     </div>
-    <ul class="trust">
-      <li><strong>+10 años</strong><span>Diseñando cejas</span></li>
-      <li><strong>A medida</strong><span>Diseño según tu rostro</span></li>
-      <li><strong>Murcia</strong><span>Reserva online 24/7</span></li>
-    </ul>
-  </div>
-  <div class="hero-art reveal" aria-hidden="true">
-    <div class="arch" id="hero-arch">
-      <svg class="brow-art" viewBox="0 0 200 120" fill="none" stroke="rgba(255,255,255,.92)" stroke-linecap="round">
-        <path d="M20 52c26-26 76-30 120-12 14 6 28 8 40 4" stroke-width="3"/>
-        <g stroke-width="1.6" opacity=".85"><path d="M32 46c6-6 10-9 16-12M44 48c7-7 12-10 19-13M58 46c8-6 14-9 22-11M74 44c8-5 16-8 25-9M92 43c9-4 17-6 27-6M110 44c8-3 17-4 26-3M128 47c8-2 15-3 22-2"/></g>
-        <path d="M44 92c28-26 74-26 112 0-34 18-76 18-112 0z" stroke-width="2.4"/><circle cx="100" cy="92" r="11" stroke-width="2.4"/><circle cx="100" cy="92" r="4" fill="rgba(255,255,255,.9)" stroke="none"/>
-      </svg>
+    <div class="canvas-panel" role="img" aria-label="Ilustración de una ceja dibujada pelo a pelo, con los puntos de mapeo de inicio, arco y final">
+      <canvas id="brow"></canvas>
+      <p class="canvas-cap">Mapeo y trazo pelo a pelo</p>
     </div>
-    <div class="orb orb-1"></div><div class="orb orb-2"></div>
-    <div class="float-card fc-1"><b>Microblading</b><span>Pelo a pelo, natural</span></div>
-    <div class="float-card fc-2"><b>Hiperrealismo</b><span>Powder · Bold brows</span></div>
+    <div class="facts">
+      <div><b>+10 años</b><span>diseñando cejas</span></div>
+      <div><b>Murcia</b><span>estudio y domicilio</span></div>
+      <div><b>24 h</b><span>reserva online</span></div>
+    </div>
   </div>
 </section>
 
-<div class="marquee" aria-hidden="true"><div class="marquee-track">
-  <span>Microblading</span><span>✦</span><span>Powder brows</span><span>✦</span><span>Hiperrealismo</span><span>✦</span><span>Henna de cejas</span><span>✦</span><span>Maquillaje</span><span>✦</span><span>Depilación</span><span>✦</span><span>Faciales</span><span>✦</span><span>Maderoterapia</span><span>✦</span>
-  <span>Microblading</span><span>✦</span><span>Powder brows</span><span>✦</span><span>Hiperrealismo</span><span>✦</span><span>Henna de cejas</span><span>✦</span><span>Maquillaje</span><span>✦</span><span>Depilación</span><span>✦</span><span>Faciales</span><span>✦</span><span>Maderoterapia</span><span>✦</span>
-</div></div>
-
-<section class="section micro" id="microblading">
+<section class="section block" id="microblading">
   <div class="wrap">
-    <header class="section-head reveal"><p class="eyebrow">Nuestra especialidad</p><h2>Cejas diseñadas para tu rostro</h2><p>No existe una ceja perfecta universal: existe la tuya. Estudiamos tu visagismo, tu piel y tu estilo para elegir la técnica que mejor te favorece.</p></header>
+    <header class="section-head"><div><p class="label">Especialidad</p><h2>Tres técnicas, una ceja: la tuya</h2></div><p>Estudiamos tu visagismo, tu piel y tu estilo para elegir la técnica que mejor te favorece. Los datos de cada ficha son orientativos y los confirmamos en la valoración.</p></header>
     <div class="tech-grid">
-      <article class="tech reveal"><span class="tech-n">01</span><h3>Microblading</h3><p>Trazos finos dibujados pelo a pelo que recrean el vello natural. Perfecto para rellenar huecos, dar forma y ganar definición con un acabado delicado.</p><ul><li>Efecto pelo a pelo</li><li>Ideal para pieles normales y secas</li><li>Acabado muy natural</li></ul><button class="btn" data-book-name="Microblading">Reservar microblading</button></article>
-      <article class="tech reveal"><span class="tech-n">02</span><h3>Powder brows</h3><p>Un sombreado suave y difuminado que imita el efecto de un maquillaje en polvo. Cejas definidas, con más densidad y sin look “dibujado”.</p><ul><li>Efecto maquillado suave</li><li>Muy recomendable en pieles mixtas o grasas</li><li>Mirada más marcada</li></ul><button class="btn" data-book-name="Powder">Reservar powder brows</button></article>
-      <article class="tech reveal"><span class="tech-n">03</span><h3>Hiperrealismo</h3><p>La combinación de técnicas para lograr cejas con apariencia de vello real, con matices de color y densidad a medida: el máximo nivel de naturalidad.</p><ul><li>Resultado ultra natural</li><li>Diseño 100 % personalizado</li><li>Para quien busca la excelencia</li></ul><button class="btn" data-book-name="Hiperrealismo">Reservar hiperrealismo</button></article>
+      <article class="tech"><h3>Microblading</h3><p>Trazos finos dibujados pelo a pelo que recrean el vello natural. Rellena huecos, da forma y define con un acabado delicado.</p>
+        <dl class="spec"><div><dt>Trazo</dt><dd>Pelo a pelo</dd></div><div><dt>Piel</dt><dd>Normal y seca</dd></div><div><dt>Acabado</dt><dd>Natural, ligero</dd></div></dl>
+        <button class="btn btn-accent" data-book-name="Microblading">Reservar microblading</button></article>
+      <article class="tech"><h3>Powder brows</h3><p>Sombreado suave y difuminado que imita un maquillaje en polvo. Más densidad y definición sin efecto dibujado.</p>
+        <dl class="spec"><div><dt>Trazo</dt><dd>Sombreado punteado</dd></div><div><dt>Piel</dt><dd>Mixta y grasa</dd></div><div><dt>Acabado</dt><dd>Maquillado, suave</dd></div></dl>
+        <button class="btn btn-accent" data-book-name="Powder">Reservar powder brows</button></article>
+      <article class="tech"><h3>Hiperrealismo</h3><p>Combinación de técnicas para lograr cejas con apariencia de vello real, con matices de color y densidad a medida.</p>
+        <dl class="spec"><div><dt>Trazo</dt><dd>Mixto, por capas</dd></div><div><dt>Piel</dt><dd>Según valoración</dd></div><div><dt>Acabado</dt><dd>Ultra natural</dd></div></dl>
+        <button class="btn btn-accent" data-book-name="Hiperrealismo">Reservar hiperrealismo</button></article>
     </div>
-    <div class="micro-cta reveal"><div><h3>¿No sabes qué técnica te conviene?</h3><p>Reserva una valoración y diseño de cejas: lo vemos juntas, sin compromiso, antes de decidir.</p></div><button class="btn btn-light" data-book-name="Valoración">Reservar valoración</button></div>
-    <div class="aftercare reveal">
-      <div><h4>Antes</h4><p>Valoración, estudio de proporciones y prueba del diseño con el lápiz hasta que te encante.</p></div>
-      <div><h4>Durante</h4><p>Pigmentos de calidad, material de un solo uso y una técnica cuidadosa para tu máxima comodidad.</p></div>
+    <div class="assess">
+      <div><h3>¿No sabes cuál te conviene?</h3><p>Reserva una valoración y diseño de cejas. Lo vemos juntas, sin compromiso, antes de decidir la técnica.</p></div>
+      <button class="btn" data-book-name="Valoración">Reservar valoración</button>
+    </div>
+    <div class="care">
+      <div><h4>Antes</h4><p>Valoración, estudio de proporciones y prueba del diseño con lápiz hasta que te encante.</p></div>
+      <div><h4>Durante</h4><p>Pigmentos de calidad, material de un solo uso y una técnica cuidadosa para tu comodidad.</p></div>
       <div><h4>Después</h4><p>Pautas de cuidado personalizadas y sesión de retoque para consolidar el resultado.</p></div>
     </div>
   </div>
 </section>
 
-<section class="section tint" id="servicios">
+<section class="section" id="servicios">
   <div class="wrap">
-    <header class="section-head reveal"><p class="eyebrow">Servicios</p><h2>Todo el cuidado de tu belleza</h2><p>Micropigmentación, cejas, depilación, faciales, maquillaje y maderoterapia. Elige y reserva el día y la hora que mejor te encajen.</p></header>
-    <div class="filters reveal" id="svc-filters" role="tablist" aria-label="Categorías"></div>
-    <div class="cards" id="svc-grid" aria-live="polite"><div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div></div>
+    <header class="section-head"><div><p class="label">Carta de servicios</p><h2>Todo el cuidado de tu belleza</h2></div><p>Micropigmentación, cejas, depilación, faciales, maquillaje y maderoterapia. Elige y reserva el día y la hora que mejor te encajen.</p></header>
+    <div id="svc-grid" aria-live="polite"><div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div></div>
   </div>
 </section>
 
-<section class="section dark" id="sobre-mi">
+<section class="section block" id="sobre-mi">
   <div class="wrap about">
-    <div class="about-art reveal" aria-hidden="true"><div class="frame"><span>ND</span></div></div>
-    <div class="reveal">
-      <p class="eyebrow">Sobre mí</p>
-      <h2>Más de 10 años diseñando cejas.</h2>
-      <p>Soy Noelia Duque, especialista en cejas, maquillaje y estética en Murcia. Mi trabajo parte de una idea sencilla: unas cejas bien diseñadas cambian la expresión de todo el rostro, y el mejor resultado es el que parece tuyo.</p>
+    <div class="about-copy">
+      <p class="label">Sobre mí</p>
+      <h2>Más de 10 años diseñando cejas</h2>
+      <p style="margin-top:1.5rem">Soy Noelia Duque, especialista en cejas, maquillaje y estética en Murcia. Mi trabajo parte de una idea sencilla: unas cejas bien diseñadas cambian la expresión de todo el rostro, y el mejor resultado es el que parece tuyo.</p>
       <p>Por eso empiezo siempre escuchando y estudiando tu rostro. Después elijo la técnica, el color y la forma que mejor te favorecen, y me encargo de que te sientas cómoda y segura en cada paso. Me formo de forma continua para ofrecerte las técnicas más actuales.</p>
-      <ul class="checks">
+      <ul class="about-list">
         <li>Diseño personalizado según tu visagismo</li>
-        <li>Técnicas de microblading, powder brows e hiperrealismo</li>
+        <li>Microblading, powder brows e hiperrealismo</li>
         <li>Material esterilizado o de un solo uso en cada servicio</li>
         <li>Maquillaje, depilación, faciales y maderoterapia</li>
       </ul>
-      <a class="btn btn-light" href="#reservar">Reservar ahora</a>
+      <p style="margin-top:2rem"><a class="btn btn-accent" href="#reservar">Reservar cita</a></p>
     </div>
+    <div class="about-photo" id="about-photo" hidden></div>
   </div>
 </section>
 
 <section class="section" id="portfolio" hidden>
   <div class="wrap">
-    <header class="section-head reveal"><p class="eyebrow">Portfolio</p><h2>Trabajos recientes</h2></header>
+    <header class="section-head"><div><p class="label">Portfolio</p><h2>Trabajos recientes</h2></div></header>
     <div class="gallery" id="gallery"></div>
   </div>
 </section>
 
-<section class="section tint" id="proceso">
+<section class="section" id="proceso">
   <div class="wrap">
-    <header class="section-head reveal"><p class="eyebrow">Cómo trabajamos</p><h2>Tu cita, paso a paso</h2></header>
+    <header class="section-head"><div><p class="label">Cómo trabajamos</p><h2>Tu cita, paso a paso</h2></div></header>
     <ol class="steps">
-      <li class="reveal"><span class="num">01</span><h3>Reserva online</h3><p>Elige servicio, día y hora libres en el calendario. Si dudas de la técnica, empieza por una valoración.</p></li>
-      <li class="reveal"><span class="num">02</span><h3>Diseño a medida</h3><p>Estudiamos tu rostro y tu piel y diseñamos la forma y el color antes de empezar. Nada se hace sin tu visto bueno.</p></li>
-      <li class="reveal"><span class="num">03</span><h3>Resultado y cuidados</h3><p>Realizamos el tratamiento y te damos pautas de cuidado y, si procede, programamos tu retoque.</p></li>
+      <li><h3>Reserva online</h3><p>Elige servicio, día y hora libres en el calendario. Si dudas de la técnica, empieza por una valoración.</p></li>
+      <li><h3>Diseño a medida</h3><p>Estudiamos tu rostro y tu piel y diseñamos la forma y el color antes de empezar. Nada se hace sin tu visto bueno.</p></li>
+      <li><h3>Resultado y cuidados</h3><p>Realizamos el tratamiento y te damos pautas de cuidado y, si procede, programamos tu retoque.</p></li>
     </ol>
   </div>
 </section>
 
 <section class="section book" id="reservar">
   <div class="wrap">
-    <header class="section-head reveal"><p class="eyebrow">Reserva online</p><h2>Reserva tu cita</h2><p id="book-policy">Selecciona servicio, fecha y hora. Sin llamadas, sin esperas.</p></header>
-    <div class="wizard reveal" id="wizard">
+    <header class="section-head"><div><p class="label">Reserva online</p><h2>Reserva tu cita</h2></div><p id="book-policy">Selecciona servicio, fecha y hora.</p></header>
+    <div class="wizard" id="wizard">
       <ol class="wz-steps" id="wz-steps" aria-label="Progreso">
-        <li class="on" data-s="1"><span>1</span>Servicio</li><li data-s="2"><span>2</span>Fecha y hora</li><li data-s="3"><span>3</span>Tus datos</li><li data-s="4"><span>✓</span>Listo</li>
+        <li class="on" data-s="1"><span>1</span>Servicio</li><li data-s="2"><span>2</span>Fecha y hora</li><li data-s="3"><span>3</span>Tus datos</li><li data-s="4"><span>4</span>Confirmación</li>
       </ol>
       <div class="wz-body" id="wz-body" aria-live="polite"></div>
     </div>
@@ -147,17 +144,15 @@
 
 <section class="section" id="faq">
   <div class="wrap narrow">
-    <header class="section-head reveal"><p class="eyebrow">Preguntas frecuentes</p><h2>Resolvemos tus dudas</h2></header>
-    <div class="faq reveal">
-      <details><summary>¿Cómo funciona la reserva?</summary><p>Eliges servicio, fecha y hora en el calendario y dejas tus datos. Recibirás la confirmación y un enlace para ver o cancelar tu cita cuando quieras.</p></details>
-      <details><summary>¿Con cuánta antelación debo reservar?</summary><p>Para bodas y eventos recomendamos reservar con meses de antelación, sobre todo en temporada alta. Para servicios sociales suele haber hueco con pocos días de margen.</p></details>
-      <details><summary>¿Puedo cancelar o cambiar mi cita?</summary><p id="faq-cancel">Sí, desde el enlace de tu cita puedes cancelarla con antelación. Si necesitas cambiarla, escríbenos y la movemos sin problema.</p></details>
-      <details><summary>¿Os desplazáis a domicilio?</summary><p id="faq-home">Sí, en servicios como novias, invitadas y eventos. Al reservar eliges “a domicilio” e indicas la dirección.</p></details>
+    <header class="section-head" style="grid-template-columns:1fr"><div><p class="label">Preguntas frecuentes</p><h2>Resolvemos tus dudas</h2></div></header>
+    <div class="faq">
+      <details><summary>¿Cómo funciona la reserva?</summary><p>Eliges servicio, fecha y hora en el calendario y dejas tus datos. Recibirás un enlace para ver o cancelar tu cita cuando quieras.</p></details>
       <details><summary>¿Qué diferencia hay entre microblading, powder brows e hiperrealismo?</summary><p>El microblading dibuja trazos pelo a pelo; el powder brows crea un sombreado suave tipo maquillaje; y el hiperrealismo combina técnicas para un acabado muy natural. En la valoración te recomendamos la que mejor encaja con tu piel y tu estilo.</p></details>
       <details><summary>¿Duele el microblading?</summary><p>La sensibilidad varía de una persona a otra. Se trabaja con cuidado y con productos para tu comodidad; la mayoría de clientas lo describe como una molestia leve y llevadera.</p></details>
       <details><summary>¿Cuánto dura el resultado y hace falta retoque?</summary><p>La duración depende de tu tipo de piel, tu estilo de vida y los cuidados. Es habitual programar una sesión de retoque tras la cicatrización para perfeccionar y consolidar el resultado, y retoques de mantenimiento más adelante.</p></details>
       <details><summary>¿Quién no puede hacerse micropigmentación?</summary><p>Por seguridad, en embarazo o lactancia, ciertas condiciones de la piel o de salud y algunos tratamientos, puede no ser recomendable. Indícalo al reservar o en la valoración y te asesoramos.</p></details>
-      <details><summary>¿Qué incluye el maquillaje de novia?</summary><p>Prueba previa (recomendada), maquillaje del día de la boda con productos de larga duración y un kit de retoque. Escríbenos para preparar tu propuesta.</p></details>
+      <details><summary>¿Puedo cancelar o cambiar mi cita?</summary><p id="faq-cancel">Sí, desde el enlace de tu cita puedes cancelarla con antelación. Si necesitas cambiarla, escríbenos y la movemos sin problema.</p></details>
+      <details><summary>¿Os desplazáis a domicilio?</summary><p id="faq-home">Sí, en servicios como maquillaje y depilación. Al reservar eliges “a domicilio” e indicas la dirección.</p></details>
       <details><summary>¿Cómo tratáis mis datos personales?</summary><p>Solo usamos tus datos para gestionar tu cita. Puedes leer los detalles en la <a href="/privacidad">política de privacidad</a>.</p></details>
     </div>
   </div>
@@ -165,24 +160,19 @@
 </main>
 
 <footer class="footer" id="contacto">
-  <div class="wrap foot-grid">
-    <div>
-      <p class="brand-line">Noelia Duque</p>
-      <p class="muted" id="ft-tag"></p>
+  <div class="wrap">
+    <p class="wordmark">Noelia Duque</p>
+    <div class="foot-grid">
+      <div><h3>Estudio</h3><p class="muted" id="ft-tag"></p></div>
+      <div><h3>Contacto</h3><ul class="plain" id="ft-contact"></ul></div>
+      <div><h3>Horario</h3><ul class="plain" id="ft-hours"></ul></div>
     </div>
-    <div>
-      <h3>Contacto</h3>
-      <ul class="plain" id="ft-contact"></ul>
-    </div>
-    <div>
-      <h3>Horario</h3>
-      <ul class="plain" id="ft-hours"></ul>
-    </div>
+    <div class="foot-bottom"><span>© <span id="yr"></span> Noelia Duque · Cejas, Maquillaje y Estética</span><a href="/privacidad">Privacidad</a></div>
   </div>
-  <div class="wrap foot-bottom"><span>© <span id="yr"></span> Noelia Duque Make up Artist</span><span><a href="/privacidad">Privacidad</a></span></div>
 </footer>
 
 <a class="sticky-cta" href="#reservar">Reservar cita</a>
 <script src="/js/site.js" type="module"></script>
+<script src="/js/brow.js" type="module"></script>
 </body>
 </html>

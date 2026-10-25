@@ -86,7 +86,7 @@ function bookingRow(b) {
   return `<article class="bk ${b.status}">
     <div class="t">${fm(b.start_min)}<small>${fm(b.end_min)}</small></div>
     <div class="who"><b>${esc(b.name)}</b> <span class="badge ${b.status}">${LABEL[b.status]}</span>
-      <div>${esc(b.service_name)} · ${eur(b.price_cents)} · ${b.location === 'home' ? '🏠 ' + esc(b.address) : 'Estudio'}</div>
+      <div>${esc(b.service_name)} · ${eur(b.price_cents)} · ${b.location === 'home' ? 'Domicilio: ' + esc(b.address) : 'Estudio'}</div>
       <div>${esc(b.phone)} · ${esc(b.email)}${b.notes ? `<br>“${esc(b.notes)}”` : ''}${b.source === 'admin' ? ' · manual' : ''}</div></div>
     <div class="acts">
       ${b.status === 'pending' ? a('confirmed', 'Confirmar', 'ok') : ''}
@@ -95,7 +95,7 @@ function bookingRow(b) {
       ${['cancelled', 'no_show', 'done'].includes(b.status) ? a('confirmed', 'Reabrir') : ''}
       <a href="${esc(wa)}" target="_blank" rel="noopener">WhatsApp</a>
       <a href="mailto:${esc(b.email)}">Email</a>
-      <button class="bad" data-del="${b.id}" title="Eliminar">🗑</button>
+      <button class="bad" data-del="${b.id}" title="Eliminar">Eliminar</button>
     </div></article>`;
 }
 $('#bookings').onclick = guard(async (e) => {

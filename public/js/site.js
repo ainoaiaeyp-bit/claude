@@ -26,13 +26,10 @@ burger.addEventListener('click', () => {
 menu.addEventListener('click', (e) => { if (e.target.closest('a')) { menu.classList.remove('open'); burger.setAttribute('aria-expanded', false); } });
 $('#yr').textContent = new Date().getFullYear();
 
-/* reveal + sticky CTA */
-const io = new IntersectionObserver((es) => es.forEach((e) => { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } }), { threshold: 0.12 });
-const observe = () => document.querySelectorAll('.reveal:not(.in)').forEach((el) => io.observe(el));
-observe();
+/* CTA fija en móvil */
 const sticky = $('.sticky-cta'), bookSec = $('#reservar');
-new IntersectionObserver(([e]) => sticky.classList.toggle('show', scrollY > 500 && !e.isIntersecting)).observe(bookSec);
-addEventListener('scroll', () => { if (scrollY < 500) sticky.classList.remove('show'); }, { passive: true });
+const stickyUpdate = () => { const r = bookSec.getBoundingClientRect(); sticky.classList.toggle('show', scrollY > 500 && !(r.top < innerHeight && r.bottom > 0)); };
+addEventListener('scroll', stickyUpdate, { passive: true });
 
 document.addEventListener('click', (e) => {
   const b = e.target.closest('[data-book-name]'); if (!b) return;
@@ -49,32 +46,27 @@ async function init() {
   renderLd();
   const gal = await api('/api/gallery').catch(() => []);
   renderGallery(gal);
+  if (gal.length) { const ph = $('#about-photo'); ph.hidden = false; ph.innerHTML = `<img src="${esc(gal[1] || gal[0])}" alt="Noelia Duque trabajando" loading="lazy">`; }
   wizard.start();
   const pre = new URLSearchParams(location.search).get('servicio');
   if (pre && services.some((s) => s.id === Number(pre))) wizard.pick(Number(pre));
 }
 
 function renderServices() {
-  const cats = ['Todos', ...new Set(services.map((s) => s.category))];
-  const f = $('#svc-filters');
-  f.innerHTML = cats.map((c, i) => `<button class="chip" role="tab" aria-selected="${i === 0}" data-c="${esc(c)}">${esc(c)}</button>`).join('');
-  f.hidden = cats.length < 3;
-  const draw = (c) => {
-    $('#svc-grid').innerHTML = services.filter((s) => c === 'Todos' || s.category === c).map((s) => `
-      <article class="card${s.category === 'Micropigmentación' ? ' star' : ''}">
-        <span class="cat">${esc(s.category)}</span>
-        <h3>${esc(s.name)}</h3>
-        <p>${esc(s.description)}</p>
-        <div class="meta"><span class="price">${s.price_from && s.price_cents ? '<small>desde</small>' : ''}${money(s.price_cents)}</span><span class="dur">⏱ ${dur(s.duration_min)}</span></div>
-        <button class="btn" data-book="${s.id}">Reservar este servicio</button>
-      </article>`).join('') || '<p class="hint">Próximamente.</p>';
-  };
-  draw('Todos');
-  f.onclick = (e) => {
-    const b = e.target.closest('.chip'); if (!b) return;
-    f.querySelectorAll('.chip').forEach((x) => x.setAttribute('aria-selected', x === b));
-    draw(b.dataset.c);
-  };
+  const groups = [];
+  services.forEach((s) => {
+    let g = groups.find((x) => x.name === s.category);
+    if (!g) groups.push((g = { name: s.category, items: [] }));
+    g.items.push(s);
+  });
+  $('#svc-grid').innerHTML = groups.map((g) => `
+    <div class="svc-group"><h3>${esc(g.name)}</h3><div class="svc-rows">${g.items.map((s) => `
+      <div class="svc-row">
+        <div><h4>${esc(s.name)}</h4><p>${esc(s.description)}</p></div>
+        <span class="dur">${dur(s.duration_min)}</span>
+        <span class="price">${s.price_from && s.price_cents ? '<small>desde</small>' : ''}${money(s.price_cents)}</span>
+        <button class="btn btn-sm btn-ghost" data-book="${s.id}">Reservar</button>
+      </div>`).join('')}</div></div>`).join('') || '<p class="hint">Próximamente.</p>';
   $('#svc-grid').onclick = (e) => {
     const b = e.target.closest('[data-book]'); if (!b) return;
     wizard.pick(Number(b.dataset.book));
@@ -85,9 +77,7 @@ function renderServices() {
 function renderGallery(list) {
   if (!list.length) { $('#nav-portfolio').parentElement.hidden = true; return; }
   $('#portfolio').hidden = false;
-  $('#gallery').innerHTML = list.map((u, i) => `<figure class="reveal"><img src="${esc(u)}" alt="Trabajo de maquillaje ${i + 1}" loading="lazy"></figure>`).join('');
-  $('#hero-arch').insertAdjacentHTML('afterbegin', `<img src="${esc(list[0])}" alt="Cejas por Noelia Duque">`);
-  observe();
+  $('#gallery').innerHTML = list.map((u, i) => `<figure><img src="${esc(u)}" alt="Trabajo de cejas ${i + 1}" loading="lazy"></figure>`).join('');
 }
 
 function renderFooter() {
@@ -152,7 +142,7 @@ const wizard = (() => {
           <span class="p">${s.price_from && s.price_cents ? 'desde ' : ''}${money(s.price_cents)}</span>
         </button>`).join('')}</div>
       <div id="loc"></div>
-      <div class="wz-nav"><span></span><button class="btn" id="next1" ${st.service ? '' : 'disabled'}>Continuar</button></div>`;
+      <div class="wz-nav"><span></span><button class="btn btn-accent" id="next1" ${st.service ? '' : 'disabled'}>Continuar</button></div>`;
     renderLoc();
     body.querySelector('.opt-list').onclick = (e) => {
       const b = e.target.closest('.opt'); if (!b) return;
@@ -203,7 +193,7 @@ const wizard = (() => {
     body.innerHTML = `<h3 class="wz-title">Elige día y hora</h3>
       <p class="muted" style="margin-top:-.6rem">${esc(s.name)} · ${dur(s.duration_min)}</p>
       <div class="dt-grid"><div id="calbox"></div><div id="slotbox"></div></div>
-      <div class="wz-nav"><button class="btn btn-ghost" id="back">Atrás</button><button class="btn" id="next2" ${st.slot != null ? '' : 'disabled'}>Continuar</button></div>`;
+      <div class="wz-nav"><button class="btn btn-ghost" id="back">Atrás</button><button class="btn btn-accent" id="next2" ${st.slot != null ? '' : 'disabled'}>Continuar</button></div>`;
     $('#back').onclick = () => setStep(1);
     $('#next2').onclick = () => setStep(3);
     drawCal(); drawSlots();
@@ -274,7 +264,7 @@ const wizard = (() => {
         <label class="check full"><input type="checkbox" name="consent" required><span>He leído y acepto la <a href="/privacidad" target="_blank">política de privacidad</a>.</span></label>
         ${settings.depositInfo ? `<p class="muted full" style="margin:0;font-size:.9rem">${esc(settings.depositInfo)}</p>` : ''}
         <div id="ferr" class="full" role="alert"></div>
-        <div class="wz-nav full"><button type="button" class="btn btn-ghost" id="back">Atrás</button><button class="btn" id="send">Solicitar cita</button></div>
+        <div class="wz-nav full"><button type="button" class="btn btn-ghost" id="back">Atrás</button><button class="btn btn-accent" id="send">Solicitar cita</button></div>
       </form>`;
     $('#back').onclick = () => { st.form = formData(); setStep(2); };
     $('#form').onsubmit = submit;
@@ -307,13 +297,13 @@ const wizard = (() => {
     const confirmed = b.status === 'confirmed';
     const link = `${location.origin}/cita?t=${b.token}`;
     const wa = settings.whatsapp ? `https://wa.me/${settings.whatsapp.replace(/\D/g, '')}?text=${encodeURIComponent(`Hola, soy ${b.name}. Acabo de reservar ${b.service} el ${longDate(b.date)} a las ${b.start}.`)}` : '';
-    body.innerHTML = `<div class="success"><div class="tick">✓</div>
+    body.innerHTML = `<div class="success"><div class="tick"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="square"><path d="M4 12.5l5 5L20 6.5"/></svg></div>
       <h3 class="wz-title">${confirmed ? '¡Cita confirmada!' : '¡Solicitud recibida!'}</h3>
       <p>${confirmed ? 'Te esperamos. Guarda este enlace para consultar o cancelar tu cita.' : 'Revisaremos tu solicitud y te confirmaremos muy pronto. Guarda este enlace para consultar o cancelar tu cita.'}</p>
       <div class="summary"><b>${esc(b.service)}</b><span>${longDate(b.date)} · ${b.start}–${b.end}</span><span>${b.location === 'home' ? 'A domicilio: ' + esc(b.address) : 'En el estudio'}</span>
         <span><span class="badge ${b.status}">${confirmed ? 'Confirmada' : 'Pendiente de confirmar'}</span></span></div>
       <div class="cta-row" style="justify-content:center">
-        <a class="btn" href="/api/bookings/${b.token}/ics">Añadir al calendario</a>
+        <a class="btn btn-accent" href="/api/bookings/${b.token}/ics">Añadir al calendario</a>
         <a class="btn btn-ghost" href="${esc(link)}">Ver / cancelar mi cita</a>
         ${wa ? `<a class="btn btn-ghost" href="${esc(wa)}" target="_blank" rel="noopener">Avisar por WhatsApp</a>` : ''}
       </div></div>`;

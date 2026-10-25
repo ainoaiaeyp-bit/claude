@@ -9,12 +9,12 @@ async function load() {
   const d = await r.json();
   if (!r.ok) { box.innerHTML = `<div class="err">${esc(d.error || 'No encontramos esta cita.')}</div><p style="margin-top:1rem"><a href="/">Volver a la web</a></p>`; return; }
   const b = d.booking;
-  box.innerHTML = `<h1 class="wz-title" style="font-size:2rem">Hola, ${esc(b.name.split(' ')[0])}</h1>
+  box.innerHTML = `<h1 class="wz-title">Hola, ${esc(b.name.split(' ')[0])}</h1>
     <div class="summary"><b>${esc(b.service)}</b><span style="text-transform:capitalize">${longDate(b.date)}</span><span>${b.start}–${b.end} · ${b.location === 'home' ? 'A domicilio: ' + esc(b.address) : 'En el estudio'}</span>
     <span><span class="badge ${esc(b.status)}">${LABEL[b.status] || esc(b.status)}</span></span></div>
     <div class="cta-row" style="margin-bottom:0">
       ${['pending', 'confirmed'].includes(b.status) ? `<a class="btn btn-ghost" href="/api/bookings/${esc(b.token)}/ics">Añadir al calendario</a>` : ''}
-      ${d.can_cancel ? '<button class="btn" id="cancel" style="background:var(--bad);border-color:var(--bad)">Cancelar cita</button>' : ''}
+      ${d.can_cancel ? '<button class="btn" id="cancel" style="background:var(--bad);border-color:var(--bad);color:var(--surface)">Cancelar cita</button>' : ''}
       <a class="btn btn-ghost" href="/">Volver</a>
     </div>
     ${!d.can_cancel && ['pending', 'confirmed'].includes(b.status) ? '<p class="muted" style="font-size:.9rem;margin-top:1rem">Para cambios o cancelaciones con poca antelación, contacta directamente con nosotras.</p>' : ''}
