@@ -3,373 +3,165 @@ import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
-import { db, seed, getSettings, setSetting, getSecret, hashPassword, verifyPassword } from './db.js';
-import {
-  BookingError, slotsFor, monthAvailability, getService, createBooking, getBookingById, getBookingByToken,
-  publicBooking, canCancel, ics, isDate, nowLocal, addDays, fmtMin
-} from './booking.js';
+import { createStore } from './core/store.js';
+import { createApi } from './core/api.js';
+import { seedData } from './core/defaults.js';
+import { getSettings } from './core/booking.js';
+import { runAutomations } from './core/automations.js';
+import { quarterRange } from './core/accounting.js';
+import { nowLocal, quarterOf } from './core/util.js';
+import { openPersist } from './persist.js';
+import { diskFiles, galleryFiles } from './files.js';
+import { createMailer } from './mail.js';
+import { createInvoiceExtractor } from './ai.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const PUBLIC = path.join(ROOT, 'public');
-const GALLERY = path.join(PUBLIC, 'img', 'gallery');
-const PORT = Number(process.env.PORT) || 3000;
-const SECURE = process.env.NODE_ENV === 'production';
 
-seed();
-const SECRET = getSecret();
-
-/* ───────── helpers ───────── */
 const MIME = {
-  '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8', '.js': 'text/javascript; charset=utf-8',
-  '.json': 'application/json', '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg',
-  '.webp': 'image/webp', '.ico': 'image/x-icon', '.txt': 'text/plain; charset=utf-8', '.xml': 'application/xml', '.webmanifest': 'application/manifest+json'
+  '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.json': 'application/json', '.svg': 'image/svg+xml',
+  '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.ico': 'image/x-icon', '.txt': 'text/plain; charset=utf-8', '.xml': 'application/xml',
 };
-const SEC_HEADERS = {
-  'X-Content-Type-Options': 'nosniff',
-  'X-Frame-Options': 'DENY',
-  'Referrer-Policy': 'strict-origin-when-cross-origin',
-  'Permissions-Policy': 'camera=(), microphone=(), geolocation=()',
-  'Content-Security-Policy':
-    "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
-    "font-src https://fonts.gstatic.com; script-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+const SEC = {
+  'X-Content-Type-Options': 'nosniff', 'X-Frame-Options': 'SAMEORIGIN', 'Referrer-Policy': 'strict-origin-when-cross-origin', 'Permissions-Policy': 'camera=(), microphone=(), geolocation=()',
+  'Content-Security-Policy': "default-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; script-src 'self'; connect-src 'self'; frame-src 'self' blob:; object-src 'self' blob:; frame-ancestors 'self'; base-uri 'self'; form-action 'self'",
 };
 
-function send(res, status, body, headers = {}) {
-  res.writeHead(status, { ...SEC_HEADERS, ...headers });
-  res.end(body);
-}
-const json = (res, status, data, headers = {}) =>
-  send(res, status, JSON.stringify(data), { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', ...headers });
+/* contraseña del panel */
+const hashPw = (pw) => { const salt = crypto.randomBytes(16); return `${salt.toString('hex')}:${crypto.scryptSync(pw, salt, 64).toString('hex')}`; };
+const checkPw = (pw, stored) => {
+  if (!stored) return false; const [s, h] = stored.split(':'); const known = Buffer.from(h, 'hex'), got = crypto.scryptSync(pw, Buffer.from(s, 'hex'), 64);
+  return known.length === got.length && crypto.timingSafeEqual(known, got);
+};
 
-async function readBody(req, limit = 64 * 1024) {
-  const chunks = [];
-  let size = 0;
-  for await (const c of req) {
-    size += c.length;
-    if (size > limit) throw new BookingError('Contenido demasiado grande.', 413);
-    chunks.push(c);
+/** Crea la aplicación completa. Se usa desde `npm start` y desde los tests. */
+export async function createApp({ dataDir = process.env.DATA_DIR || path.resolve('data'), adminPassword = process.env.ADMIN_PASSWORD, now = () => new Date(), mailer, extractor, quiet = false } = {}) {
+  const persist = openPersist(dataDir);
+  const store = createStore(persist.load(), persist.hook);
+  if (!store.setting('_seeded')) { const sd = seedData(); for (const s of sd.services) store.insert('services', s); store.setSetting('_seeded', true); }
+  if (!store.setting('_secret')) store.setSetting('_secret', crypto.randomBytes(32).toString('hex'));
+  if (!store.setting('_adminHash')) {
+    const pw = adminPassword || crypto.randomBytes(6).toString('base64url');
+    store.setSetting('_adminHash', hashPw(pw));
+    if (!adminPassword && !quiet) console.log(`\n  Contraseña inicial del panel: ${pw}\n  Entra en /admin y cámbiala en Ajustes.\n`);
   }
-  return Buffer.concat(chunks);
-}
-async function readJson(req) {
-  if (!(req.headers['content-type'] || '').startsWith('application/json')) throw new BookingError('Formato no válido.', 415);
-  try { return JSON.parse((await readBody(req)).toString('utf8') || '{}'); } catch { throw new BookingError('JSON no válido.'); }
-}
+  const SECRET = store.setting('_secret');
+  const SECURE = process.env.NODE_ENV === 'production';
 
-const hits = new Map();
-function rateLimit(key, max, windowMs) {
-  const now = Date.now();
-  const arr = (hits.get(key) || []).filter((t) => now - t < windowMs);
-  arr.push(now);
-  hits.set(key, arr);
-  return arr.length <= max;
-}
-setInterval(() => { const n = Date.now(); for (const [k, v] of hits) if (!v.some((t) => n - t < 3600e3)) hits.delete(k); }, 600e3).unref();
-
-const ipOf = (req) => (process.env.TRUST_PROXY ? String(req.headers['x-forwarded-for'] || '').split(',')[0].trim() : '') || req.socket.remoteAddress || '';
-
-/* ───────── sessions ───────── */
-const sign = (v) => crypto.createHmac('sha256', SECRET).update(v).digest('base64url');
-function makeSession() {
-  const exp = Date.now() + 12 * 3600e3;
-  return `${exp}.${sign(String(exp))}`;
-}
-function isAdmin(req) {
-  const m = /(?:^|;\s*)sid=([^;]+)/.exec(req.headers.cookie || '');
-  if (!m) return false;
-  const [exp, sig] = m[1].split('.');
-  if (!exp || !sig || Number(exp) < Date.now()) return false;
-  const a = Buffer.from(sig), b = Buffer.from(sign(exp));
-  return a.length === b.length && crypto.timingSafeEqual(a, b);
-}
-const cookie = (v, maxAge) => `sid=${v}; HttpOnly; SameSite=Strict; Path=/; Max-Age=${maxAge}${SECURE ? '; Secure' : ''}`;
-
-/* ───────── notifications (outbox + optional webhook) ───────── */
-function notify(kind, booking) {
-  const payload = { kind, booking: { ...booking, token: undefined }, at: new Date().toISOString() };
-  db.prepare('INSERT INTO outbox(kind,payload) VALUES(?,?)').run(kind, JSON.stringify(payload));
-  console.log(`[aviso] ${kind}: ${booking.name} · ${booking.service_name} · ${booking.date} ${fmtMin(booking.start_min)}`);
-  const hook = process.env.WEBHOOK_URL;
-  if (hook) {
-    fetch(hook, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...payload, booking }) })
-      .catch((e) => console.error('webhook:', e.message));
-  }
-}
-
-/* ───────── public settings / services ───────── */
-const publicSettings = () => {
-  const s = getSettings();
-  return {
-    businessName: s.businessName, tagline: s.tagline, city: s.city, address: s.address, phone: s.phone, whatsapp: s.whatsapp,
-    email: s.email, instagram: s.instagram, minNoticeHours: Number(s.minNoticeHours), cancelHours: Number(s.cancelHours),
-    maxDaysAhead: Number(s.maxDaysAhead), autoConfirm: s.autoConfirm === '1', depositInfo: s.depositInfo, homeFeeInfo: s.homeFeeInfo,
-    hours: JSON.parse(s.hours)
+  const smtp = mailer || (process.env.SMTP_HOST ? createMailer({ host: process.env.SMTP_HOST, port: Number(process.env.SMTP_PORT) || 587, user: process.env.SMTP_USER, pass: process.env.SMTP_PASS, from: process.env.SMTP_FROM, secure: process.env.SMTP_SECURE === '1' }) : null);
+  const aiExtract = extractor !== undefined ? extractor : await createInvoiceExtractor();
+  const files = diskFiles(dataDir);
+  const gallery = galleryFiles(path.join(PUBLIC, 'img', 'gallery'));
+  const ctx = {
+    now, files, gallery, siteUrl: process.env.SITE_URL || '',
+    mailEnabled: !!smtp, aiEnabled: !!aiExtract, extractInvoice: aiExtract || undefined,
+    sendMail: (m) => (smtp ? smtp.send(m) : Promise.reject(new Error('SMTP no configurado'))),
+    auth: { change: async (cur, next) => { if (!checkPw(cur, store.setting('_adminHash'))) return false; store.setSetting('_adminHash', hashPw(next)); return true; } },
+    notify(kind, payload) {
+      if (!quiet) console.log(`[aviso] ${kind}`);
+      if (process.env.WEBHOOK_URL) fetch(process.env.WEBHOOK_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ kind, payload, at: new Date().toISOString() }) }).catch((e) => console.error('webhook:', e.message));
+    },
   };
-};
-const galleryFiles = () => {
-  try { return fs.readdirSync(GALLERY).filter((f) => /\.(jpe?g|png|webp)$/i.test(f)).sort().map((f) => `/img/gallery/${f}`); } catch { return []; }
-};
-const svcRow = (r) => ({ ...r, price_from: !!r.price_from, allow_home: !!r.allow_home, active: !!r.active });
+  const api = createApi(store, ctx);
 
-/* ───────── API ───────── */
-async function api(req, res, url) {
-  const p = url.pathname;
-  const m = req.method;
-  const ip = ipOf(req);
+  /* sesiones */
+  const sign = (v) => crypto.createHmac('sha256', SECRET).update(v).digest('base64url');
+  const makeSession = () => { const exp = now().getTime() + 12 * 3600e3; return `${exp}.${sign(String(exp))}`; };
+  const isAdmin = (req) => {
+    const m = /(?:^|;\s*)sid=([^;]+)/.exec(req.headers.cookie || ''); if (!m) return false;
+    const [exp, sig] = m[1].split('.'); if (!exp || !sig || Number(exp) < now().getTime()) return false;
+    const a = Buffer.from(sig), b = Buffer.from(sign(exp)); return a.length === b.length && crypto.timingSafeEqual(a, b);
+  };
+  const cookie = (v, maxAge) => `sid=${v}; HttpOnly; SameSite=Strict; Path=/; Max-Age=${maxAge}${SECURE ? '; Secure' : ''}`;
+  const attempts = new Map();
+  const ipOf = (req) => (process.env.TRUST_PROXY ? String(req.headers['x-forwarded-for'] || '').split(',')[0].trim() : '') || req.socket.remoteAddress || '';
 
-  if (m === 'GET' && p === '/api/settings') return json(res, 200, publicSettings());
-  if (m === 'GET' && p === '/api/gallery') return json(res, 200, galleryFiles());
-  if (m === 'GET' && p === '/api/services') {
-    return json(res, 200, db.prepare('SELECT * FROM services WHERE active=1 ORDER BY sort, id').all().map(svcRow));
+  async function body(req, limit) {
+    const chunks = []; let size = 0;
+    for await (const c of req) { size += c.length; if (size > limit) { const e = new Error('Contenido demasiado grande.'); e.status = 413; throw e; } chunks.push(c); }
+    return Buffer.concat(chunks);
   }
-  if (m === 'GET' && p === '/api/availability') {
-    const svc = getService(url.searchParams.get('service_id'));
-    if (!svc) return json(res, 404, { error: 'Servicio no encontrado.' });
-    const date = url.searchParams.get('date');
-    if (date) return json(res, 200, { slots: slotsFor(svc, date).map((t) => ({ start_min: t, label: fmtMin(t) })) });
-    return json(res, 200, { days: monthAvailability(svc, url.searchParams.get('month') || '') });
-  }
-  if (m === 'POST' && p === '/api/bookings') {
-    if (!rateLimit('book:' + ip, 8, 3600e3)) return json(res, 429, { error: 'Demasiadas solicitudes. Inténtalo más tarde.' });
-    const body = await readJson(req);
-    if (body.website) return json(res, 200, { ok: true }); // honeypot
-    if (body.consent !== true) throw new BookingError('Debes aceptar la política de privacidad.');
-    const b = createBooking(body);
-    notify('booking.created', b);
-    return json(res, 201, { booking: publicBooking(b) });
-  }
+  const send = (res, status, data, headers = {}) => { res.writeHead(status, { ...SEC, ...headers }); res.end(data); };
 
-  let t = /^\/api\/bookings\/([a-f0-9]{32})(\/cancel|\/ics)?$/.exec(p);
-  if (t) {
-    const b = getBookingByToken(t[1]);
-    if (!b) return json(res, 404, { error: 'Cita no encontrada.' });
-    if (m === 'GET' && !t[2]) return json(res, 200, { booking: publicBooking(b), can_cancel: canCancel(b) });
-    if (m === 'GET' && t[2] === '/ics') {
-      return send(res, 200, ics(b, getSettings()), { 'Content-Type': 'text/calendar; charset=utf-8', 'Content-Disposition': 'attachment; filename="cita.ics"' });
+  async function handleApi(req, res, url) {
+    const m = req.method, p = url.pathname === '/baja' ? '/api/baja' : url.pathname;
+    if (!['GET', 'HEAD'].includes(m) && req.headers.origin && new URL(req.headers.origin).host !== req.headers.host) return send(res, 403, JSON.stringify({ error: 'Origen no permitido.' }), { 'Content-Type': 'application/json' });
+    if (m === 'POST' && p === '/api/admin/login') {
+      const ip = ipOf(req), t = now().getTime(), arr = (attempts.get(ip) || []).filter((x) => t - x < 15 * 60e3); arr.push(t); attempts.set(ip, arr);
+      if (arr.length > 6) return send(res, 429, JSON.stringify({ error: 'Demasiados intentos. Espera unos minutos.' }), { 'Content-Type': 'application/json' });
+      let pw = ''; try { pw = JSON.parse((await body(req, 4096)).toString()).password || ''; } catch { /* vacío */ }
+      if (!checkPw(String(pw), store.setting('_adminHash'))) return send(res, 401, JSON.stringify({ error: 'Contraseña incorrecta.' }), { 'Content-Type': 'application/json' });
+      return send(res, 200, JSON.stringify({ ok: true }), { 'Content-Type': 'application/json', 'Set-Cookie': cookie(makeSession(), 12 * 3600) });
     }
-    if (m === 'POST' && t[2] === '/cancel') {
-      if (!canCancel(b)) throw new BookingError('Para cancelar con menos antelación, contacta directamente con nosotras.', 403);
-      db.prepare("UPDATE bookings SET status='cancelled' WHERE id=?").run(b.id);
-      notify('booking.cancelled_by_client', getBookingById(b.id));
-      return json(res, 200, { ok: true });
+    if (m === 'POST' && p === '/api/admin/logout') return send(res, 200, '{"ok":true}', { 'Content-Type': 'application/json', 'Set-Cookie': cookie('', 0) });
+
+    const ct = (req.headers['content-type'] || '').split(';')[0].trim();
+    const r = { method: m === 'HEAD' ? 'GET' : m, path: p, query: Object.fromEntries(url.searchParams), admin: isAdmin(req), ip: ipOf(req), contentType: ct, filename: decodeURIComponent(String(req.headers['x-filename'] || '')) };
+    if (!['GET', 'HEAD', 'DELETE'].includes(m)) {
+      const buf = await body(req, 13 * 1024 * 1024);
+      if (ct === 'application/json' || !ct) { try { r.body = buf.length ? JSON.parse(buf.toString('utf8')) : {}; } catch { return send(res, 400, JSON.stringify({ error: 'JSON no válido.' }), { 'Content-Type': 'application/json' }); } }
+      else r.raw = new Uint8Array(buf);
     }
+    const out = await api(r);
+    const h = { 'Cache-Control': 'no-store', ...(out.headers || {}) };
+    if (out.json !== undefined) return send(res, out.status, JSON.stringify(out.json), { 'Content-Type': 'application/json; charset=utf-8', ...h });
+    if (out.html !== undefined) return send(res, out.status, out.html, { 'Content-Type': 'text/html; charset=utf-8', ...h });
+    if (out.bytes) return send(res, out.status, Buffer.from(out.bytes), h);
+    return send(res, out.status, out.text ?? '', { 'Content-Type': 'text/plain; charset=utf-8', ...h });
   }
 
-  /* ── admin ── */
-  if (m === 'POST' && p === '/api/admin/login') {
-    if (!rateLimit('login:' + ip, 6, 15 * 60e3)) return json(res, 429, { error: 'Demasiados intentos. Espera unos minutos.' });
-    const { password } = await readJson(req);
-    if (!verifyPassword(String(password || ''), getSettings().adminHash)) return json(res, 401, { error: 'Contraseña incorrecta.' });
-    return json(res, 200, { ok: true }, { 'Set-Cookie': cookie(makeSession(), 12 * 3600) });
-  }
-  if (m === 'POST' && p === '/api/admin/logout') return json(res, 200, { ok: true }, { 'Set-Cookie': cookie('', 0) });
-  if (!p.startsWith('/api/admin/')) return json(res, 404, { error: 'No encontrado.' });
-  if (!isAdmin(req)) return json(res, 401, { error: 'No autorizado.' });
-  if (m === 'GET' && p === '/api/admin/me') return json(res, 200, { ok: true });
-
-  if (m === 'GET' && p === '/api/admin/bookings') {
-    const from = url.searchParams.get('from') || nowLocal().date;
-    const to = url.searchParams.get('to') || addDays(from, 60);
-    if (!isDate(from) || !isDate(to)) throw new BookingError('Rango de fechas no válido.');
-    const rows = db.prepare('SELECT * FROM bookings WHERE date BETWEEN ? AND ? ORDER BY date, start_min').all(from, to);
-    return json(res, 200, rows);
-  }
-  if (m === 'GET' && p === '/api/admin/stats') {
-    const today = nowLocal().date;
-    const month = today.slice(0, 7);
-    const one = (sql, ...a) => Object.values(db.prepare(sql).get(...a))[0] || 0;
-    return json(res, 200, {
-      pending: one("SELECT COUNT(*) FROM bookings WHERE status='pending' AND date>=?", today),
-      upcoming: one("SELECT COUNT(*) FROM bookings WHERE status IN ('pending','confirmed') AND date>=?", today),
-      today: one("SELECT COUNT(*) FROM bookings WHERE status IN ('pending','confirmed') AND date=?", today),
-      monthRevenue: one("SELECT COALESCE(SUM(price_cents),0) FROM bookings WHERE status IN ('confirmed','done') AND date LIKE ?", month + '%'),
-      clients: one('SELECT COUNT(DISTINCT lower(email)) FROM bookings')
+  function serveStatic(req, res, url) {
+    let p = decodeURIComponent(url.pathname);
+    const pretty = { '/admin': '/admin.html', '/cita': '/cita.html', '/privacidad': '/privacidad.html' };
+    if (pretty[p]) p = pretty[p]; if (p.endsWith('/')) p += 'index.html';
+    const file = path.normalize(path.join(PUBLIC, p));
+    if (!file.startsWith(PUBLIC + path.sep) || p.includes('\0')) return send(res, 403, 'Forbidden');
+    fs.stat(file, (err, st) => {
+      if (err || !st.isFile()) return send(res, 404, fs.existsSync(path.join(PUBLIC, '404.html')) ? fs.readFileSync(path.join(PUBLIC, '404.html')) : 'Not found', { 'Content-Type': 'text/html; charset=utf-8' });
+      const ext = path.extname(file).toLowerCase();
+      const priv = ['/admin.html', '/cita.html'].includes(p);
+      res.writeHead(200, { ...SEC, 'Content-Type': MIME[ext] || 'application/octet-stream', 'Content-Length': st.size, 'Cache-Control': priv ? 'no-store' : /\.(jpe?g|png|webp|svg|ico)$/.test(ext) ? 'public, max-age=86400' : /\.(css|js)$/.test(ext) ? 'public, max-age=300' : 'no-cache', ...(priv ? { 'X-Robots-Tag': 'noindex' } : {}) });
+      if (req.method === 'HEAD') return res.end(); fs.createReadStream(file).pipe(res);
     });
   }
-  if (m === 'POST' && p === '/api/admin/bookings') {
-    const b = createBooking(await readJson(req), { admin: true });
-    return json(res, 201, b);
-  }
-  t = /^\/api\/admin\/bookings\/(\d+)$/.exec(p);
-  if (t) {
-    const b = getBookingById(Number(t[1]));
-    if (!b) return json(res, 404, { error: 'Cita no encontrada.' });
-    if (m === 'PATCH') {
-      const { status } = await readJson(req);
-      if (!['pending', 'confirmed', 'cancelled', 'done', 'no_show'].includes(status)) throw new BookingError('Estado no válido.');
-      db.prepare('UPDATE bookings SET status=? WHERE id=?').run(status, b.id);
-      const nb = getBookingById(b.id);
-      if (status !== b.status && ['confirmed', 'cancelled'].includes(status)) notify('booking.' + status, nb);
-      return json(res, 200, nb);
-    }
-    if (m === 'DELETE') { db.prepare('DELETE FROM bookings WHERE id=?').run(b.id); return json(res, 200, { ok: true }); }
-  }
 
-  /* services */
-  if (p === '/api/admin/services') {
-    if (m === 'GET') return json(res, 200, db.prepare('SELECT * FROM services ORDER BY sort, id').all().map(svcRow));
-    if (m === 'POST') {
-      const v = validService(await readJson(req));
-      const r = db.prepare(`INSERT INTO services (name,category,description,duration_min,price_cents,price_from,allow_home,active,sort)
-        VALUES (?,?,?,?,?,?,?,?,(SELECT COALESCE(MAX(sort),0)+1 FROM services))`)
-        .run(v.name, v.category, v.description, v.duration_min, v.price_cents, v.price_from, v.allow_home, v.active);
-      return json(res, 201, { id: Number(r.lastInsertRowid) });
+  const server = http.createServer(async (req, res) => {
+    try {
+      const url = new URL(req.url, 'http://x');
+      if (url.pathname.startsWith('/api/') || url.pathname === '/baja') return await handleApi(req, res, url);
+      if (!['GET', 'HEAD'].includes(req.method)) return send(res, 405, 'Method not allowed');
+      const base = process.env.SITE_URL || `http://${req.headers.host}`;
+      if (url.pathname === '/sitemap.xml') return send(res, 200, `<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"><url><loc>${base}/</loc></url><url><loc>${base}/privacidad</loc></url></urlset>`, { 'Content-Type': 'application/xml' });
+      if (url.pathname === '/robots.txt') return send(res, 200, `User-agent: *\nDisallow: /admin\nDisallow: /cita\nDisallow: /api/\nSitemap: ${base}/sitemap.xml\n`, { 'Content-Type': 'text/plain' });
+      serveStatic(req, res, url);
+    } catch (e) {
+      if (e.status) return send(res, e.status, JSON.stringify({ error: e.message }), { 'Content-Type': 'application/json' });
+      console.error(e); send(res, 500, JSON.stringify({ error: 'Error interno del servidor.' }), { 'Content-Type': 'application/json' });
     }
-  }
-  t = /^\/api\/admin\/services\/(\d+)$/.exec(p);
-  if (t) {
-    if (m === 'PUT') {
-      const v = validService(await readJson(req));
-      db.prepare(`UPDATE services SET name=?,category=?,description=?,duration_min=?,price_cents=?,price_from=?,allow_home=?,active=? WHERE id=?`)
-        .run(v.name, v.category, v.description, v.duration_min, v.price_cents, v.price_from, v.allow_home, v.active, Number(t[1]));
-      return json(res, 200, { ok: true });
-    }
-    if (m === 'DELETE') {
-      const used = db.prepare('SELECT COUNT(*) c FROM bookings WHERE service_id=?').get(Number(t[1])).c;
-      if (used) { db.prepare('UPDATE services SET active=0 WHERE id=?').run(Number(t[1])); return json(res, 200, { ok: true, archived: true }); }
-      db.prepare('DELETE FROM services WHERE id=?').run(Number(t[1]));
-      return json(res, 200, { ok: true });
-    }
-  }
-
-  /* settings */
-  if (p === '/api/admin/settings') {
-    if (m === 'GET') { const { adminHash, _secret, _seeded, ...rest } = getSettings(); return json(res, 200, rest); }
-    if (m === 'PUT') {
-      const body = await readJson(req);
-      const text = ['businessName', 'tagline', 'city', 'address', 'phone', 'whatsapp', 'email', 'instagram', 'notificationEmail', 'depositInfo', 'homeFeeInfo'];
-      const nums = { slotStep: [5, 120], buffer: [0, 240], minNoticeHours: [0, 720], maxDaysAhead: [1, 730], cancelHours: [0, 720] };
-      for (const k of text) if (k in body) setSetting(k, String(body[k]).slice(0, 300));
-      for (const [k, [lo, hi]] of Object.entries(nums)) if (k in body) {
-        const n = Number(body[k]);
-        if (!Number.isInteger(n) || n < lo || n > hi) throw new BookingError(`Valor no válido: ${k}`);
-        setSetting(k, n);
-      }
-      if ('autoConfirm' in body) setSetting('autoConfirm', body.autoConfirm ? '1' : '0');
-      if ('hours' in body) {
-        const h = body.hours;
-        for (let d = 0; d < 7; d++) {
-          const ranges = h?.[d];
-          if (!Array.isArray(ranges)) throw new BookingError('Horario no válido.');
-          for (const r of ranges) if (!Array.isArray(r) || !(r[0] >= 0 && r[1] <= 1440 && r[0] < r[1])) throw new BookingError('Horario no válido.');
-        }
-        setSetting('hours', JSON.stringify(h));
-      }
-      return json(res, 200, { ok: true });
-    }
-  }
-  if (m === 'POST' && p === '/api/admin/password') {
-    const { current, next } = await readJson(req);
-    if (!verifyPassword(String(current || ''), getSettings().adminHash)) throw new BookingError('La contraseña actual no es correcta.', 403);
-    if (String(next || '').length < 8) throw new BookingError('La nueva contraseña debe tener al menos 8 caracteres.');
-    setSetting('adminHash', hashPassword(String(next)));
-    return json(res, 200, { ok: true });
-  }
-
-  /* blocked dates */
-  if (p === '/api/admin/blocked') {
-    if (m === 'GET') return json(res, 200, db.prepare('SELECT * FROM blocked_dates WHERE date>=? ORDER BY date').all(nowLocal().date));
-    if (m === 'POST') {
-      const { date, reason } = await readJson(req);
-      if (!isDate(date)) throw new BookingError('Fecha no válida.');
-      db.prepare('INSERT INTO blocked_dates(date,reason) VALUES(?,?) ON CONFLICT(date) DO UPDATE SET reason=excluded.reason').run(date, String(reason || '').slice(0, 100));
-      return json(res, 201, { ok: true });
-    }
-  }
-  t = /^\/api\/admin\/blocked\/(\d{4}-\d{2}-\d{2})$/.exec(p);
-  if (t && m === 'DELETE') { db.prepare('DELETE FROM blocked_dates WHERE date=?').run(t[1]); return json(res, 200, { ok: true }); }
-
-  /* gallery upload (raw image body) */
-  if (m === 'POST' && p === '/api/admin/gallery') {
-    const type = (req.headers['content-type'] || '').split(';')[0];
-    const ext = { 'image/jpeg': '.jpg', 'image/png': '.png', 'image/webp': '.webp' }[type];
-    if (!ext) throw new BookingError('Solo se admiten imágenes JPG, PNG o WebP.', 415);
-    const buf = await readBody(req, 8 * 1024 * 1024);
-    const magic = buf.subarray(0, 12);
-    const ok = (ext === '.jpg' && magic[0] === 0xff && magic[1] === 0xd8) ||
-      (ext === '.png' && magic.subarray(1, 4).toString() === 'PNG') ||
-      (ext === '.webp' && magic.subarray(0, 4).toString() === 'RIFF' && magic.subarray(8, 12).toString() === 'WEBP');
-    if (!ok) throw new BookingError('El archivo no es una imagen válida.', 415);
-    fs.mkdirSync(GALLERY, { recursive: true });
-    const name = `${Date.now()}-${crypto.randomBytes(3).toString('hex')}${ext}`;
-    fs.writeFileSync(path.join(GALLERY, name), buf);
-    return json(res, 201, { url: `/img/gallery/${name}` });
-  }
-  t = /^\/api\/admin\/gallery\/([\w.-]+)$/.exec(p);
-  if (t && m === 'DELETE') {
-    const f = path.join(GALLERY, path.basename(t[1]));
-    if (f.startsWith(GALLERY + path.sep) && fs.existsSync(f)) fs.unlinkSync(f);
-    return json(res, 200, { ok: true });
-  }
-
-  return json(res, 404, { error: 'No encontrado.' });
-}
-
-function validService(b) {
-  const name = String(b.name || '').trim().slice(0, 80);
-  const dur = Number(b.duration_min);
-  const price = Math.round(Number(b.price_cents));
-  if (!name) throw new BookingError('El servicio necesita un nombre.');
-  if (!Number.isInteger(dur) || dur < 10 || dur > 600) throw new BookingError('Duración no válida (10–600 min).');
-  if (!Number.isFinite(price) || price < 0) throw new BookingError('Precio no válido.');
-  return {
-    name, category: String(b.category || 'Maquillaje').trim().slice(0, 40), description: String(b.description || '').trim().slice(0, 500),
-    duration_min: dur, price_cents: price, price_from: b.price_from ? 1 : 0, allow_home: b.allow_home ? 1 : 0, active: b.active === false ? 0 : 1
-  };
-}
-
-/* ───────── static ───────── */
-function serveStatic(req, res, url) {
-  let p = decodeURIComponent(url.pathname);
-  const pretty = { '/admin': '/admin.html', '/cita': '/cita.html', '/privacidad': '/privacidad.html' };
-  if (pretty[p]) p = pretty[p];
-  if (p.endsWith('/')) p += 'index.html';
-  const file = path.normalize(path.join(PUBLIC, p));
-  if (!file.startsWith(PUBLIC + path.sep) || p.includes('\0')) return send(res, 403, 'Forbidden');
-  fs.stat(file, (err, st) => {
-    if (err || !st.isFile()) {
-      return send(res, 404, fs.existsSync(path.join(PUBLIC, '404.html')) ? fs.readFileSync(path.join(PUBLIC, '404.html')) : 'Not found',
-        { 'Content-Type': 'text/html; charset=utf-8' });
-    }
-    const ext = path.extname(file).toLowerCase();
-    const isAsset = /\.(css|js)$/.test(ext) ? 'public, max-age=300' : /\.(jpe?g|png|webp|svg|ico)$/.test(ext) ? 'public, max-age=86400' : 'no-cache';
-    const priv = ['/admin.html', '/cita.html'].includes(p);
-    res.writeHead(200, {
-      ...SEC_HEADERS, 'Content-Type': MIME[ext] || 'application/octet-stream', 'Content-Length': st.size,
-      'Cache-Control': priv ? 'no-store' : isAsset, ...(priv ? { 'X-Robots-Tag': 'noindex' } : {})
-    });
-    if (req.method === 'HEAD') return res.end();
-    fs.createReadStream(file).pipe(res);
   });
-}
 
-export const server = http.createServer(async (req, res) => {
-  try {
-    const url = new URL(req.url, 'http://x');
-    if (url.pathname.startsWith('/api/')) {
-      if (!['GET', 'HEAD'].includes(req.method)) {
-        const origin = req.headers.origin;
-        if (origin && new URL(origin).host !== req.headers.host) return json(res, 403, { error: 'Origen no permitido.' });
+  /* tareas periódicas: automatizaciones de correo y paquete trimestral */
+  let timer;
+  async function tick() {
+    try {
+      await runAutomations(store, ctx, now());
+      const st = getSettings(store), n = nowLocal(now());
+      const day = Number(n.date.slice(8, 10)), month = Number(n.date.slice(5, 7));
+      if (st.quarterlyAutoSend && ctx.mailEnabled && st.gestoria.email && [1, 4, 7, 10].includes(month) && day >= 2 && day <= 15) {
+        const prev = quarterOf(`${n.date.slice(0, 4)}-${String(month - 1 || 12).padStart(2, '0')}-01`), year = month === 1 ? Number(n.date.slice(0, 4)) - 1 : Number(n.date.slice(0, 4));
+        const tag = `Paquete T${prev} ${year}`;
+        if (!store.list('outbox').some((o) => o.kind === 'gestoria' && o.subject === tag)) await api({ method: 'POST', path: '/api/admin/accounting/send', admin: true, body: { year, q: prev } });
       }
-      return await api(req, res, url);
-    }
-    if (!['GET', 'HEAD'].includes(req.method)) return send(res, 405, 'Method not allowed');
-    if (url.pathname === '/sitemap.xml') {
-      const base = process.env.SITE_URL || `http://${req.headers.host}`;
-      return send(res, 200, `<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"><url><loc>${base}/</loc></url><url><loc>${base}/privacidad</loc></url></urlset>`, { 'Content-Type': 'application/xml' });
-    }
-    if (url.pathname === '/robots.txt') {
-      const base = process.env.SITE_URL || `http://${req.headers.host}`;
-      return send(res, 200, `User-agent: *\nDisallow: /admin\nDisallow: /cita\nSitemap: ${base}/sitemap.xml\n`, { 'Content-Type': 'text/plain' });
-    }
-    serveStatic(req, res, url);
-  } catch (e) {
-    if (e instanceof BookingError) return json(res, e.status, { error: e.message });
-    console.error(e);
-    json(res, 500, { error: 'Error interno del servidor.' });
+    } catch (e) { console.error('[automatizaciones]', e.message); }
   }
-});
+  const start = () => { if (!timer) { timer = setInterval(tick, 10 * 60e3); timer.unref(); setTimeout(tick, 5000).unref(); } };
+  const stop = () => { clearInterval(timer); timer = null; };
+  return { server, store, api, ctx, tick, start, stop, close: () => { stop(); server.close(); persist.close(); } };
+}
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
-  server.listen(PORT, () => console.log(`Noelia Duque · web y citas en http://localhost:${PORT}  (panel: /admin)`));
+  const app = await createApp();
+  const PORT = Number(process.env.PORT) || 3000;
+  app.server.listen(PORT, () => { console.log(`Noelia Duque · web, citas y gestión en http://localhost:${PORT}  (panel: /admin)`); console.log(`Correo: ${app.ctx.mailEnabled ? 'activo' : 'sin configurar (los emails quedan en la bandeja de salida)'} · Lectura de facturas con IA: ${app.ctx.aiEnabled ? 'activa' : 'desactivada'}`); });
+  app.start();
 }
