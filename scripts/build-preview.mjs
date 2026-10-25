@@ -15,7 +15,7 @@ fs.writeFileSync(out, `<title>Panel Noelia Duque</title>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="description" content="Vista previa interactiva del panel de gestión del estudio de Noelia Duque, con datos de ejemplo.">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>${css}
 .preview-tag{position:fixed;right:max(16px,env(safe-area-inset-right,0px));bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:250;background:#120e0c;color:#ece3d9;border-radius:999px;padding:.5rem .9rem;font:600 .62rem var(--body);letter-spacing:.14em;text-transform:uppercase;pointer-events:none}
 @media (max-width:860px){.preview-tag{right:auto;left:50%;transform:translateX(-50%);bottom:calc(var(--tab-h) + var(--sab) + 8px);opacity:.8;white-space:nowrap}#toast{bottom:calc(var(--tab-h) + var(--sab) + 46px)}}
