@@ -1,7 +1,7 @@
 const $ = (s, r = document) => r.querySelector(s);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const eur = (c) => (c / 100).toLocaleString('es-ES', { style: 'currency', currency: 'EUR', minimumFractionDigits: c % 100 ? 2 : 0 });
-const money = (c) => (c ? eur(c) : 'Cortesía');
+const money = (c) => (c ? eur(c) : 'Sin coste');
 const dur = (m) => (m >= 60 ? `${Math.floor(m / 60)} h${m % 60 ? ` ${m % 60} min` : ''}` : `${m} min`);
 const api = async (url, opts) => {
   const r = await fetch(url, opts);
@@ -18,7 +18,6 @@ let settings = {}, services = [];
 
 /* nav */
 const nav = $('#nav'), menu = $('#menu'), burger = $('#burger');
-addEventListener('scroll', () => nav.classList.toggle('scrolled', scrollY > 30), { passive: true });
 burger.addEventListener('click', () => {
   const open = menu.classList.toggle('open');
   burger.setAttribute('aria-expanded', open);
@@ -46,7 +45,6 @@ async function init() {
   renderLd();
   const gal = await api('/api/gallery').catch(() => []);
   renderGallery(gal);
-  if (gal.length) { const ph = $('#about-photo'); ph.hidden = false; ph.innerHTML = `<img src="${esc(gal[1] || gal[0])}" alt="Noelia Duque trabajando" loading="lazy">`; }
   wizard.start();
   const pre = new URLSearchParams(location.search).get('servicio');
   if (pre && services.some((s) => s.id === Number(pre))) wizard.pick(Number(pre));
@@ -60,15 +58,13 @@ function renderServices() {
     g.items.push(s);
   });
   $('#svc-grid').innerHTML = groups.map((g) => `
-    <div class="menu-group" data-reveal-line><h3>${esc(g.name)}</h3><div class="svc-rows">${g.items.map((s, k) => `
-      <div class="svc-row" data-reveal style="--d:${(k * 0.08).toFixed(2)}s">
-        <div class="svc-main">
-          <div class="svc-line"><h4>${esc(s.name)}</h4><i class="leader"></i><span class="price">${s.price_from && s.price_cents ? '<small>desde</small>' : ''}${money(s.price_cents)}</span></div>
-          <p>${esc(s.description)}</p>
-          <span class="dur">${dur(s.duration_min)}</span>
-        </div>
+    <div class="pgroup" data-reveal><h3>${esc(g.name)}<span>${String(g.items.length).padStart(2, '0')}</span></h3>${g.items.map((s) => `
+      <div class="prow">
+        <div><h4>${esc(s.name)}</h4><p>${esc(s.description)}</p></div>
+        <span class="dur">${dur(s.duration_min)}</span>
+        <span class="price">${s.price_from && s.price_cents ? '<small>desde</small>' : ''}${money(s.price_cents)}</span>
         <button class="link-btn" data-book="${s.id}">Reservar</button>
-      </div>`).join('')}</div></div>`).join('') || '<p class="hint">Próximamente.</p>';
+      </div>`).join('')}</div>`).join('') || '<p class="hint">Próximamente.</p>';
   $('#svc-grid').onclick = (e) => {
     const b = e.target.closest('[data-book]'); if (!b) return;
     wizard.pick(Number(b.dataset.book));
@@ -77,9 +73,11 @@ function renderServices() {
 }
 
 function renderGallery(list) {
-  if (!list.length) { $('#nav-portfolio').parentElement.hidden = true; return; }
-  $('#portfolio').hidden = false;
-  $('#gallery').innerHTML = list.map((u, i) => `<figure data-reveal style="--d:${((i % 3) * 0.1).toFixed(2)}s"><img src="${esc(u)}" alt="Trabajo de cejas ${i + 1}" loading="lazy"></figure>`).join('');
+  // Las fotos subidas desde el panel se añaden delante de los trabajos fijos.
+  if (!list.length) return;
+  const track = $('#gallery');
+  track.insertAdjacentHTML('afterbegin', list.map((u) => `<figure><div class="ph"><img src="${esc(u)}" alt="Trabajo de Noelia Duque" loading="lazy"></div><figcaption><span>Trabajo</span><span></span></figcaption></figure>`).join(''));
+  [...track.children].forEach((f, i) => { const n = f.querySelector('figcaption span:last-child'); if (n) n.textContent = String(i + 1).padStart(2, '0'); });
 }
 
 function renderFooter() {
@@ -91,7 +89,7 @@ function renderFooter() {
   if (settings.address) c.push(`<li><a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(settings.address.replace(/\s*\(.*\)\s*$/, ''))}" target="_blank" rel="noopener">${esc(settings.address)}</a></li>`);
   else if (settings.city) c.push(`<li>${esc(settings.city)}</li>`);
   $('#ft-contact').innerHTML = c.join('') || '<li>Reserva online las 24 h.</li>';
-  $('#ft-tag').textContent = settings.tagline;
+  if (settings.phone) { const c = $('#call'); c.textContent = settings.phone; c.href = `tel:${settings.phone.replace(/\s/g, '')}`; }
   const order = [1, 2, 3, 4, 5, 6, 0];
   $('#ft-hours').innerHTML = order.map((d) => {
     const r = settings.hours[d] || [];
