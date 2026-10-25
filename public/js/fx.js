@@ -41,7 +41,7 @@
   root.classList.add('fx-ok');
 
   /* scroll suave */
-  const lenis = new Lenis({ duration: 1.2, easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)) });
+  const lenis = new Lenis({ duration: 0.9, easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)) });
   window.lenis = lenis;
   lenis.on('scroll', ScrollTrigger.update);
   gsap.ticker.add((t) => lenis.raf(t * 1000));
@@ -102,14 +102,16 @@
   mm.add('(min-width: 901px)', () => {
     gal.classList.remove('static');
     const dist = () => Math.max(0, track.scrollWidth - innerWidth);
-    const n = track.children.length;
+    const n = track.children.length, counter = $('#gal-count');
+    let lastLabel = '';
     gsap.to(track, {
       x: () => -dist(), ease: 'none',
       scrollTrigger: {
         trigger: gal, pin: '#gal-pin', start: 'top top', end: () => `+=${dist()}`, scrub: 1, invalidateOnRefresh: true,
         onUpdate: (self) => {
           gsap.set('#gal-bar', { scaleX: self.progress });
-          $('#gal-count').textContent = `${String(Math.min(n, Math.floor(self.progress * (n - 1)) + 1)).padStart(2, '0')} / ${String(n).padStart(2, '0')}`;
+          const label = `${String(Math.min(n, Math.floor(self.progress * (n - 1)) + 1)).padStart(2, '0')} / ${String(n).padStart(2, '0')}`;
+          if (label !== lastLabel) { lastLabel = label; counter.textContent = label; }
         },
       },
     });
@@ -147,13 +149,16 @@
   const belt = $('#belt');
   if (belt) {
     belt.innerHTML += belt.innerHTML;
-    let x = 0, dir = -1;
+    let x = 0, dir = -1, half = belt.scrollWidth / 2, visible = true;
+    const measure = () => { half = belt.scrollWidth / 2; };
+    addEventListener('resize', measure); addEventListener('load', measure);
+    new IntersectionObserver(([e]) => { visible = e.isIntersecting; }).observe(belt.parentElement || belt);
     const skew = gsap.quickTo(belt, 'skewX', { duration: 0.5, ease: 'power3' });
     gsap.ticker.add(() => {
+      if (!visible) return;
       const v = lenis.velocity || 0;
       if (v) dir = v > 0 ? -1 : 1;
       x += (0.6 + Math.min(Math.abs(v) * 0.25, 14)) * dir;
-      const half = belt.scrollWidth / 2;
       if (x <= -half) x += half; if (x > 0) x -= half;
       gsap.set(belt, { x });
       skew(Math.max(-8, Math.min(8, -v * 0.35)));
@@ -165,8 +170,9 @@
   cards.forEach((c, i) => {
     const next = cards[i + 1];
     if (!next) return;
-    gsap.to(c, { scale: 0.93 + i * 0.012, filter: 'brightness(0.72)', ease: 'none',
-      scrollTrigger: { trigger: next, start: 'top bottom', end: 'top 15%', scrub: true } });
+    const shade = document.createElement('i'); shade.className = 'shade'; c.appendChild(shade);
+    gsap.to(c, { scale: 0.93 + i * 0.012, ease: 'none', scrollTrigger: { trigger: next, start: 'top bottom', end: 'top 15%', scrub: true } });
+    gsap.to(shade, { opacity: 0.28, ease: 'none', scrollTrigger: { trigger: next, start: 'top bottom', end: 'top 15%', scrub: true } });
   });
 
   /* proceso: línea que avanza */
