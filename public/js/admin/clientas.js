@@ -63,8 +63,11 @@ async function detail(el, ctx, id) {
       <div class="stack">
         <div class="card"><h4>Datos</h4><dl class="kv" style="margin-top:.6rem"><dt>Teléfono</dt><dd>${esc(c.phone || '—')}</dd><dt>Email</dt><dd>${esc(c.email || '—')}</dd><dt>Cumpleaños</dt><dd>${c.birthday ? `${dateShort(c.birthday).replace(/ \d+$/, '')}${age ? ` · ${age} años` : ''}` : '—'}</dd><dt>Instagram</dt><dd>${esc(c.instagram || '—')}</dd><dt>Origen</dt><dd>${esc(c.source || '—')}</dd><dt>Alta</dt><dd>${dateShort(String(c.created_at).slice(0, 10))}</dd></dl></div>
         ${c.allergies || c.health ? `<div class="card" style="background:var(--bad-bg);border-color:#e7bcb4"><h4 style="color:var(--bad)">Salud y alergias</h4><p class="small" style="margin-top:.5rem">${esc([c.allergies, c.health].filter(Boolean).join(' · '))}</p></div>` : ''}
+        ${d.referral ? `<div class="card"><h4>Recomendaciones</h4><p class="small" style="margin-top:.5rem">Su código: <b class="mono">${esc(d.referral.code)}</b>${d.referral.referred_by ? `<br>Llegó recomendada por <b>${esc(d.referral.referred_by)}</b>` : ''}${d.referral.referred.length ? `<br>Ha traído a ${d.referral.referred.length}: ${d.referral.referred.map((r) => esc(r.name)).join(', ')}` : ''}</p><div class="row" style="margin-top:.6rem"><button class="btn sm ghost" id="refcopy">Copiar enlace</button>${wa(wlink(`Hola ${c.name.split(' ')[0]}, si quieres que una amiga venga a verme, comparte este enlace y las dos tenéis un regalo: ${d.referral.link}`), 'Enviar por WhatsApp')}</div></div>` : ''}
         ${c.notes ? `<div class="card"><h4>Notas</h4><p class="small" style="margin-top:.5rem;white-space:pre-wrap">${esc(c.notes)}</p></div>` : ''}
         <button class="btn danger sm" id="arch" style="justify-self:start">Archivar ficha</button></div></div>`;
+
+  const rc = $('#refcopy', el); if (rc) rc.onclick = async () => { try { await navigator.clipboard.writeText(d.referral.link); toast('Enlace copiado'); } catch { toast(d.referral.link); } };
 
   const drawTab = () => {
     const t = $('#tab', el);

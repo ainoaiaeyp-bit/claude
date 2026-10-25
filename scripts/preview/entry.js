@@ -9,6 +9,7 @@ import { openDialog, esc } from '../../public/js/admin/core.js';
 
 const store = createStore({});
 for (const s of seedData().services) store.insert('services', s);
+for (const p of seedData().products) store.insert('products', p);
 const mem = new Map();
 const saveFile = (bytes) => { const id = randomHex(16); mem.set(id, bytes); return id; };
 seedDemo(store, new Date(), { saveFile });

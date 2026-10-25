@@ -1,6 +1,7 @@
 /* Resultados por periodo: lo ganado en un mes, trimestre, año, últimos 12 meses o desde el principio. */
 import { addDays, diffDays, isDate, sum } from './util.js';
 import { getSettings } from './booking.js';
+import { outstandingVouchers } from './shop.js';
 import { catLabel, expenseLedger, incomeLedger } from './accounting.js';
 
 const ded = (e, v) => Math.round(v * (e.deductible_pct ?? 100) / 100);
@@ -45,7 +46,7 @@ export function periodReport(store, { from, to }, now = new Date()) {
     count: t.inc.length, ticket: t.inc.length ? Math.round(t.income / t.inc.length) : 0,
     unpaid: { count: unpaid.length, cents: sum(unpaid, (x) => x.price_cents) },
     prev: prev ? { income: prev.income, expenses: prev.expenses, profit: prev.profit } : null,
-    series: rows, best,
+    vouchers_outstanding: outstandingVouchers(store, now.toISOString().slice(0, 10)), series: rows, best,
     by_service: by(t.inc, (r) => r.concept, (r) => r.base).slice(0, 8),
     by_client: by(t.inc, (r) => r.client, (r) => r.base).slice(0, 5),
     by_category: by(t.exp, (e) => catLabel(e.category), (e) => ded(e, e.base_cents)).slice(0, 8),

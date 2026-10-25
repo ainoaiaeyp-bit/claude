@@ -74,12 +74,19 @@ const svcVat = (store, settings) => { const m = {}; for (const s of store.list('
 
 export function incomeLedger(store, from, to) {
   const st = getSettings(store), vats = svcVat(store, st);
-  return store.list('bookings').filter((b) => b.paid_cents > 0 && b.date >= from && b.date <= to)
-    .sort((a, b) => a.date.localeCompare(b.date) || a.id - b.id)
+  const rows = store.list('bookings').filter((b) => b.paid_cents > 0 && b.date >= from && b.date <= to)
     .map((b) => {
       const rate = vats[b.service_id] ?? st.defaultVat, sp = vatSplit(b.paid_cents, rate, st.pricesIncludeVat);
       return { id: b.id, date: b.date, client: b.name, concept: b.service_name, method: b.pay_method || '', vat_rate: rate, base: sp.base, vat: sp.vat, total: sp.total };
     });
+  // venta de productos: el precio de tienda ya lleva IVA incluido
+  for (const o of store.list('orders').filter((x) => x.paid_cents > 0 && x.status !== 'cancelado' && x.paid_date >= from && x.paid_date <= to)) {
+    for (const it of o.items) {
+      const sp = vatSplit(it.price_cents * it.qty, it.vat_rate, true);
+      rows.push({ id: `p${o.id}-${it.product_id}`, date: o.paid_date, client: o.name, concept: it.name, method: o.pay_method || '', vat_rate: it.vat_rate, base: sp.base, vat: sp.vat, total: sp.total });
+    }
+  }
+  return rows.sort((a, b) => a.date.localeCompare(b.date) || String(a.id).localeCompare(String(b.id)));
 }
 
 export function expenseLedger(store, from, to) {

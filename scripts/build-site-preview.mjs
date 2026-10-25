@@ -16,6 +16,7 @@ html = html.replace(/src="\/img\//g, 'src="img/').replace(/content="\/img\//g, '
   .replace('<script src="/vendor/ScrollTrigger.min.js"></script>', () => '<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>')
   .replace('<script src="/vendor/lenis.min.js"></script>', () => '<script src="https://cdn.jsdelivr.net/npm/lenis@1.1.20/dist/lenis.min.js"></script>')
   .replace('<script src="/js/site.js" type="module"></script>', () => `<script>${entry}</script><script type="module">${rd('js/site.js')}</script>`)
+  .replace('<script src="/js/extras.js" type="module"></script>', () => `<script type="module">${rd('js/extras.js')}</script>`)
   .replace('<script src="/js/fx.js" defer></script>', () => `<script>window.addEventListener('DOMContentLoaded',function(){${rd('js/fx.js')}\n});</script>`)
   .replace(/<link rel="canonical"[^>]*>/, '');
 fs.writeFileSync(out, html);

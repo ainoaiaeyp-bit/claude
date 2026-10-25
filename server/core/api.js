@@ -10,8 +10,9 @@ import {
 } from './crm.js';
 import { buildQuarterZip, catLabel, draftFromExtraction, expenseLedger, incomeLedger, normalizeExpense, quarterSummary } from './accounting.js';
 import { cfoReport } from './cfo.js';
+import { activateVoucher, adjustVoucher, createOrder, createVoucher, ensureReferralCode, findVoucher, grantReferralReward, outstandingVouchers, productView, redeemVoucher, saveProduct, updateOrder, voucherStatus, voucherView } from './shop.js';
 import { dataBounds, periodReport } from './results.js';
-import { planAutomations, runAutomations, sendNow, templateVars, unsubscribe } from './automations.js';
+import { planAutomations, runAutomations, sendNow, sendTemplate, templateVars, unsubscribe } from './automations.js';
 
 const ok = (data, status = 200, headers) => ({ status, json: data, headers });
 const fail = (msg, status = 400) => ({ status, json: { error: msg } });
@@ -31,7 +32,8 @@ export function createApi(store, ctx) {
     const s = getSettings(store);
     return {
       businessName: s.businessName, tagline: s.tagline, city: s.city, address: s.address, phone: s.phone, whatsapp: s.whatsapp, email: s.email, instagram: s.instagram,
-      minNoticeHours: Number(s.minNoticeHours), cancelHours: Number(s.cancelHours), maxDaysAhead: Number(s.maxDaysAhead), autoConfirm: !!s.autoConfirm, bookingsOpen: s.bookingsOpen !== false, bookingsClosedMessage: s.bookingsClosedMessage,
+      minNoticeHours: Number(s.minNoticeHours), cancelHours: Number(s.cancelHours), maxDaysAhead: Number(s.maxDaysAhead), referralOn: s.referralOn !== false, referralRewardCents: Number(s.referralRewardCents) || 0, voucherMinCents: Number(s.voucherMinCents) || 2000, voucherPaymentInfo: s.voucherPaymentInfo, shopPaymentInfo: s.shopPaymentInfo,
+      autoConfirm: !!s.autoConfirm, bookingsOpen: s.bookingsOpen !== false, bookingsClosedMessage: s.bookingsClosedMessage,
       depositInfo: s.depositInfo, homeFeeInfo: s.homeFeeInfo, hours: s.hours,
     };
   };
@@ -43,6 +45,14 @@ export function createApi(store, ctx) {
   const allData = () => ({ clients: store.list('clients'), bookings: bookingsWithCat(), interactions: store.list('interactions'), tasks: store.list('tasks'), records: store.list('records') });
   const withStats = (c, bookings) => ({ ...c, ...clientStats(c, bookings, today()) });
   const notify = (kind, payload) => { try { ctx.notify && ctx.notify(kind, payload); } catch (e) { /* no bloquea */ } };
+  const money = (c) => `${(c / 100).toFixed(c % 100 ? 2 : 0).replace('.', ',')} €`;
+  const voucherLink = (v) => `${getSettings(store).siteUrl || ctx.siteUrl || ''}/bono?c=${v.code}`;
+  const voucherVars = (v, who) => ({ nombre: (who || v.recipient_name || v.buyer_name || '').split(' ')[0] || 'hola', comprador: v.buyer_name || 'Alguien', mensaje: v.message || '', importe: money(v.amount_cents), codigo: v.code, enlace: voucherLink(v), caduca: v.expires_at ? new Date(v.expires_at + 'T12:00:00Z').toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' }) : '', pago: getSettings(store).voucherPaymentInfo });
+  const sendVoucher = (v) => (v.recipient_email || v.buyer_email) ? sendTemplate(store, ctx, 'voucher', { to: v.recipient_email || v.buyer_email, vars: voucherVars(v, v.recipient_name || v.buyer_name) }, now()) : Promise.resolve({ status: 'omitido' });
+  const rewardAndMail = async (b) => {
+    const g = grantReferralReward(store, b, now()); if (!g) return;
+    await Promise.all(g.vouchers.map((v) => sendTemplate(store, ctx, 'referral_reward', { to: v.buyer_email, client_id: v.recipient_name === g.referrer.name ? g.referrer.id : g.friend.id, vars: voucherVars(v, v.recipient_name) }, now())));
+  };
   const clientVars = (c, b) => templateVars(getSettings(store), c, b, ctx);
 
   /* ───── público ───── */
@@ -64,6 +74,31 @@ export function createApi(store, ctx) {
       const bk = createBooking(store, b, { now: now() });
       notify('booking.created', bk);
       return ok({ booking: publicBooking(bk) }, 201);
+    }],
+    ['GET', /^\/api\/products$/, () => ok(store.list('products').filter((p) => p.active).sort((a, b) => a.sort - b.sort || a.id - b.id).map(productView))],
+    ['POST', /^\/api\/orders$/, async (r) => {
+      if (!rate('order:' + r.ip, 6, 3600e3)) return fail('Demasiadas solicitudes. Inténtalo más tarde.', 429);
+      const b = r.body || {};
+      if (b.website) return ok({ ok: true });
+      if (b.consent !== true) throw new ApiError('Debes aceptar la política de privacidad.');
+      const o = createOrder(store, b, now());
+      notify('order.created', o);
+      return ok({ order: { total_cents: o.total_cents, items: o.items.map((i) => ({ name: i.name, qty: i.qty })) }, payment_info: getSettings(store).shopPaymentInfo }, 201);
+    }],
+    ['POST', /^\/api\/vouchers$/, async (r) => {
+      if (!rate('voucher:' + r.ip, 6, 3600e3)) return fail('Demasiadas solicitudes. Inténtalo más tarde.', 429);
+      const b = r.body || {};
+      if (b.website) return ok({ ok: true });
+      if (b.consent !== true) throw new ApiError('Debes aceptar la política de privacidad.');
+      const v = createVoucher(store, b, { now: now() });
+      await sendTemplate(store, ctx, 'voucher_order', { to: v.buyer_email, vars: voucherVars(v, v.buyer_name) }, now());
+      notify('voucher.created', v);
+      return ok({ voucher: voucherView(v, today()), payment_info: getSettings(store).voucherPaymentInfo }, 201);
+    }],
+    ['GET', /^\/api\/vouchers\/([A-Za-z0-9-]+)$/, (r) => {
+      if (!rate('vlook:' + r.ip, 40, 3600e3)) return fail('Demasiadas consultas. Inténtalo más tarde.', 429);
+      const v = findVoucher(store, r.path.split('/').pop());
+      return v ? ok({ voucher: voucherView(v, today()), studio: { name: getSettings(store).businessName, address: getSettings(store).address, phone: getSettings(store).phone } }) : fail('No encontramos ese bono.', 404);
     }],
     ['POST', /^\/api\/leads$/, (r) => {
       if (!rate('lead:' + r.ip, 5, 3600e3)) return fail('Demasiadas solicitudes. Inténtalo más tarde.', 429);
@@ -122,8 +157,9 @@ export function createApi(store, ctx) {
   route('GET', /^\/api\/admin\/dashboard$/, () => {
     const d = allData(), st = getSettings(store), t = today();
     const sug = followups({ ...d, today: t });
-    return ok({ ...dashboard({ ...d, settings: st, blocked: store.list('blocked'), today: t, sug }), stages_labels: STAGES, ai: !!ctx.aiEnabled, mail: !!ctx.mailEnabled,
-      drafts: store.list('expenses').filter((e) => e.draft).length, outbox_pending: store.list('outbox').filter((o) => o.status === 'pendiente').length });
+    return ok({ ...dashboard({ ...d, orders: store.list('orders'), settings: st, blocked: store.list('blocked'), today: t, sug }), stages_labels: STAGES, ai: !!ctx.aiEnabled, mail: !!ctx.mailEnabled,
+      drafts: store.list('expenses').filter((e) => e.draft).length, outbox_pending: store.list('outbox').filter((o) => o.status === 'pendiente').length,
+      extras: store.list('vouchers').filter((v) => v.status === 'pendiente').length + store.list('orders').filter((o) => o.status === 'pendiente').length });
   });
 
   /* citas */
@@ -147,6 +183,16 @@ export function createApi(store, ctx) {
     const body = r.body || {}; let b = b0;
     if (body.status !== undefined) { b = setStatus(store, id, body.status, now()); if (['confirmed', 'cancelled'].includes(body.status) && body.status !== b0.status) notify('booking.' + body.status, b); }
     const patch = {};
+    if (body.voucher_code) {
+      const due = Math.max(0, (b0.price_cents || 0) - (b0.paid_cents || 0));
+      const want = body.voucher_cents !== undefined ? cents(body.voucher_cents) : due;
+      const r2 = redeemVoucher(store, body.voucher_code, want, { booking_id: id, note: `${b0.service_name} · ${b0.name}` }, now());
+      patch.paid_cents = (b0.paid_cents || 0) + r2.used;
+      patch.pay_method = (b0.paid_cents || 0) > 0 && b0.pay_method !== 'bono' ? 'mixto' : 'bono';
+      patch.voucher_uses = [...(b0.voucher_uses || []), { code: r2.voucher.code, cents: r2.used }];
+      if (!['done', 'cancelled'].includes(b.status)) b = setStatus(store, id, 'done', now());
+      logInteraction(store, b.client_id, 'cobro', `Pagó ${(r2.used / 100).toFixed(2)} € con el bono ${r2.voucher.code}`, now(), { booking_id: id });
+    }
     if (body.paid_cents !== undefined) { patch.paid_cents = Math.max(0, cents(body.paid_cents)); patch.pay_method = clean(body.pay_method ?? b.pay_method, 30); }
     if (body.internal_notes !== undefined) patch.internal_notes = clean(body.internal_notes, 600);
     if (body.price_cents !== undefined) patch.price_cents = Math.max(0, cents(body.price_cents));
@@ -154,7 +200,8 @@ export function createApi(store, ctx) {
       b = store.update('bookings', id, patch);
       if (patch.paid_cents !== undefined && patch.paid_cents !== b0.paid_cents) logInteraction(store, b.client_id, 'cobro', `Cobro registrado: ${(patch.paid_cents / 100).toFixed(2)} € por ${b.service_name}`, now(), { booking_id: id });
     }
-    return ok(b);
+    if (b.status === 'done' && b.referred_by && !b.referral_rewarded) rewardAndMail(store.find('bookings', id));
+    return ok(store.find('bookings', id));
   });
   route('POST', /^\/api\/admin\/bookings\/(\d+)\/propose$/, async (r, m) => {
     const id = Number(m[1]), b = proposeBooking(store, id, r.body || {}, now());
@@ -191,15 +238,15 @@ export function createApi(store, ctx) {
   });
 
   /* ajustes */
-  const TEXT = ['businessName', 'tagline', 'city', 'address', 'phone', 'whatsapp', 'email', 'instagram', 'notificationEmail', 'depositInfo', 'homeFeeInfo', 'siteUrl', 'legalName', 'nif', 'fiscalAddress'];
-  const NUMS = { slotStep: [5, 120], buffer: [0, 240], minNoticeHours: [0, 720], maxDaysAhead: [1, 730], cancelHours: [0, 720], defaultVat: [0, 30], irpfFractionRate: [0, 50], targetNetMonthlyCents: [0, 1e8], autonomoFeeMonthlyCents: [0, 1e7], fixedExtraMonthlyCents: [0, 1e8] };
+  const TEXT = ['businessName', 'tagline', 'city', 'address', 'phone', 'whatsapp', 'email', 'instagram', 'notificationEmail', 'depositInfo', 'voucherPaymentInfo', 'shopPaymentInfo', 'homeFeeInfo', 'siteUrl', 'legalName', 'nif', 'fiscalAddress'];
+  const NUMS = { referralRewardCents: [0, 100000], voucherMinCents: [500, 100000], voucherValidMonths: [1, 36], slotStep: [5, 120], buffer: [0, 240], minNoticeHours: [0, 720], maxDaysAhead: [1, 730], cancelHours: [0, 720], defaultVat: [0, 30], irpfFractionRate: [0, 50], targetNetMonthlyCents: [0, 1e8], autonomoFeeMonthlyCents: [0, 1e7], fixedExtraMonthlyCents: [0, 1e8] };
   route('GET', /^\/api\/admin\/settings$/, () => ok({ ...getSettings(store), categories: EXPENSE_CATEGORIES, mail: !!ctx.mailEnabled, ai: !!ctx.aiEnabled }));
   route('PUT', /^\/api\/admin\/settings$/, (r) => {
     const b = r.body || {};
     for (const k of TEXT) if (k in b) store.setSetting(k, clean(b[k], 300));
     for (const [k, [lo, hi]] of Object.entries(NUMS)) if (k in b) { const n = Number(b[k]); if (!Number.isFinite(n) || n < lo || n > hi) throw new ApiError(`Valor no válido: ${k}`); store.setSetting(k, n); }
     if ('bookingsClosedMessage' in b) store.setSetting('bookingsClosedMessage', clean(b.bookingsClosedMessage, 400));
-    for (const k of ['autoConfirm', 'bookingsOpen', 'pricesIncludeVat', 'quarterlyAutoSend']) if (k in b) store.setSetting(k, !!b[k]);
+    for (const k of ['autoConfirm', 'bookingsOpen', 'referralOn', 'pricesIncludeVat', 'quarterlyAutoSend']) if (k in b) store.setSetting(k, !!b[k]);
     if ('hours' in b) {
       for (let d = 0; d < 7; d++) { const rs = b.hours?.[d]; if (!Array.isArray(rs)) throw new ApiError('Horario no válido.'); for (const x of rs) if (!Array.isArray(x) || !(x[0] >= 0 && x[1] <= 1440 && x[0] < x[1])) throw new ApiError('Horario no válido.'); }
       store.setSetting('hours', b.hours);
@@ -258,9 +305,11 @@ export function createApi(store, ctx) {
     return ok(c, 201);
   });
   route('GET', /^\/api\/admin\/clients\/(\d+)$/, (r, m) => {
-    const d = allData(), c = d.clients.find((x) => x.id === Number(m[1])); if (!c) return fail('Clienta no encontrada.', 404);
+    const d = allData(); let c = d.clients.find((x) => x.id === Number(m[1])); if (!c) return fail('Clienta no encontrada.', 404);
+    c = ensureReferralCode(store, c);
     const mine = d.bookings.filter((b) => b.client_id === c.id).sort((a, b) => b.date.localeCompare(a.date));
-    return ok({ client: withStats(c, d.bookings), bookings: mine, records: d.records.filter((x) => x.client_id === c.id).sort((a, b) => b.date.localeCompare(a.date)),
+    const refBy = (mine.find((b) => b.referred_by) || {}).referred_by, referred = d.bookings.filter((b) => b.referred_by === c.id).map((b) => ({ name: b.name, date: b.date, rewarded: !!b.referral_rewarded }));
+    return ok({ client: withStats(c, d.bookings), referral: { code: c.referral_code, link: `${getSettings(store).siteUrl || ctx.siteUrl || ''}/?ref=${c.referral_code}`, referred_by: refBy ? (store.find('clients', refBy) || {}).name || '' : '', referred }, bookings: mine, records: d.records.filter((x) => x.client_id === c.id).sort((a, b) => b.date.localeCompare(a.date)),
       interactions: d.interactions.filter((i) => i.client_id === c.id).sort((a, b) => String(b.created_at).localeCompare(String(a.created_at))),
       tasks: d.tasks.filter((t) => t.client_id === c.id).sort((a, b) => Number(a.done) - Number(b.done) || String(a.due_date).localeCompare(String(b.due_date))) });
   });
@@ -445,6 +494,40 @@ export function createApi(store, ctx) {
     await ctx.sendMail({ to: st.gestoria.email, cc: st.gestoria.cc || undefined, subject: `${st.legalName || st.businessName} · Documentación ${ptag}`, text: body, attachments: [{ filename: `Paquete-${ptag.replace(' ', '-')}.zip`, content: bytes, contentType: 'application/zip' }] });
     store.insert('outbox', { kind: 'gestoria', client_id: null, booking_id: null, to: st.gestoria.email, subject: `Paquete ${ptag}`, text: body, status: 'enviado', error: '', created_at: now().toISOString() });
     return ok({ ok: true, to: st.gestoria.email, size: bytes.length, warnings: summary.warnings });
+  });
+
+  /* ───── bonos, tienda y referidos ───── */
+  route('GET', /^\/api\/admin\/vouchers$/, () => {
+    const t = today();
+    return ok({ vouchers: store.list('vouchers').sort((a, b) => String(b.created_at).localeCompare(String(a.created_at))).map((v) => ({ ...v, status: voucherStatus(v, t) })), outstanding: outstandingVouchers(store, t), mail: !!ctx.mailEnabled });
+  });
+  route('POST', /^\/api\/admin\/vouchers$/, async (r) => {
+    const v = createVoucher(store, { ...(r.body || {}), amount_cents: cents(r.body?.amount_cents) }, { admin: true, now: now() });
+    if (v.status === 'activo' && r.body?.send) await sendVoucher(v);
+    return ok(v, 201);
+  });
+  route('PATCH', /^\/api\/admin\/vouchers\/(\d+)$/, async (r, m) => {
+    const id = Number(m[1]), b = r.body || {};
+    let v;
+    if (b.action === 'activate') { v = activateVoucher(store, id, { pay_method: b.pay_method }, now()); if (b.send !== false) await sendVoucher(v); }
+    else if (b.action === 'cancel') { if (!store.find('vouchers', id)) return fail('Bono no encontrado.', 404); v = store.update('vouchers', id, { status: 'cancelado' }); }
+    else if (b.action === 'adjust') v = adjustVoucher(store, id, { balance_cents: b.balance_cents, note: b.note }, now());
+    else if (b.action === 'resend') { v = store.find('vouchers', id); if (!v) return fail('Bono no encontrado.', 404); if (v.status !== 'activo') throw new ApiError('Solo se envían bonos activos.'); await sendVoucher(v); }
+    else throw new ApiError('Acción no válida.');
+    return ok(v);
+  });
+  route('GET', /^\/api\/admin\/products$/, () => ok(store.list('products').sort((a, b) => a.sort - b.sort || a.id - b.id)));
+  route('POST', /^\/api\/admin\/products$/, (r) => ok(saveProduct(store, null, r.body || {}), 201));
+  route('PUT', /^\/api\/admin\/products\/(\d+)$/, (r, m) => { if (!store.find('products', m[1])) return fail('Producto no encontrado.', 404); return ok(saveProduct(store, Number(m[1]), r.body || {})); });
+  route('DELETE', /^\/api\/admin\/products\/(\d+)$/, (r, m) => { if (store.list('orders').some((o) => o.items.some((i) => i.product_id === Number(m[1])))) { store.update('products', m[1], { active: false }); return ok({ ok: true, archived: true }); } store.remove('products', m[1]); return ok({ ok: true }); });
+  route('GET', /^\/api\/admin\/orders$/, () => ok(store.list('orders').sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)))));
+  route('PATCH', /^\/api\/admin\/orders\/(\d+)$/, (r, m) => ok(updateOrder(store, Number(m[1]), r.body || {}, now())));
+  route('GET', /^\/api\/admin\/referrals$/, () => {
+    const bk = store.list('bookings'), cl = Object.fromEntries(store.list('clients').map((c) => [c.id, c]));
+    const by = {};
+    for (const b of bk.filter((x) => x.referred_by)) { const r = (by[b.referred_by] ||= { client_id: b.referred_by, name: (cl[b.referred_by] || {}).name || '—', code: (cl[b.referred_by] || {}).referral_code || '', friends: [] }); r.friends.push({ name: b.name, date: b.date, status: b.status, rewarded: !!b.referral_rewarded }); }
+    const st = getSettings(store);
+    return ok({ on: st.referralOn !== false, reward_cents: Number(st.referralRewardCents) || 0, referrers: Object.values(by).sort((a, b) => b.friends.length - a.friends.length), total: bk.filter((x) => x.referred_by).length });
   });
 
   route('GET', /^\/api\/admin\/cfo$/, () => ok(cfoReport(store, now())));

@@ -9,6 +9,7 @@ const VIEWS = [
   { id: 'seguimiento', label: 'Seguimiento', load: () => import('./seguimiento.js'), badge: 'followups' },
   { group: 'Dinero' },
   { id: 'resultados', label: 'Resultados', load: () => import('./resultados.js') },
+  { id: 'tienda', label: 'Bonos y tienda', load: () => import('./tienda.js'), badge: 'extras' },
   { id: 'contabilidad', label: 'Contabilidad', load: () => import('./contabilidad.js'), badge: 'drafts' },
   { id: 'rentabilidad', label: 'Rentabilidad (CFO)', load: () => import('./cfo.js') },
   { id: 'informes', label: 'Informes', load: () => import('./informes.js') },
@@ -30,7 +31,7 @@ function drawNav() {
 export async function refreshCounts() {
   try {
     const d = await api('/api/admin/dashboard');
-    counts = { pending: d.kpis.pending, followups: d.followups, drafts: d.drafts, outbox_pending: d.outbox_pending }; drawNav();
+    counts = { pending: d.kpis.pending, followups: d.followups, drafts: d.drafts, outbox_pending: d.outbox_pending, extras: d.extras || 0 }; drawNav();
   } catch { /* ignorar */ }
 }
 

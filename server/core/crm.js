@@ -113,11 +113,11 @@ export function waLink(phone, text) {
 const ymd = (s) => String(s).slice(0, 10);
 const weekStart = (s) => { const d = new Date(s + 'T12:00:00'); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return isoDate(d); };
 
-export function dashboard({ clients, bookings, tasks, interactions, settings, blocked, today, sug }) {
+export function dashboard({ clients, bookings, tasks, interactions, settings, blocked, today, sug, orders = [] }) {
   const act = bookings.filter((b) => ACTIVE.has(b.status) && b.date >= today).sort((a, b) => a.date.localeCompare(b.date) || a.start_min - b.start_min);
   const month = today.slice(0, 7);
   const prevMonth = (() => { const d = new Date(today + 'T12:00:00'); d.setMonth(d.getMonth() - 1, 1); return isoDate(d).slice(0, 7); })();
-  const paid = (m) => bookings.filter((b) => b.date.startsWith(m)).reduce((a, b) => a + (b.paid_cents || 0), 0);
+  const paid = (m) => bookings.filter((b) => b.date.startsWith(m)).reduce((a, b) => a + (b.paid_cents || 0), 0) + orders.filter((o) => (o.paid_date || '').startsWith(m)).reduce((a, o) => a + (o.paid_cents || 0), 0);
   const finished = bookings.filter((b) => ['done', 'no_show'].includes(b.status));
   const last90 = finished.filter((b) => diffDays(b.date, today) <= 90 && diffDays(b.date, today) >= 0);
   const noShow = last90.length ? Math.round((last90.filter((b) => b.status === 'no_show').length / last90.length) * 100) : 0;

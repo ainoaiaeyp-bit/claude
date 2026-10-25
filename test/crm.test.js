@@ -4,7 +4,7 @@ import { boot, freeDay, person } from './helpers.js';
 import { addDays, nowLocal } from '../server/core/util.js';
 
 let t;
-before(async () => { t = await boot(); await t.login(); });
+before(async () => { process.env.TRUST_PROXY = '1'; t = await boot(); await t.login(); });
 after(() => t.close());
 const today = () => nowLocal().date;
 
@@ -119,4 +119,63 @@ test('reservas pausadas, propuesta de otra hora y respuesta de la clienta', asyn
   const rj = await t.call(`/api/admin/bookings/${id2}/reject`, { method: 'POST', body: { message: 'Estaré de vacaciones' } });
   assert.equal(rj.data.booking.status, 'cancelled');
   assert.ok(t.app.store.list('outbox').some((o) => o.kind === 'rejection' && o.text.includes('vacaciones')));
+});
+
+test('bonos regalo: compra, activación, canje parcial y saldo', async () => {
+  const buy = await t.call('/api/vouchers', { method: 'POST', admin: false, body: { amount_cents: 5000, buyer_name: 'Elena Gil', buyer_email: 'elena@example.com', recipient_name: 'Sara', recipient_email: 'sara@example.com', message: 'Feliz cumple', consent: true } });
+  assert.equal(buy.status, 201); assert.equal(buy.data.voucher.status, 'pendiente');
+  const code = buy.data.voucher.code; assert.match(code, /^NOE-[A-Z0-9]{4}-[A-Z0-9]{4}$/);
+  assert.equal((await t.call('/api/vouchers', { method: 'POST', admin: false, body: { amount_cents: 100, buyer_name: 'x y', buyer_email: 'a@b.co', consent: true } })).status, 400);
+  const id = t.app.store.list('vouchers').find((v) => v.code === code).id;
+  // no se puede canjear mientras no esté pagado
+  const date = await freeDay(t.call, 6, 25);
+  const slots = (await t.call(`/api/availability?service_id=6&date=${date}`, { admin: false })).data.slots;
+  const bk = (await t.call('/api/bookings', { method: 'POST', admin: false, body: { ...person, email: 'sara@example.com', name: 'Sara Gil', service_id: 6, date, start_min: slots[0].start_min } })).data.booking;
+  const bid = t.app.store.list('bookings').find((b) => b.token === bk.token).id;
+  assert.equal((await t.call(`/api/admin/bookings/${bid}`, { method: 'PATCH', body: { voucher_code: code } })).status, 409);
+  const act = await t.call(`/api/admin/vouchers/${id}`, { method: 'PATCH', body: { action: 'activate', pay_method: 'bizum' } });
+  assert.equal(act.data.status, 'activo');
+  assert.ok(t.app.store.list('outbox').some((o) => o.kind === 'voucher' && o.to === 'sara@example.com' && o.text.includes(code)));
+  const price = t.app.store.find('bookings', bid).price_cents;
+  const r = await t.call(`/api/admin/bookings/${bid}`, { method: 'PATCH', body: { voucher_code: code, voucher_cents: 2000 } });
+  assert.equal(r.data.paid_cents, 2000); assert.equal(r.data.pay_method, 'bono'); assert.equal(r.data.status, 'done');
+  const view = (await t.call(`/api/vouchers/${code}`, { admin: false })).data.voucher;
+  assert.equal(view.balance_cents, 3000); assert.equal(view.status, 'activo');
+  assert.ok(price >= 0);
+  const list = (await t.call('/api/admin/vouchers')).data; assert.ok(list.outstanding >= 3000);
+});
+
+test('tienda: pedido, stock, cobro y paso a ingresos', async () => {
+  const prods = (await t.call('/api/products', { admin: false })).data; assert.ok(prods.length >= 3);
+  const p = (await t.call('/api/admin/products', { method: 'POST', body: { name: 'Crema prueba', price_cents: 2000, stock: 3, vat_rate: 21 } })).data;
+  const bad = await t.call('/api/orders', { method: 'POST', admin: false, body: { name: 'Pepa Luz', email: 'pepa@example.com', items: [{ product_id: p.id, qty: 5 }], consent: true } });
+  assert.equal(bad.status, 409);
+  const ord = await t.call('/api/orders', { method: 'POST', admin: false, body: { name: 'Pepa Luz', email: 'pepa@example.com', items: [{ product_id: p.id, qty: 2 }], consent: true } });
+  assert.equal(ord.status, 201); assert.equal(ord.data.order.total_cents, 4000);
+  assert.equal(t.app.store.find('products', p.id).stock, 1);
+  const oid = t.app.store.list('orders').at(-1).id;
+  await t.call(`/api/admin/orders/${oid}`, { method: 'PATCH', body: { paid: true, pay_method: 'efectivo', status: 'entregado' } });
+  const ym = today().slice(0, 4), led = (await t.call(`/api/admin/accounting?from=${ym}-01-01&to=${ym}-12-31`)).data.income;
+  const row = led.find((x) => x.concept === 'Crema prueba'); assert.ok(row); assert.equal(row.total, 4000); assert.equal(row.base, 3306);
+  await t.call(`/api/admin/orders/${oid}`, { method: 'PATCH', body: { status: 'cancelado' } });
+  assert.equal(t.app.store.find('products', p.id).stock, 3);
+});
+
+test('referidos: código, validación y premio doble al realizarse la cita', async () => {
+  const sponsor = (await t.call('/api/admin/clients', { method: 'POST', body: { name: 'Marina Ruiz', email: 'marina@example.com', phone: '611000111' } })).data;
+  const det = (await t.call(`/api/admin/clients/${sponsor.id}`)).data; const code = det.referral.code; assert.match(code, /^MARINA\d\d$/);
+  const date = await freeDay(t.call, 6, 30);
+  const slots = (await t.call(`/api/availability?service_id=6&date=${date}`, { admin: false })).data.slots;
+  const post = (body) => t.call('/api/bookings', { method: 'POST', admin: false, headers: { 'X-Forwarded-For': '9.9.9.9' }, body: { ...person, service_id: 6, date, ...body } });
+  assert.equal((await post({ email: 'nueva@example.com', name: 'Nueva Amiga', start_min: slots[0].start_min, referral: 'NOEXISTE99' })).status, 400);
+  const ok1 = await post({ email: 'nueva@example.com', name: 'Nueva Amiga', start_min: slots[0].start_min, referral: code.toLowerCase() }); assert.equal(ok1.status, 201);
+  const bid = t.app.store.list('bookings').find((b) => b.token === ok1.data.booking.token).id;
+  assert.ok(t.app.store.find('bookings', bid).referred_by === sponsor.id);
+  const before = t.app.store.list('vouchers').length;
+  await t.call(`/api/admin/bookings/${bid}`, { method: 'PATCH', body: { status: 'done' } });
+  await new Promise((r) => setTimeout(r, 50));
+  assert.equal(t.app.store.list('vouchers').length, before + 2);
+  await t.call(`/api/admin/bookings/${bid}`, { method: 'PATCH', body: { internal_notes: 'x' } });
+  assert.equal(t.app.store.list('vouchers').length, before + 2, 'el premio se da una sola vez');
+  const rf = (await t.call('/api/admin/referrals')).data; assert.equal(rf.referrers[0].friends.length, 1);
 });

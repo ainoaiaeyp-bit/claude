@@ -5,6 +5,7 @@ import { seedData } from '../../server/core/defaults.js';
 
 const store = createStore({});
 for (const s of seedData().services) store.insert('services', s);
+for (const p of seedData().products) store.insert('products', p);
 const api = createApi(store, { now: () => new Date(), siteUrl: location.origin, gallery: { list: async () => [] }, files: {}, notify() {} });
 const realFetch = window.fetch.bind(window);
 window.fetch = async (input, init = {}) => {

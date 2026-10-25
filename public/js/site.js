@@ -147,6 +147,7 @@ const wizard = (() => {
           <label class="full">Email<input id="bk-email" name="email" type="email" autocomplete="email" required></label>
           <div class="full" id="bk-addr" hidden><label>Dirección del servicio<input id="bk-address" name="address" autocomplete="street-address" maxlength="200"></label></div>
           <label class="full">Notas (opcional)<textarea id="bk-notes" name="notes" maxlength="600" placeholder="Ocasión, tipo de piel, referencias…"></textarea></label>
+          ${settings.referralOn ? `<label class="full">¿Te recomienda una amiga? Código (opcional)<input id="bk-ref" name="referral" autocomplete="off" maxlength="20" placeholder="Por ejemplo MARTA42" value="${esc(new URLSearchParams(location.search).get('ref') || '')}" style="text-transform:uppercase"></label>` : ''}
           <input class="hp" name="website" tabindex="-1" autocomplete="off" aria-hidden="true">
           <label class="check full"><input type="checkbox" id="bk-consent" name="consent" required><span>Acepto la <a href="/privacidad" target="_blank">política de privacidad</a>.</span></label>
           <label class="check full"><input type="checkbox" id="bk-marketing" name="marketing"><span>Quiero recibir novedades y promociones (opcional, puedes darte de baja cuando quieras).</span></label>
@@ -240,7 +241,7 @@ const wizard = (() => {
     try {
       const r = await api('/api/bookings', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...f, consent: f.consent === 'on', marketing: f.marketing === 'on', service_id: st.service, date: st.date, start_min: st.slot, location: st.location })
+        body: JSON.stringify({ ...f, consent: f.consent === 'on', marketing: f.marketing === 'on', referral: (f.referral || '').trim(), service_id: st.service, date: st.date, start_min: st.slot, location: st.location })
       });
       done(r.booking);
     } catch (ex) {

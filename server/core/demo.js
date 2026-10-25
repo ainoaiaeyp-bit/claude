@@ -146,5 +146,15 @@ export function seedDemo(store, now = new Date(), { saveFile } = {}) {
   store.setSetting('gestoria', { name: 'Gestoría Levante', email: 'asesoria@ejemplo.com', cc: '', note: '' });
   store.setSetting('targetNetMonthlyCents', 180000); store.setSetting('autonomoFeeMonthlyCents', 29400); store.setSetting('fixedExtraMonthlyCents', 0);
   store.setSetting('siteUrl', 'https://www.ejemplo.es');
+  // bonos, pedidos y referidos de ejemplo
+  const vch = (code, amount, balance, status, who, extra = {}) => store.insert('vouchers', { code, amount_cents: amount, balance_cents: balance, status, source: 'web', buyer_name: who[0], buyer_email: who[1], buyer_phone: '', recipient_name: who[2], recipient_email: '', message: extra.message || '', paid: status !== 'pendiente', pay_method: status !== 'pendiente' ? 'bizum' : '', created_at: created(extra.age || -10), paid_at: status !== 'pendiente' ? created(extra.age || -10) : '', expires_at: status !== 'pendiente' ? iso(300) : '', history: extra.history || [] });
+  vch('NOE-7KQ2-M4XD', 10000, 10000, 'activo', ['Lucía Mora', 'lucia.mora@ejemplo.com', 'Irene Molina'], { message: 'Feliz cumpleaños, te lo mereces.', age: -12 });
+  vch('NOE-B9TH-2WRA', 5000, 2000, 'activo', ['Carmen Ruiz', 'carmen.ruiz@ejemplo.com', 'Alba Torres'], { age: -40, history: [{ at: created(-20), delta: -3000, note: 'Peeling con ácidos · Alba Torres' }] });
+  vch('NOE-4PZD-8CNE', 5000, 5000, 'pendiente', ['Elena Gil', 'elena.gil@ejemplo.com', 'Sara'], { message: 'Para que te cuides un poco.', age: -1 });
+  const pr = store.list('products');
+  if (pr.length > 1) {
+    store.insert('orders', { client_id: ids[1], items: [{ product_id: pr[0].id, name: pr[0].name, qty: 1, price_cents: pr[0].price_cents, vat_rate: 21 }], total_cents: pr[0].price_cents, name: 'Carmen Ruiz Soto', email: 'carmen.ruiz@ejemplo.com', phone: '', notes: '', status: 'entregado', paid_cents: pr[0].price_cents, pay_method: 'efectivo', paid_date: iso(-9), token: randomHex(12), created_at: created(-9) });
+    store.insert('orders', { client_id: ids[2], items: [{ product_id: pr[1].id, name: pr[1].name, qty: 2, price_cents: pr[1].price_cents, vat_rate: 21 }], total_cents: pr[1].price_cents * 2, name: 'Alba Torres Vera', email: 'alba.torres@ejemplo.com', phone: '', notes: 'Lo recojo el jueves', status: 'pendiente', paid_cents: 0, pay_method: '', paid_date: '', token: randomHex(12), created_at: created(-1) });
+  }
   return { clients: ids.length + 1, bookings: plan.length };
 }

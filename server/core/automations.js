@@ -3,6 +3,7 @@
 import { addDays, diffDays, fmtMin, nowLocal } from './util.js';
 import { getSettings, logInteraction } from './booking.js';
 import { clientStats, renderTemplate, segmentMembers } from './crm.js';
+import { ensureReferralCode } from './shop.js';
 
 const longDate = (d) => new Date(d + 'T12:00:00Z').toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' });
 
@@ -12,6 +13,7 @@ export function templateVars(st, client, booking, ctx) {
     nombre: (client.name || '').split(' ')[0] || 'hola', estudio: st.businessName, direccion: st.address || st.city, web,
     servicio: booking ? booking.service_name : '', fecha: booking ? longDate(booking.date) : '', hora: booking ? fmtMin(booking.start_min) : '',
     mensaje: (booking && booking.proposal_message) || '', fecha_anterior: booking && booking.prev_date ? longDate(booking.prev_date) : '', hora_anterior: booking && booking.prev_start_min != null ? fmtMin(booking.prev_start_min) : '',
+    enlace_amiga: client.referral_code && web ? `${web}/?ref=${client.referral_code}` : web, importe_regalo: `${((Number(st.referralRewardCents) || 0) / 100).toFixed(0)} €`,
     enlace: booking && web ? `${web}/cita?t=${booking.token}` : web,
   };
 }
@@ -44,6 +46,10 @@ export function planAutomations(store, ctx, now = new Date()) {
       if (minsUntil > 0 && minsUntil <= (A.reminder.hoursBefore || 24) * 60) add('reminder', b.id, c, b, false);
     }
     if (b.status === 'done' && diffDays(b.date, today) >= (A.review.daysAfter || 2) && diffDays(b.date, today) <= (A.review.daysAfter || 2) + 5) add('review', b.id, c, b, false);
+  }
+  if (A.referral_invite && st.referralOn !== false) for (const b of bookings) {
+    const c = cmap[b.client_id], d = A.referral_invite.daysAfter || 7;
+    if (b.status === 'done' && c && c.email && diffDays(b.date, today) >= d && diffDays(b.date, today) <= d + 5) { add('referral_invite', c.id, ensureReferralCode(store, c), null, true); }
   }
   for (const c of segmentMembers('retoque', clients, bookings, today)) add('retoque', `${c.id}:${today.slice(0, 7)}`, c, null, false);
   for (const c of clients) {
@@ -81,6 +87,19 @@ export async function sendNow(store, ctx, type, booking, now = new Date(), extra
   if (ctx.mailEnabled) { try { await ctx.sendMail({ to, subject, text }); status = 'enviado'; } catch (e) { status = 'error'; error = String(e.message || e).slice(0, 200); } }
   store.insert('outbox', { kind: type, client_id: booking.client_id, booking_id: booking.id, to, subject, text, status, error, created_at: now.toISOString() });
   if (status !== 'error') logInteraction(store, booking.client_id, `auto:${type}`, `${status === 'enviado' ? 'Email enviado' : 'Email preparado'}: ${subject}`, now, { ref: String(booking.id) });
+  return { status };
+}
+
+/** Envía un aviso con plantilla a una dirección concreta (bonos, regalos...). Sin SMTP queda en la bandeja de salida. */
+export async function sendTemplate(store, ctx, type, { to, client_id = null, vars = {} }, now = new Date()) {
+  const st = getSettings(store), cfg = st.automations[type];
+  if (!cfg || !cfg.on || !to) return { status: 'omitido' };
+  const web = st.siteUrl || ctx.siteUrl || '';
+  const v = { estudio: st.businessName, web, direccion: st.address || st.city, ...vars };
+  const subject = renderTemplate(cfg.subject, v), text = renderTemplate(cfg.body, v).replace(/\n{3,}/g, '\n\n');
+  let status = 'pendiente', error = '';
+  if (ctx.mailEnabled) { try { await ctx.sendMail({ to, subject, text }); status = 'enviado'; } catch (e) { status = 'error'; error = String(e.message || e).slice(0, 200); } }
+  store.insert('outbox', { kind: type, client_id, booking_id: null, to, subject, text, status, error, created_at: now.toISOString() });
   return { status };
 }
 

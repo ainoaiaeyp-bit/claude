@@ -39,6 +39,7 @@ export async function createApp({ dataDir = process.env.DATA_DIR || path.resolve
   const persist = openPersist(dataDir);
   const store = createStore(persist.load(), persist.hook);
   if (!store.setting('_seeded')) { const sd = seedData(); for (const s of sd.services) store.insert('services', s); store.setSetting('_seeded', true); }
+  if (!store.setting('_seeded_shop')) { if (!store.list('products').length) for (const p of seedData().products) store.insert('products', p); store.setSetting('_seeded_shop', true); }
   if (!store.setting('_secret')) store.setSetting('_secret', crypto.randomBytes(32).toString('hex'));
   if (!store.setting('_adminHash')) {
     const pw = adminPassword || crypto.randomBytes(6).toString('base64url');
@@ -112,7 +113,7 @@ export async function createApp({ dataDir = process.env.DATA_DIR || path.resolve
 
   function serveStatic(req, res, url) {
     let p = decodeURIComponent(url.pathname);
-    const pretty = { '/admin': '/admin.html', '/cita': '/cita.html', '/privacidad': '/privacidad.html' };
+    const pretty = { '/admin': '/admin.html', '/cita': '/cita.html', '/bono': '/bono.html', '/privacidad': '/privacidad.html' };
     if (pretty[p]) p = pretty[p]; if (p.endsWith('/')) p += 'index.html';
     const file = path.normalize(path.join(PUBLIC, p));
     if (!file.startsWith(PUBLIC + path.sep) || p.includes('\0')) return send(res, 403, 'Forbidden');

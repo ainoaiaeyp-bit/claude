@@ -13,7 +13,8 @@ export const DEFAULT_SETTINGS = {
   phone: '606 10 24 00', whatsapp: '34606102400', email: 'noeliaduquebrowandmakeup@gmail.com',
   instagram: 'https://www.instagram.com/noeliaduque_brows/', notificationEmail: 'noeliaduquebrowandmakeup@gmail.com',
   siteUrl: '',
-  hours: DEFAULT_HOURS, slotStep: 30, buffer: 15, minNoticeHours: 24, maxDaysAhead: 120, cancelHours: 24, autoConfirm: false, bookingsOpen: true, bookingsClosedMessage: 'Ahora mismo no estoy aceptando reservas online. Escríbeme por WhatsApp o déjame tus datos y te contesto en cuanto pueda.',
+  hours: DEFAULT_HOURS, slotStep: 30, buffer: 15, minNoticeHours: 24, maxDaysAhead: 120, cancelHours: 24, autoConfirm: false, bookingsOpen: true, referralOn: true, referralRewardCents: 1000, voucherMinCents: 2000, voucherValidMonths: 12,
+  voucherPaymentInfo: 'Paga por Bizum o transferencia indicando tu nombre y activaremos el bono en cuanto lo recibamos.', shopPaymentInfo: 'Reserva tus productos y los recoges y pagas en el estudio en tu próxima cita.', bookingsClosedMessage: 'Ahora mismo no estoy aceptando reservas online. Escríbeme por WhatsApp o déjame tus datos y te contesto en cuanto pueda.',
   depositInfo: '', homeFeeInfo: 'Desplazamiento a domicilio con suplemento según zona.',
   templates: DEFAULT_TEMPLATES,
   // contabilidad
@@ -29,6 +30,10 @@ export const DEFAULT_SETTINGS = {
     review: { on: false, daysAfter: 2, subject: '¿Qué tal tu experiencia?', body: 'Hola {nombre},\n\nGracias por venir a {estudio}. Si el resultado te ha gustado, ¿me dejas una reseña? Me ayuda muchísimo.\n\nUn abrazo,\nNoelia' },
     proposal: { on: true, subject: 'Te propongo otra hora para tu cita', body: 'Hola {nombre},\n\nGracias por pedir cita para {servicio}. No me viene bien el {fecha_anterior} a las {hora_anterior}, pero te propongo el {fecha} a las {hora}.\n\n{mensaje}\n\nPuedes aceptarla o decirme que no te viene bien aquí: {enlace}\n\nUn abrazo,\nNoelia' },
     rejection: { on: true, subject: 'Sobre tu solicitud de cita', body: 'Hola {nombre},\n\nGracias por escribirme. Lamentablemente no puedo atender tu solicitud de {servicio} el {fecha} a las {hora}.\n\n{mensaje}\n\nSi quieres, puedes elegir otro día en {web}.\n\nUn abrazo,\nNoelia' },
+    voucher: { on: true, subject: '{comprador} te regala un bono de {importe} en {estudio}', body: 'Hola {nombre},\n\n{comprador} te ha regalado un bono de {importe} para disfrutar en {estudio}.\n\n{mensaje}\n\nTu código es {codigo}. Puedes verlo aquí: {enlace}\nCaduca el {caduca}. Para usarlo, reserva tu cita en {web} y dile el código a Noelia al llegar.\n\nUn abrazo,\nNoelia' },
+    voucher_order: { on: true, subject: 'Tu bono regalo de {estudio}', body: 'Hola {nombre},\n\nGracias por tu pedido: bono de {importe} (código {codigo}).\n\n{pago}\n\nCuando lo recibamos, lo activamos y se lo enviamos a quien quieras. Puedes ver el bono aquí: {enlace}\n\nUn abrazo,\nNoelia' },
+    referral_reward: { on: true, subject: 'Tienes un regalo de {estudio}', body: 'Hola {nombre},\n\n{mensaje}\n\nTe regalamos un bono de {importe} para tu próxima cita. Código: {codigo}\nPuedes verlo aquí: {enlace}\nCaduca el {caduca}.\n\nGracias,\nNoelia' },
+    referral_invite: { on: false, daysAfter: 7, subject: 'Comparte tu regalo con una amiga', body: 'Hola {nombre},\n\nSi tienes una amiga que quiera cuidarse las cejas, comparte tu enlace: {enlace_amiga}\nLas dos recibiréis un bono de {importe_regalo} cuando termine su primera cita.\n\nGracias por recomendarme,\nNoelia' },
     retoque: { on: true, subject: 'Es momento de tu retoque', body: 'Hola {nombre},\n\nYa ha pasado el tiempo ideal para afinar tu tratamiento. Reserva tu retoque cuando quieras en {web}.\n\nNoelia' },
     birthday: { on: false, subject: '¡Feliz cumpleaños, {nombre}!', body: 'Hola {nombre},\n\n¡Feliz cumpleaños! Te deseamos un día precioso.\n\nNoelia · {estudio}' },
     reactivation: { on: false, subject: 'Te echamos de menos', body: 'Hola {nombre},\n\nHace tiempo que no nos vemos. Cuando quieras, reserva en {web}.\n\nNoelia' },
@@ -71,6 +76,7 @@ export const SEED_SERVICES = [
 
 export function seedData() {
   return {
+    products: [['Kit de cuidados post-micropigmentación', 'Crema cicatrizante y limpiador suave para las primeras semanas de tu tratamiento.', 2800], ['Protector solar facial SPF50', 'Protege el pigmento del sol y alarga la duración del resultado.', 1900], ['Hidratante de labios reparador', 'Para el cuidado diario tras la micropigmentación de labios.', 1400]].map((x, i) => ({ id: i + 1, name: x[0], description: x[1], price_cents: x[2], vat_rate: 21, stock: null, active: true, external_url: '', sort: i, created_at: new Date().toISOString() })),
     settings: {},
     services: SEED_SERVICES.map((s, i) => ({
       id: i + 1, name: s[0], category: s[1], description: s[2], duration_min: s[3], price_cents: s[4], price_from: !!s[5], allow_home: !!s[6],

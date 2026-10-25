@@ -53,6 +53,7 @@ export async function render(el, ctx) {
       <div class="kpi ${r.irpf_estimate ? 'warn' : ''}"><b>${eur0(r.irpf_estimate)}</b><span>IRPF estimado (${r.irpf_rate} %)</span><small>Sobre el beneficio</small></div>
       <div class="kpi good"><b>${eur0(r.after_tax)}</b><span>Te queda aprox.</span><small>Tras IRPF, sin contar el IVA</small></div>
       <div class="kpi ${r.vat_net > 0 ? 'warn' : ''}"><b>${eur0(r.vat_net)}</b><span>IVA neto</span><small>${r.vat_net < 0 ? 'A tu favor' : 'Repercutido menos soportado'}</small></div>
+      ${r.vouchers_outstanding ? `<div class="kpi"><b>${eur0(r.vouchers_outstanding)}</b><span>Bonos por canjear</span><small>Vendidos, aún no son ingreso</small></div>` : ''}
       ${r.unpaid.count ? `<div class="kpi warn"><b>${eur0(r.unpaid.cents)}</b><span>Sin cobrar</span><small>${r.unpaid.count} citas realizadas</small></div>` : ''}
     </div>
     <div class="card" style="margin-top:.9rem"><div class="between"><h3>${r.unit === 'year' ? 'Por año' : 'Mes a mes'}</h3><div class="legend"><span><i class="lg a"></i>Ingresos</span><span><i class="lg b"></i>Gastos</span></div></div>

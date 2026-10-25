@@ -1,6 +1,6 @@
 /* Almacén en memoria con colecciones de documentos. Cada cambio se notifica para poder persistirlo (SQLite en servidor). */
 
-export const COLLECTIONS = ['services', 'bookings', 'clients', 'interactions', 'records', 'tasks', 'expenses', 'blocked', 'outbox', 'invoices_files'];
+export const COLLECTIONS = ['services', 'bookings', 'clients', 'interactions', 'records', 'tasks', 'expenses', 'blocked', 'outbox', 'invoices_files', 'vouchers', 'products', 'orders'];
 
 export function createStore(seed = {}, onChange = () => {}) {
   const cols = {}, seq = {};

@@ -91,12 +91,17 @@ export function createBooking(store, input, { admin = false, now = new Date() } 
   if (location === 'home' && address.length < 5) throw new ApiError('Indica la dirección del servicio a domicilio.');
   const free = slotsFor(store, service, date, { ignoreNotice: admin, now });
   if (!free.includes(start) && !(admin && input.force)) throw new ApiError('Ese hueco acaba de ocuparse. Por favor, elige otro horario.', 409);
+  const refCode = String(input.referral || '').trim().toUpperCase();
+  const referrer = !admin && refCode && s.referralOn !== false ? store.list('clients').find((c) => c.referral_code === refCode) : null;
+  if (!admin && refCode && !referrer) throw new ApiError('Ese código de amiga no es válido.');
   const client = upsertClient(store, { name, email, phone, source: admin ? 'manual' : 'web', marketing: !!input.marketing }, now);
+  const isNew = !store.list('bookings').some((x) => x.client_id === client.id && ['pending', 'proposed', 'confirmed', 'done'].includes(x.status));
+  const referred_by = referrer && referrer.id !== client.id && isNew ? referrer.id : null;
   const status = admin ? (input.status === 'pending' ? 'pending' : 'confirmed') : (s.autoConfirm ? 'confirmed' : 'pending');
   const b = store.insert('bookings', {
     client_id: client.id, service_id: service.id, service_name: service.name, category: service.category, price_cents: service.price_cents,
     paid_cents: 0, pay_method: '', name, email, phone, date, start_min: start, end_min: start + service.duration_min, location, address,
-    notes: clean(input.notes, 600), internal_notes: '', status, source: admin ? 'admin' : 'web', token: randomHex(16), created_at: now.toISOString(),
+    notes: clean(input.notes, 600), internal_notes: '', status, source: admin ? 'admin' : 'web', token: randomHex(16), created_at: now.toISOString(), ...(referred_by ? { referred_by } : {}),
   });
   logInteraction(store, client.id, 'cita', `${admin ? 'Cita creada' : 'Reserva online'}: ${service.name} el ${date} a las ${fmtMin(start)}`, now, { booking_id: b.id });
   return b;

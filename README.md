@@ -58,3 +58,8 @@ El panel funciona como una app de iPhone: barra de pestañas inferior, hojas des
 - Los textos de «Propuesta de otra hora» y «Solicitud rechazada» se editan en Automatizaciones. Sin SMTP quedan en la bandeja de salida para enviarlos a mano.
 
 La contabilidad y el paquete para la asesoría también se pueden sacar por **año, todo el historial o fechas a medida**, no solo por trimestre. Para un periodo que no es un trimestre, las cifras de los modelos 303 y 130 son acumuladas del periodo y no llevan fecha de presentación.
+
+### Ingresos extra: bonos regalo, tienda y referidos
+- **Bonos regalo** (web: sección «Regala una mirada»; panel: Bonos y tienda). La clienta pide el bono, paga por Bizum o transferencia (texto editable) y tú lo marcas como cobrado: se activa y se envía por email al destinatario con una página imprimible (`/bono?c=CÓDIGO`). Se canjea desde la ficha de la cita («Usar bono»), también de forma parcial. El importe cuenta como ingreso al canjearse, no al venderse; los bonos vendidos y sin canjear se ven aparte en Resultados. No hay pasarela de pago: el cobro es manual.
+- **Tienda de cuidados**: productos con precio con IVA y stock opcional. Se reservan desde la web y se recogen y cobran en el estudio; al cobrarlos entran en el libro de ingresos con su IVA. Un producto con enlace externo funciona como afiliación. Los precios de ejemplo hay que cambiarlos.
+- **Referidos**: cada clienta tiene un código y un enlace (`/?ref=CÓDIGO`) en su ficha. Si una clienta nueva reserva con él y termina su primera cita, las dos reciben un bono (importe configurable). Hay un email opcional que invita a compartir (Automatizaciones).
