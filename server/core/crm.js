@@ -2,7 +2,7 @@
 
 import { pad, isoDate, addDays, diffDays, fmtMin } from './util.js';
 
-const ACTIVE = new Set(['pending', 'confirmed']);
+const ACTIVE = new Set(['pending', 'proposed', 'confirmed']);
 const isMicro = (b) => b.category === 'Micropigmentación' && !/retoque/i.test(b.service_name) && !/consulta/i.test(b.service_name);
 const isRetoque = (b) => /retoque/i.test(b.service_name);
 
@@ -151,7 +151,7 @@ export function dashboard({ clients, bookings, tasks, interactions, settings, bl
     today: act.filter((b) => b.date === today).length,
     next: act.slice(0, 6).map((b) => ({ ...b, client_name: (cmap[b.client_id] || {}).name || b.name })),
     kpis: {
-      pending: act.filter((b) => b.status === 'pending').length, upcoming: act.length,
+      pending: act.filter((b) => b.status === 'pending').length, proposed: act.filter((b) => b.status === 'proposed').length, upcoming: act.length,
       month_revenue: paid(month), prev_revenue: paid(prevMonth),
       to_collect: bookings.filter((b) => b.status === 'done' && (b.paid_cents || 0) < b.price_cents).reduce((a, b) => a + (b.price_cents - (b.paid_cents || 0)), 0),
       ticket, no_show_rate: noShow,

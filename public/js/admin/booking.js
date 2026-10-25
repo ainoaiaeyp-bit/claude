@@ -10,7 +10,7 @@ export async function openBooking(id, after = () => {}) {
   const owe = b.status === 'done' ? Math.max(0, b.price_cents - (b.paid_cents || 0)) : 0;
   const el = openDrawer(`
     <div><h3>${esc(b.service_name)}</h3><p class="muted" style="margin-top:.3rem">${dateLong(b.date)} · ${fm(b.start_min)}–${fm(b.end_min)} · ${b.location === 'home' ? 'A domicilio' : 'Estudio'}</p></div>
-    <div class="row">${badge(b.status, STATUS[b.status])}${b.source === 'admin' ? badge('neutral', 'Manual') : ''}${owe ? badge('warn', `Falta cobrar ${eur(owe)}`) : ''}</div>
+    <div class="row">${badge(b.status, STATUS[b.status])}${b.status === 'proposed' ? badge('neutral', `Pidió ${dateShort(b.prev_date)} ${fm(b.prev_start_min)}`) : ''}${b.source === 'admin' ? badge('neutral', 'Manual') : ''}${owe ? badge('warn', `Falta cobrar ${eur(owe)}`) : ''}</div>
     <div class="row" id="st-actions"></div>
     <div class="card"><h4>Clienta</h4>
       <div class="between" style="margin-top:.5rem"><div><b>${esc(b.name)}</b> ${c ? badge(c.stage, STAGE[c.stage]) : ''}<div class="muted small">${esc(b.phone)} · ${esc(b.email)}</div>${b.location === 'home' ? `<div class="small">${esc(b.address)}</div>` : ''}</div>
@@ -28,10 +28,10 @@ export async function openBooking(id, after = () => {}) {
 
   const done = () => { closeDrawer(); after(); window.__panel?.refreshCounts(); };
   const setStatus = guard(async (s) => { await api(`/api/admin/bookings/${id}`, { method: 'PATCH', body: { status: s } }); toast('Cita actualizada'); done(); });
-  const acts = { pending: [['confirmed', 'Confirmar', 'ok']], confirmed: [['done', 'Marcar realizada', ''], ['no_show', 'No asistió', 'ghost']], done: [['confirmed', 'Reabrir', 'ghost']], cancelled: [['confirmed', 'Reabrir', 'ghost']], no_show: [['confirmed', 'Reabrir', 'ghost']] }[b.status] || [];
-  const extra = ['pending', 'confirmed'].includes(b.status) ? [['cancelled', 'Cancelar cita', 'danger']] : [];
+  const acts = { pending: [['confirmed', 'Aceptar', 'ok'], ['propose', 'Proponer otra hora', 'clay'], ['reject', 'Rechazar', 'danger']], proposed: [['confirmed', 'Confirmar igualmente', 'ok'], ['propose', 'Cambiar propuesta', 'clay']], confirmed: [['done', 'Marcar realizada', ''], ['no_show', 'No asistió', 'ghost']], done: [['confirmed', 'Reabrir', 'ghost']], cancelled: [['confirmed', 'Reabrir', 'ghost']], no_show: [['confirmed', 'Reabrir', 'ghost']] }[b.status] || [];
+  const extra = ['proposed', 'confirmed'].includes(b.status) ? [['cancelled', 'Cancelar cita', 'danger']] : [];
   $('#st-actions', el).innerHTML = [...acts, ...extra].map(([s, l, cls]) => `<button class="btn sm ${cls}" data-s="${s}">${l}</button>`).join('');
-  $$('[data-s]', el).forEach((x) => (x.onclick = () => (x.dataset.s === 'cancelled' ? confirmBox('¿Cancelar la cita?', 'Se marcará como cancelada y el hueco quedará libre.', () => setStatus(x.dataset.s), { label: 'Cancelar cita' }) : setStatus(x.dataset.s))));
+  $$('[data-s]', el).forEach((x) => (x.onclick = () => (x.dataset.s === 'propose' ? proposeDialog(b, done) : x.dataset.s === 'reject' ? rejectDialog(b, done) : x.dataset.s === 'cancelled' ? confirmBox('¿Cancelar la cita?', 'Se marcará como cancelada y el hueco quedará libre.', () => setStatus(x.dataset.s), { label: 'Cancelar cita' }) : setStatus(x.dataset.s))));
   const pay = guard(async (paid) => { const f = $('#pay-form', el); await api(`/api/admin/bookings/${id}`, { method: 'PATCH', body: { paid_cents: Math.round(paid * 100), pay_method: f.method.value, price_cents: Math.round(Number(f.price.value) * 100), ...(b.status !== 'done' && paid > 0 && b.status !== 'cancelled' ? { status: 'done' } : {}) } }); toast('Cobro guardado'); done(); });
   $('#pay-form', el).onsubmit = (e) => { e.preventDefault(); pay(Number(e.target.paid.value)); };
   $('#pay-full', el).onclick = () => pay(Number($('#pay-form', el).price.value));
@@ -52,4 +52,40 @@ async function moveDialog(b, done) {
     sel.innerHTML = r.slots.length ? r.slots.map((s) => `<option value="${s.start_min}" ${s.start_min === b.start_min && f.elements.date.value === b.date ? 'selected' : ''}>${s.label}</option>`).join('') : '<option value="">Sin huecos ese día</option>';
   };
   f.elements.date.onchange = load; load();
+}
+
+/** Propone otra fecha u hora a la clienta; se le avisa por email con enlace para aceptar. */
+export async function proposeDialog(b, done) {
+  const f = openDialog(`<h3>Proponer otra hora</h3><p class="muted">${esc(b.name)} pidió ${esc(b.service_name)} el ${dateLong(b.prev_date || b.date)} a las ${fm(b.prev_start_min ?? b.start_min)}. Se reserva el nuevo hueco y ella decide desde su enlace.</p>
+    <div class="grid2"><label>Nueva fecha<input type="date" name="date" value="${b.prev_date || b.date}" required></label><label>Hora<select name="time" required></select></label></div>
+    <div id="alts" class="chips" aria-label="Huecos cercanos"></div>
+    <label>Mensaje para ${esc(b.name.split(' ')[0])} (opcional)<textarea name="message" rows="3" placeholder="Ese día ya tengo la agenda completa, ¿te viene bien este otro?">${esc(b.proposal_message || '')}</textarea></label>`,
+    async (v) => { if (!v.time) throw new Error('Elige una hora libre.'); const r = await api(`/api/admin/bookings/${b.id}/propose`, { method: 'POST', body: { date: v.date, start_min: Number(v.time), message: v.message } }); toast(r.mail === 'enviado' ? 'Propuesta enviada por email' : 'Propuesta guardada. Email preparado en la bandeja de salida'); done(); }, { submit: 'Enviar propuesta' });
+  const sel = f.elements.time, alts = $('#alts', f);
+  const load = async () => {
+    const r = await api(`/api/availability?service_id=${b.service_id}&date=${f.elements.date.value}`);
+    const cur = f.elements.date.value === b.date ? b.start_min : -1;
+    const slots = r.slots.map((s) => s.start_min);
+    if (cur >= 0 && !slots.includes(cur) && b.status === 'proposed') slots.push(cur);
+    slots.sort((x, y) => x - y);
+    sel.innerHTML = slots.length ? slots.map((m) => `<option value="${m}" ${m === cur ? 'selected' : ''}>${fm(m)}</option>`).join('') : '<option value="">Sin huecos ese día</option>';
+  };
+  const near = async () => {
+    const out = [];
+    for (let i = 1; i <= 10 && out.length < 4; i++) {
+      const d = addDays(b.prev_date || b.date, i), r = await api(`/api/availability?service_id=${b.service_id}&date=${d}`);
+      if (r.slots.length) out.push([d, r.slots[0].start_min, r.slots[r.slots.length - 1].start_min]);
+    }
+    alts.innerHTML = out.length ? out.map(([d]) => `<button type="button" class="chip" data-d="${d}">${dateShort(d).replace(/ \d+$/, '')}</button>`).join('') : '';
+    alts.querySelectorAll('[data-d]').forEach((c) => (c.onclick = () => { f.elements.date.value = c.dataset.d; load(); }));
+  };
+  f.elements.date.onchange = load; load(); near();
+}
+
+/** Rechaza una solicitud con un mensaje opcional por email. */
+export function rejectDialog(b, done) {
+  openDialog(`<h3>Rechazar solicitud</h3><p class="muted">${esc(b.name)} · ${esc(b.service_name)} · ${dateLong(b.date)} ${fm(b.start_min)}. El hueco queda libre y se le avisa por email.</p>
+    <label>Mensaje (opcional)<textarea name="message" rows="3" placeholder="Ese día no atiendo. Puedes elegir otro en la web."></textarea></label>
+    <label class="check"><input type="checkbox" name="notify" checked> Avisar a la clienta por email</label>`,
+    async (v) => { const r = await api(`/api/admin/bookings/${b.id}/reject`, { method: 'POST', body: { message: v.message, notify: v.notify } }); toast(v.notify ? (r.mail === 'enviado' ? 'Rechazada y avisada' : 'Rechazada. Email preparado en la bandeja de salida') : 'Solicitud rechazada'); done(); }, { submit: 'Rechazar' });
 }

@@ -15,7 +15,7 @@ export const dateShort = (s) => (s ? new Date(s + 'T12:00:00').toLocaleDateStrin
 export const dateTime = (iso) => (iso ? new Date(iso).toLocaleString('es-ES', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '');
 export const monthName = (ym) => new Date(ym + '-01T12:00:00').toLocaleDateString('es-ES', { month: 'short', year: '2-digit' }).replace('.', '');
 export const DAYS = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
-export const STATUS = { pending: 'Pendiente', confirmed: 'Confirmada', cancelled: 'Cancelada', done: 'Realizada', no_show: 'No asistió' };
+export const STATUS = { pending: 'Pendiente', proposed: 'Propuesta enviada', confirmed: 'Confirmada', cancelled: 'Cancelada', done: 'Realizada', no_show: 'No asistió' };
 export const STAGE = { lead: 'Contacto', nueva: 'Nueva', cliente: 'Clienta', fiel: 'Fiel', vip: 'VIP', inactiva: 'Inactiva' };
 export const badge = (kind, text) => `<span class="badge b-${kind}">${esc(text)}</span>`;
 export const initials = (n) => String(n).split(/\s+/).slice(0, 2).map((x) => x[0]).join('').toUpperCase();

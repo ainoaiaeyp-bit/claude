@@ -93,6 +93,7 @@ function renderFooter() {
 
 function renderPolicy() {
   const n = settings.minNoticeHours, c = settings.cancelHours;
+  if (settings.bookingsOpen === false) { $('#book-policy').textContent = 'Reservas online pausadas temporalmente.'; $('#faq-cancel').textContent = `Sí. Desde el enlace de tu cita puedes cancelarla hasta ${c} horas antes.`; return; }
   $('#book-policy').textContent = (settings.autoConfirm ? 'Tu cita queda confirmada al instante.' : 'Confirmaremos tu cita personalmente.') + (n ? ` Se reserva con al menos ${n} h de antelación.` : '');
   $('#faq-cancel').textContent = `Sí. Desde el enlace de tu cita puedes cancelarla hasta ${c} horas antes. Si necesitas cambiarla, escríbeme y la movemos.`;
 }
@@ -112,7 +113,14 @@ const wizard = (() => {
   const st = { service: null, location: 'studio', days: [], shown: 8, date: null, slots: [], slot: null, loading: false, seq: 0 };
   const svc = () => services.find((s) => s.id === st.service);
 
+  function closed() {
+    const w = settings.whatsapp ? `https://wa.me/${String(settings.whatsapp).replace(/\D/g, '')}` : '';
+    box.innerHTML = `<div class="bk-closed"><h3 class="bk-h">Reservas pausadas</h3><p>${esc(settings.bookingsClosedMessage || 'Ahora mismo no acepto reservas online.')}</p>
+      <div class="cta-row">${w ? `<a class="btn" href="${w}" target="_blank" rel="noopener">Escribir por WhatsApp</a>` : ''}${settings.phone ? `<a class="btn btn-ghost" href="tel:${esc(settings.phone.replace(/\s/g, ''))}">Llamar</a>` : ''}<a class="btn btn-ghost" href="#lead">Dejar mis datos</a></div></div>`;
+  }
+
   function start() {
+    if (settings.bookingsOpen === false) return closed();
     const groups = [];
     services.forEach((s) => { let g = groups.find((x) => x.n === s.category); if (!g) groups.push((g = { n: s.category, i: [] })); g.i.push(s); });
     box.innerHTML = `

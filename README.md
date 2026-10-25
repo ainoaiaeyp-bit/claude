@@ -50,3 +50,8 @@ Copia de seguridad y restauración desde Ajustes. Requiere Node ≥ 22.13 (no fu
 
 ### App móvil (PWA)
 El panel funciona como una app de iPhone: barra de pestañas inferior, hojas deslizables, listas en lugar de tablas y recarga arrastrando. Para instalarla, abre `/admin` en Safari, pulsa Compartir y «Añadir a pantalla de inicio» (en Android, «Instalar app»). Requiere HTTPS en producción. Capa móvil: `public/css/mobile.css` y `public/js/admin/shell.js`.
+
+### Control de reservas
+- **Interruptor «Reservas online»** (Resumen y Agenda): al pausarlo, la web no deja reservar y muestra tu aviso y tu contacto. Las citas ya hechas no cambian.
+- **Aceptación manual** (por defecto) o automática desde Horarios y bloqueos. Con aceptación manual, cada solicitud puede **aceptarse, rechazarse o responderse con otra hora**. Al proponer otra hora se reserva el hueco nuevo y la clienta recibe un email con enlace para aceptarla o decir que no le viene bien (en ese caso la cita se cancela y el hueco queda libre).
+- Los textos de «Propuesta de otra hora» y «Solicitud rechazada» se editan en Automatizaciones. Sin SMTP quedan en la bandeja de salida para enviarlos a mano.

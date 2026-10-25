@@ -1,5 +1,6 @@
 import { $, $$, api, qs, esc, eur, fm, toMin, dateLong, dateShort, today, addDays, badge, STATUS, openDialog, toast, guard, empty, isoLocal } from './core.js';
-import { openBooking } from './booking.js';
+import { openBooking, proposeDialog, rejectDialog } from './booking.js';
+import { bookingSwitch } from './reservas.js';
 
 let state = { mode: 'lista', range: 'month', anchor: today(), q: '', status: '' };
 
@@ -19,6 +20,7 @@ export async function render(el, ctx) {
   const [rows, blocked, settings] = await Promise.all([api(`/api/admin/bookings?${qs({ from, to, q: state.q, status })}`), api('/api/admin/blocked'), api('/api/admin/settings')]);
   const step = state.mode === 'semana' ? 7 : state.range === 'today' ? 1 : state.range === 'week' ? 7 : 30;
   el.innerHTML = `
+    <div id="bk-switch"></div>
     <div class="top"><div><h2>Agenda</h2><p class="sub">${dateShort(from)} – ${dateShort(to)} · ${rows.length} ${rows.length === 1 ? 'cita' : 'citas'}</p></div>
       <div class="actions"><button class="btn" id="new">+ Nueva cita</button></div></div>
     <div class="between" style="margin-bottom:1rem">
@@ -36,6 +38,7 @@ export async function render(el, ctx) {
   let qt; $('#q', el).oninput = (e) => { clearTimeout(qt); qt = setTimeout(() => { state.q = e.target.value; redraw().then(() => { const i = $('#q'); i.focus(); i.setSelectionRange(i.value.length, i.value.length); }); }, 350); };
   $('#st', el).onchange = (e) => { state.status = e.target.value; redraw(); };
   $('#new', el).onclick = () => newBooking(redraw);
+  bookingSwitch($('#bk-switch', el), redraw);
   const body = $('#body', el);
   if (state.mode === 'semana') weekView(body, rows, blocked, settings, from, redraw); else listView(body, rows, redraw);
 }
@@ -46,8 +49,10 @@ function listView(body, rows, redraw) {
   body.innerHTML = Object.entries(by).map(([d, bs]) => `<div class="dgroup"><h3>${dateLong(d)}${d === today() ? ' · hoy' : ''}</h3>${bs.map((b) => `
     <div class="bk ${b.status}" data-b="${b.id}"><div class="t">${fm(b.start_min)}<small>${fm(b.end_min)}</small></div>
       <div class="who"><b>${esc(b.name)}</b> ${badge(b.status, STATUS[b.status])}<div>${esc(b.service_name)} · ${b.location === 'home' ? 'Domicilio' : 'Estudio'}${b.paid_cents ? ` · cobrado ${eur(b.paid_cents)}` : ''}${b.notes ? ` · “${esc(b.notes.slice(0, 60))}”` : ''}</div></div>
-      <div class="acts">${b.status === 'pending' ? `<button class="btn sm ok" data-ok="${b.id}">Confirmar</button>` : ''}</div></div>`).join('')}</div>`).join('');
-  $$('[data-b]', body).forEach((x) => (x.onclick = (e) => { if (e.target.closest('[data-ok]')) return; openBooking(x.dataset.b, redraw); }));
+      <div class="acts">${b.status === 'pending' ? `<button class="btn sm ok" data-ok="${b.id}">Aceptar</button><button class="btn sm ghost" data-alt="${b.id}">Otra hora</button><button class="btn sm danger" data-no="${b.id}">Rechazar</button>` : ''}</div></div>`).join('')}</div>`).join('');
+  $$('[data-b]', body).forEach((x) => (x.onclick = (e) => { if (e.target.closest('[data-ok],[data-alt],[data-no]')) return; openBooking(x.dataset.b, redraw); }));
+  $$('[data-alt]', body).forEach((x) => (x.onclick = () => proposeDialog(rows.find((r) => r.id === Number(x.dataset.alt)), () => { redraw(); window.__panel?.refreshCounts(); })));
+  $$('[data-no]', body).forEach((x) => (x.onclick = () => rejectDialog(rows.find((r) => r.id === Number(x.dataset.no)), () => { redraw(); window.__panel?.refreshCounts(); })));
   $$('[data-ok]', body).forEach((x) => (x.onclick = guard(async () => { await api(`/api/admin/bookings/${x.dataset.ok}`, { method: 'PATCH', body: { status: 'confirmed' } }); toast('Cita confirmada'); redraw(); window.__panel?.refreshCounts(); })));
 }
 

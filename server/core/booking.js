@@ -2,8 +2,8 @@
 import { ApiError, isDate, addDays, diffDays, dow, fmtMin, nowLocal, clean, EMAIL_RE, randomHex } from './util.js';
 import { DEFAULT_SETTINGS } from './defaults.js';
 
-const ACTIVE = ['pending', 'confirmed'];
-export const STATUSES = ['pending', 'confirmed', 'cancelled', 'done', 'no_show'];
+const ACTIVE = ['pending', 'proposed', 'confirmed'];
+export const STATUSES = ['pending', 'proposed', 'confirmed', 'cancelled', 'done', 'no_show'];
 
 export function getSettings(store) {
   const cur = store.settings(), out = { ...DEFAULT_SETTINGS };
@@ -77,6 +77,7 @@ export function upsertClient(store, { name, email, phone, source = 'web', market
 
 export function createBooking(store, input, { admin = false, now = new Date() } = {}) {
   const s = getSettings(store);
+  if (!admin && s.bookingsOpen === false) throw new ApiError(s.bookingsClosedMessage || 'Las reservas online están pausadas.', 403);
   const service = findService(store, input.service_id);
   if (!service) throw new ApiError('El servicio seleccionado no está disponible.');
   const date = input.date, start = Number(input.start_min);
@@ -107,7 +108,7 @@ export function setStatus(store, id, status, now = new Date()) {
   if (!STATUSES.includes(status)) throw new ApiError('Estado no válido.');
   if (b.status === status) return b;
   const nb = store.update('bookings', id, { status });
-  const label = { pending: 'pendiente', confirmed: 'confirmada', cancelled: 'cancelada', done: 'realizada', no_show: 'no asistió' }[status];
+  const label = { pending: 'pendiente', proposed: 'con propuesta de otra hora', confirmed: 'confirmada', cancelled: 'cancelada', done: 'realizada', no_show: 'no asistió' }[status];
   logInteraction(store, b.client_id, 'cita', `Cita ${label}: ${b.service_name} el ${b.date}`, now, { booking_id: b.id });
   return nb;
 }
@@ -124,6 +125,29 @@ export function moveBooking(store, id, { date, start_min, force = false }, now =
   return nb;
 }
 
+/** Propone otra fecha u hora: reserva el hueco nuevo y deja la cita a la espera de que la clienta responda. */
+export function proposeBooking(store, id, { date, start_min, message = '', force = false }, now = new Date()) {
+  const b = store.find('bookings', id);
+  if (!b) throw new ApiError('Cita no encontrada.', 404);
+  if (!['pending', 'proposed'].includes(b.status)) throw new ApiError('Solo se puede proponer otra hora en una solicitud pendiente.');
+  const service = findService(store, b.service_id, false);
+  const t = Number(start_min);
+  if (!isDate(date) || !Number.isInteger(t)) throw new ApiError('Fecha u hora no válida.');
+  if (!force && !slotsFor(store, service, date, { ignoreNotice: true, excludeId: b.id, now }).includes(t)) throw new ApiError('Ese hueco no está libre.', 409);
+  const keep = b.status === 'proposed' ? { prev_date: b.prev_date, prev_start_min: b.prev_start_min } : { prev_date: b.date, prev_start_min: b.start_min };
+  const nb = store.update('bookings', id, { ...keep, date, start_min: t, end_min: t + (b.end_min - b.start_min), status: 'proposed', proposal_message: clean(message, 500), proposed_at: now.toISOString() });
+  logInteraction(store, b.client_id, 'cita', `Propuesta de otra hora: ${b.service_name} el ${date} a las ${fmtMin(t)} (pidió ${keep.prev_date} a las ${fmtMin(keep.prev_start_min)})`, now, { booking_id: b.id });
+  return nb;
+}
+
+/** La clienta acepta o rechaza la propuesta desde su enlace. */
+export function answerProposal(store, b, accept, now = new Date()) {
+  if (b.status !== 'proposed') throw new ApiError('Esta cita no tiene ninguna propuesta pendiente.', 409);
+  const nb = store.update('bookings', b.id, { status: accept ? 'confirmed' : 'cancelled' });
+  logInteraction(store, b.client_id, 'cita', accept ? `Aceptó la nueva hora: ${b.service_name} el ${b.date} a las ${fmtMin(b.start_min)}` : `Rechazó la propuesta y la cita queda cancelada (${b.service_name})`, now, { booking_id: b.id });
+  return nb;
+}
+
 export function canCancel(store, b, now = new Date()) {
   if (!ACTIVE.includes(b.status)) return false;
   const s = getSettings(store), n = nowLocal(now);
@@ -131,7 +155,7 @@ export function canCancel(store, b, now = new Date()) {
 }
 
 export function publicBooking(b) {
-  return { token: b.token, service: b.service_name, price_cents: b.price_cents, name: b.name, date: b.date, start: fmtMin(b.start_min), end: fmtMin(b.end_min), location: b.location, address: b.address, status: b.status };
+  return { token: b.token, service: b.service_name, price_cents: b.price_cents, name: b.name, date: b.date, start: fmtMin(b.start_min), end: fmtMin(b.end_min), location: b.location, address: b.address, status: b.status, proposal: b.status === 'proposed' ? { message: b.proposal_message || '', prev_date: b.prev_date, prev_start: fmtMin(b.prev_start_min) } : null };
 }
 
 export function icsFor(b, settings) {

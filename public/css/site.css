@@ -308,3 +308,5 @@ textarea{min-height:84px;resize:vertical;border:1px solid var(--line);border-rad
 
 .lead-form{margin-top:1rem;grid-template-columns:1fr}.lead-form[hidden]{display:none}
 #lead{margin-top:.4rem}
+.bk-closed{border:1px solid var(--line);border-radius:22px;padding:clamp(1.5rem,3vw,2.4rem);display:grid;gap:1.2rem;background:var(--bg)}
+.bk-closed p{color:var(--muted);max-width:46ch}

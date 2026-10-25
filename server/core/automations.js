@@ -11,6 +11,7 @@ export function templateVars(st, client, booking, ctx) {
   return {
     nombre: (client.name || '').split(' ')[0] || 'hola', estudio: st.businessName, direccion: st.address || st.city, web,
     servicio: booking ? booking.service_name : '', fecha: booking ? longDate(booking.date) : '', hora: booking ? fmtMin(booking.start_min) : '',
+    mensaje: (booking && booking.proposal_message) || '', fecha_anterior: booking && booking.prev_date ? longDate(booking.prev_date) : '', hora_anterior: booking && booking.prev_start_min != null ? fmtMin(booking.prev_start_min) : '',
     enlace: booking && web ? `${web}/cita?t=${booking.token}` : web,
   };
 }
@@ -67,6 +68,20 @@ export async function runAutomations(store, ctx, now = new Date(), { dry = false
     if (status !== 'error') logInteraction(store, m.client_id, `auto:${m.type}`, `${status === 'enviado' ? 'Email enviado' : 'Email preparado'}: ${m.subject}`, now, { ref: m.key });
   }
   return { plan, sent, queued, failed };
+}
+
+/** Envía de inmediato un aviso puntual (propuesta, rechazo...). Sin SMTP queda preparado en la bandeja de salida. */
+export async function sendNow(store, ctx, type, booking, now = new Date(), extra = {}) {
+  const st = getSettings(store), cfg = st.automations[type], client = store.find('clients', booking.client_id);
+  const to = (client && client.email) || booking.email;
+  if (!cfg || !cfg.on || !to) return { status: 'omitido' };
+  const v = { ...templateVars(st, client || { name: booking.name }, { ...booking, ...extra }, ctx), ...(extra.mensaje !== undefined ? { mensaje: extra.mensaje } : {}) };
+  const subject = renderTemplate(cfg.subject, v), text = renderTemplate(cfg.body, v).replace(/\n{3,}/g, '\n\n');
+  let status = 'pendiente', error = '';
+  if (ctx.mailEnabled) { try { await ctx.sendMail({ to, subject, text }); status = 'enviado'; } catch (e) { status = 'error'; error = String(e.message || e).slice(0, 200); } }
+  store.insert('outbox', { kind: type, client_id: booking.client_id, booking_id: booking.id, to, subject, text, status, error, created_at: now.toISOString() });
+  if (status !== 'error') logInteraction(store, booking.client_id, `auto:${type}`, `${status === 'enviado' ? 'Email enviado' : 'Email preparado'}: ${subject}`, now, { ref: String(booking.id) });
+  return { status };
 }
 
 /** Prueba de baja de comunicaciones comerciales por token. */

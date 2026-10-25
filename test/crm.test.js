@@ -90,3 +90,33 @@ test('el formulario de reserva guarda el permiso de novedades', async () => {
   await t.call('/api/bookings', { method: 'POST', admin: false, body: { ...person, name: 'Sin Permiso', email: 'sinpermiso@example.com', service_id: 7, date, start_min: 660 } });
   assert.equal(t.app.store.list('clients').find((c) => c.email === 'sinpermiso@example.com').consent_marketing, false);
 });
+
+test('reservas pausadas, propuesta de otra hora y respuesta de la clienta', async () => {
+  const date = await freeDay(t.call, 6, 20), date2 = await freeDay(t.call, 6, 40);
+  const slots = async (d) => (await t.call(`/api/availability?service_id=6&date=${d}`, { admin: false })).data.slots.map((x) => x.start_min);
+  const s1 = await slots(date), s2 = await slots(date2);
+  const post = (body) => t.call('/api/bookings', { method: 'POST', admin: false, body: { ...person, service_id: 6, ...body } });
+  await t.call('/api/admin/settings', { method: 'PUT', body: { bookingsOpen: false, bookingsClosedMessage: 'Vuelvo en septiembre' } });
+  assert.equal((await t.call('/api/settings', { admin: false })).data.bookingsOpen, false);
+  const closed = await post({ date, start_min: s1[0] });
+  assert.equal(closed.status, 403); assert.match(closed.data.error, /septiembre/);
+  await t.call('/api/admin/settings', { method: 'PUT', body: { bookingsOpen: true } });
+
+  const r1 = await post({ email: 'prop@example.com', name: 'Prop Uesta', date, start_min: s1[0] });
+  const b = r1.data.booking;
+  assert.equal(b.status, 'pending');
+  const id = t.app.store.list('bookings').find((x) => x.token === b.token).id;
+  const p = await t.call(`/api/admin/bookings/${id}/propose`, { method: 'POST', body: { date, start_min: s1[s1.length - 1], message: 'Por la mañana no puedo' } });
+  assert.equal(p.status, 200); assert.equal(p.data.booking.status, 'proposed'); assert.equal(p.data.booking.start_min, s1[s1.length - 1]);
+  assert.ok(t.app.store.list('outbox').some((o) => o.kind === 'proposal' && o.text.includes('Por la mañana no puedo')));
+  assert.equal((await t.call(`/api/bookings/${b.token}`, { admin: false })).data.booking.proposal.message, 'Por la mañana no puedo');
+  const a = await t.call(`/api/bookings/${b.token}/accept`, { method: 'POST', admin: false, body: {} });
+  assert.equal(a.data.status, 'confirmed');
+  assert.equal((await t.call(`/api/bookings/${b.token}/accept`, { method: 'POST', admin: false, body: {} })).status, 409);
+
+  const b2 = (await post({ email: 'rech@example.com', name: 'Rechazo Uno', date: date2, start_min: s2[0] })).data.booking;
+  const id2 = t.app.store.list('bookings').find((x) => x.token === b2.token).id;
+  const rj = await t.call(`/api/admin/bookings/${id2}/reject`, { method: 'POST', body: { message: 'Estaré de vacaciones' } });
+  assert.equal(rj.data.booking.status, 'cancelled');
+  assert.ok(t.app.store.list('outbox').some((o) => o.kind === 'rejection' && o.text.includes('vacaciones')));
+});

@@ -2,7 +2,7 @@
    la usan el servidor de Node y la vista previa del panel en el navegador. */
 import { ApiError, addDays, clean, cents, diffDays, EMAIL_RE, fmtMin, isDate, nowLocal, pad, quarterOf, randomHex, sum } from './util.js';
 import {
-  canCancel, createBooking, findService, getSettings, icsFor, logInteraction, monthAvailability, moveBooking, publicBooking, setStatus, slotsFor, upsertClient,
+  answerProposal, canCancel, createBooking, findService, getSettings, icsFor, logInteraction, monthAvailability, moveBooking, proposeBooking, publicBooking, setStatus, slotsFor, upsertClient,
 } from './booking.js';
 import { EXPENSE_CATEGORIES, seedData } from './defaults.js';
 import {
@@ -10,7 +10,7 @@ import {
 } from './crm.js';
 import { buildQuarterZip, catLabel, draftFromExtraction, expenseLedger, incomeLedger, normalizeExpense, quarterSummary } from './accounting.js';
 import { cfoReport } from './cfo.js';
-import { planAutomations, runAutomations, templateVars, unsubscribe } from './automations.js';
+import { planAutomations, runAutomations, sendNow, templateVars, unsubscribe } from './automations.js';
 
 const ok = (data, status = 200, headers) => ({ status, json: data, headers });
 const fail = (msg, status = 400) => ({ status, json: { error: msg } });
@@ -30,7 +30,7 @@ export function createApi(store, ctx) {
     const s = getSettings(store);
     return {
       businessName: s.businessName, tagline: s.tagline, city: s.city, address: s.address, phone: s.phone, whatsapp: s.whatsapp, email: s.email, instagram: s.instagram,
-      minNoticeHours: Number(s.minNoticeHours), cancelHours: Number(s.cancelHours), maxDaysAhead: Number(s.maxDaysAhead), autoConfirm: !!s.autoConfirm,
+      minNoticeHours: Number(s.minNoticeHours), cancelHours: Number(s.cancelHours), maxDaysAhead: Number(s.maxDaysAhead), autoConfirm: !!s.autoConfirm, bookingsOpen: s.bookingsOpen !== false, bookingsClosedMessage: s.bookingsClosedMessage,
       depositInfo: s.depositInfo, homeFeeInfo: s.homeFeeInfo, hours: s.hours,
     };
   };
@@ -86,12 +86,17 @@ export function createApi(store, ctx) {
   ];
 
   const tokenRoute = (r) => {
-    const m = /^\/api\/bookings\/([a-f0-9]{32})(\/cancel|\/ics)?$/.exec(r.path);
+    const m = /^\/api\/bookings\/([a-f0-9]{32})(\/cancel|\/ics|\/accept|\/decline)?$/.exec(r.path);
     if (!m) return null;
     const b = store.list('bookings').find((x) => x.token === m[1]);
     if (!b) return fail('Cita no encontrada.', 404);
     if (r.method === 'GET' && !m[2]) return ok({ booking: publicBooking(b), can_cancel: canCancel(store, b, now()) });
     if (r.method === 'GET' && m[2] === '/ics') return { status: 200, text: icsFor(b, getSettings(store)), headers: { 'Content-Type': 'text/calendar; charset=utf-8', 'Content-Disposition': 'attachment; filename="cita.ics"' } };
+    if (r.method === 'POST' && (m[2] === '/accept' || m[2] === '/decline')) {
+      const nb = answerProposal(store, b, m[2] === '/accept', now());
+      notify(m[2] === '/accept' ? 'booking.proposal_accepted' : 'booking.proposal_declined', nb);
+      return ok({ ok: true, status: nb.status });
+    }
     if (r.method === 'POST' && m[2] === '/cancel') {
       if (!canCancel(store, b, now())) throw new ApiError('Para cancelar con menos antelación, contacta directamente con nosotras.', 403);
       setStatus(store, b.id, 'cancelled', now());
@@ -144,6 +149,20 @@ export function createApi(store, ctx) {
     }
     return ok(b);
   });
+  route('POST', /^\/api\/admin\/bookings\/(\d+)\/propose$/, async (r, m) => {
+    const id = Number(m[1]), b = proposeBooking(store, id, r.body || {}, now());
+    const mail = await sendNow(store, ctx, 'proposal', b, now());
+    notify('booking.proposed', b);
+    return ok({ booking: b, mail: mail.status });
+  });
+  route('POST', /^\/api\/admin\/bookings\/(\d+)\/reject$/, async (r, m) => {
+    const id = Number(m[1]), b0 = store.find('bookings', id); if (!b0) return fail('Cita no encontrada.', 404);
+    if (!['pending', 'proposed'].includes(b0.status)) throw new ApiError('Solo se pueden rechazar solicitudes pendientes.');
+    const b = setStatus(store, id, 'cancelled', now());
+    const mail = r.body?.notify === false ? { status: 'omitido' } : await sendNow(store, ctx, 'rejection', b, now(), { mensaje: clean(r.body?.message, 500) });
+    notify('booking.cancelled', b);
+    return ok({ booking: b, mail: mail.status });
+  });
   route('POST', /^\/api\/admin\/bookings\/(\d+)\/move$/, (r, m) => ok(moveBooking(store, Number(m[1]), r.body || {}, now())));
   route('DELETE', /^\/api\/admin\/bookings\/(\d+)$/, (r, m) => { store.remove('bookings', m[1]); return ok({ ok: true }); });
 
@@ -172,7 +191,8 @@ export function createApi(store, ctx) {
     const b = r.body || {};
     for (const k of TEXT) if (k in b) store.setSetting(k, clean(b[k], 300));
     for (const [k, [lo, hi]] of Object.entries(NUMS)) if (k in b) { const n = Number(b[k]); if (!Number.isFinite(n) || n < lo || n > hi) throw new ApiError(`Valor no válido: ${k}`); store.setSetting(k, n); }
-    for (const k of ['autoConfirm', 'pricesIncludeVat', 'quarterlyAutoSend']) if (k in b) store.setSetting(k, !!b[k]);
+    if ('bookingsClosedMessage' in b) store.setSetting('bookingsClosedMessage', clean(b.bookingsClosedMessage, 400));
+    for (const k of ['autoConfirm', 'bookingsOpen', 'pricesIncludeVat', 'quarterlyAutoSend']) if (k in b) store.setSetting(k, !!b[k]);
     if ('hours' in b) {
       for (let d = 0; d < 7; d++) { const rs = b.hours?.[d]; if (!Array.isArray(rs)) throw new ApiError('Horario no válido.'); for (const x of rs) if (!Array.isArray(x) || !(x[0] >= 0 && x[1] <= 1440 && x[0] < x[1])) throw new ApiError('Horario no válido.'); }
       store.setSetting('hours', b.hours);

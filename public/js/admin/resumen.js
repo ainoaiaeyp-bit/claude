@@ -1,5 +1,6 @@
 import { $, $$, api, esc, eur, eur0, fm, dateLong, dateShort, dateTime, monthName, badge, STATUS, STAGE, barChart, hbars, delta, empty, today, openDialog, toast, guard } from './core.js';
 import { openBooking } from './booking.js';
+import { bookingSwitch } from './reservas.js';
 
 export async function render(el, { refreshCounts }) {
   const d = await api('/api/admin/dashboard');
@@ -10,6 +11,7 @@ export async function render(el, { refreshCounts }) {
     <div class="top"><div><h2>${hello}, Noelia</h2><p class="sub">${dateLong(today())}. ${d.today ? `Hoy tienes <b>${d.today}</b> ${d.today === 1 ? 'cita' : 'citas'}.` : 'Hoy no tienes citas.'}</p></div>
       <div class="actions"><a class="btn" href="#agenda">Ver agenda</a><a class="btn ghost" href="#clientas.nueva">Nueva clienta</a></div></div>
 
+    <div id="bk-switch"></div>
     ${[k.pending && `<a class="kpi warn" style="display:block;text-decoration:none;margin-bottom:.6rem" href="#agenda"><b style="font-size:1.4rem">${k.pending} ${k.pending === 1 ? 'solicitud pendiente' : 'solicitudes pendientes'} de confirmar</b></a>`, d.drafts && `<a class="kpi warn" style="display:block;text-decoration:none;margin-bottom:.6rem" href="#contabilidad"><b style="font-size:1.4rem">${d.drafts} ${d.drafts === 1 ? 'factura subida pendiente' : 'facturas subidas pendientes'} de revisar</b></a>`].filter(Boolean).join('')}
 
     <div class="kpis">
@@ -34,6 +36,7 @@ export async function render(el, { refreshCounts }) {
 
     <div class="card" style="margin-top:1rem"><h3>Actividad reciente</h3>${d.activity.length ? `<div class="tl">${d.activity.map((a) => `<div class="tl-i ${a.kind.startsWith('auto') ? 'auto' : ''}"><b>${esc(a.client_name || '—')}</b> · ${esc(a.text)}<small>${dateTime(a.created_at)}</small></div>`).join('')}</div>` : empty('Todavía no hay actividad')}</div>`;
 
+  bookingSwitch($('#bk-switch', el), () => render(el, { refreshCounts }));
   $$('[data-b]', el).forEach((x) => (x.onclick = () => openBooking(x.dataset.b, () => render(el, { refreshCounts }))));
   $$('[data-task]', el).forEach((x) => (x.onchange = guard(async () => { await api(`/api/admin/tasks/${x.dataset.task}`, { method: 'PATCH', body: { done: true } }); toast('Tarea completada'); render(el, { refreshCounts }); refreshCounts(); })));
   $('#add-task', el).onclick = () => openDialog(`<h3>Nueva tarea</h3><label>Qué hay que hacer<input name="title" required maxlength="160"></label><label>Para el día<input type="date" name="due_date" value="${today()}"></label>`, async (v) => { await api('/api/admin/tasks', { method: 'POST', body: v }); toast('Tarea creada'); render(el, { refreshCounts }); }, { submit: 'Crear' });

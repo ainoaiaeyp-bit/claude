@@ -154,3 +154,14 @@ dialog{border:0;border-radius:28px;padding:0;width:min(640px,94vw);background:va
   .hbar{grid-template-columns:1fr auto}.hbar .track{grid-column:1/-1;order:3}
 }
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+
+/* interruptor de reservas */
+.open-card{display:flex;justify-content:space-between;align-items:center;gap:1rem;padding:1rem 1.2rem;border-radius:var(--r);background:var(--surface);border:1px solid var(--line);box-shadow:var(--shadow);margin-bottom:1.1rem;position:relative;overflow:hidden}
+.open-card::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--ok)}
+.open-card.is-closed::before{background:var(--bad)}.open-card b{font-weight:650;letter-spacing:-.01em}
+.switch{flex:none;position:relative;width:54px;height:32px;border-radius:999px;border:0;background:var(--raise);cursor:pointer;transition:background .3s var(--ease);padding:0}
+.switch i{position:absolute;top:3px;left:3px;width:26px;height:26px;border-radius:50%;background:#fff;box-shadow:0 2px 6px rgba(0,0,0,.28);transition:transform .35s var(--ease)}
+.switch[aria-checked=true]{background:var(--ok)}.switch[aria-checked=true] i{transform:translateX(22px)}
+.b-proposed{background:var(--info-bg);color:var(--info)}
+.bk.proposed{border-left-color:var(--info)}.wk .ev.proposed{background:var(--info-bg);border-left-color:var(--info)}
+.bk .acts{display:flex;gap:.4rem;flex-wrap:wrap}

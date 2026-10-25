@@ -13,7 +13,7 @@ export const DEFAULT_SETTINGS = {
   phone: '606 10 24 00', whatsapp: '34606102400', email: 'noeliaduquebrowandmakeup@gmail.com',
   instagram: 'https://www.instagram.com/noeliaduque_brows/', notificationEmail: 'noeliaduquebrowandmakeup@gmail.com',
   siteUrl: '',
-  hours: DEFAULT_HOURS, slotStep: 30, buffer: 15, minNoticeHours: 24, maxDaysAhead: 120, cancelHours: 24, autoConfirm: false,
+  hours: DEFAULT_HOURS, slotStep: 30, buffer: 15, minNoticeHours: 24, maxDaysAhead: 120, cancelHours: 24, autoConfirm: false, bookingsOpen: true, bookingsClosedMessage: 'Ahora mismo no estoy aceptando reservas online. Escríbeme por WhatsApp o déjame tus datos y te contesto en cuanto pueda.',
   depositInfo: '', homeFeeInfo: 'Desplazamiento a domicilio con suplemento según zona.',
   templates: DEFAULT_TEMPLATES,
   // contabilidad
@@ -27,6 +27,8 @@ export const DEFAULT_SETTINGS = {
     confirmation: { on: true, subject: 'Tu cita en {estudio}', body: 'Hola {nombre},\n\nTe confirmo tu cita de {servicio} el {fecha} a las {hora} en {direccion}.\n\nPuedes consultarla o cancelarla aquí: {enlace}\n\nUn abrazo,\nNoelia' },
     reminder: { on: true, hoursBefore: 24, subject: 'Mañana tienes cita en {estudio}', body: 'Hola {nombre},\n\nTe recuerdo tu cita de mañana, {fecha} a las {hora}, para {servicio}.\n\nSi no puedes venir, avísame con tiempo desde {enlace} y la movemos.\n\nNoelia' },
     review: { on: false, daysAfter: 2, subject: '¿Qué tal tu experiencia?', body: 'Hola {nombre},\n\nGracias por venir a {estudio}. Si el resultado te ha gustado, ¿me dejas una reseña? Me ayuda muchísimo.\n\nUn abrazo,\nNoelia' },
+    proposal: { on: true, subject: 'Te propongo otra hora para tu cita', body: 'Hola {nombre},\n\nGracias por pedir cita para {servicio}. No me viene bien el {fecha_anterior} a las {hora_anterior}, pero te propongo el {fecha} a las {hora}.\n\n{mensaje}\n\nPuedes aceptarla o decirme que no te viene bien aquí: {enlace}\n\nUn abrazo,\nNoelia' },
+    rejection: { on: true, subject: 'Sobre tu solicitud de cita', body: 'Hola {nombre},\n\nGracias por escribirme. Lamentablemente no puedo atender tu solicitud de {servicio} el {fecha} a las {hora}.\n\n{mensaje}\n\nSi quieres, puedes elegir otro día en {web}.\n\nUn abrazo,\nNoelia' },
     retoque: { on: true, subject: 'Es momento de tu retoque', body: 'Hola {nombre},\n\nYa ha pasado el tiempo ideal para afinar tu tratamiento. Reserva tu retoque cuando quieras en {web}.\n\nNoelia' },
     birthday: { on: false, subject: '¡Feliz cumpleaños, {nombre}!', body: 'Hola {nombre},\n\n¡Feliz cumpleaños! Te deseamos un día precioso.\n\nNoelia · {estudio}' },
     reactivation: { on: false, subject: 'Te echamos de menos', body: 'Hola {nombre},\n\nHace tiempo que no nos vemos. Cuando quieras, reserva en {web}.\n\nNoelia' },
