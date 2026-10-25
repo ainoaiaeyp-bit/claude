@@ -12,7 +12,8 @@
     "dev": "node --watch --disable-warning=ExperimentalWarning server/index.js",
     "test": "node --disable-warning=ExperimentalWarning --test test/*.test.js",
     "demo": "node --disable-warning=ExperimentalWarning scripts/seed-demo.js",
-    "preview:panel": "node scripts/build-preview.mjs panel-preview.html public/img/work"
+    "preview:panel": "node scripts/build-preview.mjs panel-preview.html public/img/work",
+    "preview:site": "node scripts/build-site-preview.mjs site-preview.html"
   },
   "devDependencies": {
     "esbuild": "^0.25.0"
