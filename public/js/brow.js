@@ -47,8 +47,8 @@ function draw(progress) {
 
   // mapeo
   ctx.save();
-  ctx.strokeStyle = stroke; ctx.fillStyle = stroke; ctx.globalAlpha = 0.45; ctx.lineWidth = 1; ctx.setLineDash([3, 5]);
-  ctx.font = `600 11px ${css('--display') || 'sans-serif'}`;
+  ctx.strokeStyle = stroke; ctx.fillStyle = stroke; ctx.globalAlpha = 0.35; ctx.lineWidth = 1; ctx.setLineDash([3, 5]);
+  ctx.font = `500 10px ${css('--body') || 'sans-serif'}`;
   [['A', 0.0, 'INICIO'], ['B', 0.62, 'ARCO'], ['C', 1.0, 'FINAL']].forEach(([k, t, name]) => {
     const [x, y] = bez(t);
     ctx.beginPath(); ctx.moveTo(X(x), Y(y) + s * 0.07); ctx.lineTo(X(x), H - 18); ctx.stroke();
@@ -61,7 +61,7 @@ function draw(progress) {
 
   // pelos
   const n = Math.floor(hairs.length * progress);
-  ctx.lineCap = 'round'; ctx.strokeStyle = stroke;
+  ctx.lineCap = 'round'; ctx.strokeStyle = stroke; ctx.shadowColor = stroke; ctx.shadowBlur = 5;
   for (let i = 0; i < n; i++) {
     const h = hairs[i];
     const [cx, cy] = bez(h.t), [tx, ty] = tan(h.t);
@@ -76,7 +76,7 @@ function draw(progress) {
     ctx.globalAlpha = h.a; ctx.lineWidth = h.w;
     ctx.beginPath(); ctx.moveTo(bx, by); ctx.quadraticCurveTo(mx, my, ex, ey); ctx.stroke();
   }
-  ctx.globalAlpha = 1;
+  ctx.shadowBlur = 0; ctx.globalAlpha = 1;
 }
 
 const DELAY = document.documentElement.classList.contains('seen') ? 900 : 1900;

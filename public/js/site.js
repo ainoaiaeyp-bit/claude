@@ -1,7 +1,7 @@
 const $ = (s, r = document) => r.querySelector(s);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const eur = (c) => (c / 100).toLocaleString('es-ES', { style: 'currency', currency: 'EUR', minimumFractionDigits: c % 100 ? 2 : 0 });
-const money = (c) => (c ? eur(c) : 'Gratis');
+const money = (c) => (c ? eur(c) : 'Cortesía');
 const dur = (m) => (m >= 60 ? `${Math.floor(m / 60)} h${m % 60 ? ` ${m % 60} min` : ''}` : `${m} min`);
 const api = async (url, opts) => {
   const r = await fetch(url, opts);
@@ -60,12 +60,14 @@ function renderServices() {
     g.items.push(s);
   });
   $('#svc-grid').innerHTML = groups.map((g) => `
-    <div class="svc-group" data-reveal-line><h3>${esc(g.name)}</h3><div class="svc-rows">${g.items.map((s, k) => `
+    <div class="menu-group" data-reveal-line><h3>${esc(g.name)}</h3><div class="svc-rows">${g.items.map((s, k) => `
       <div class="svc-row" data-reveal style="--d:${(k * 0.08).toFixed(2)}s">
-        <div><h4>${esc(s.name)}</h4><p>${esc(s.description)}</p></div>
-        <span class="dur">${dur(s.duration_min)}</span>
-        <span class="price">${s.price_from && s.price_cents ? '<small>desde</small>' : ''}${money(s.price_cents)}</span>
-        <button class="btn btn-sm btn-ghost" data-book="${s.id}">Reservar</button>
+        <div class="svc-main">
+          <div class="svc-line"><h4>${esc(s.name)}</h4><i class="leader"></i><span class="price">${s.price_from && s.price_cents ? '<small>desde</small>' : ''}${money(s.price_cents)}</span></div>
+          <p>${esc(s.description)}</p>
+          <span class="dur">${dur(s.duration_min)}</span>
+        </div>
+        <button class="link-btn" data-book="${s.id}">Reservar</button>
       </div>`).join('')}</div></div>`).join('') || '<p class="hint">Próximamente.</p>';
   $('#svc-grid').onclick = (e) => {
     const b = e.target.closest('[data-book]'); if (!b) return;
@@ -100,10 +102,10 @@ function renderFooter() {
 function renderPolicy() {
   const n = settings.minNoticeHours, c = settings.cancelHours;
   $('#book-policy').textContent = settings.autoConfirm
-    ? 'Selecciona servicio, fecha y hora. Tu cita queda confirmada al instante.'
-    : 'Selecciona servicio, fecha y hora. Confirmaremos tu cita en cuanto la revisemos.';
+    ? 'Selecciona tratamiento, fecha y hora. Tu cita queda confirmada al instante.'
+    : 'Selecciona tratamiento, fecha y hora. Confirmaremos tu cita personalmente.';
   $('#faq-cancel').textContent = `Sí. Desde el enlace de tu cita puedes cancelarla hasta ${c} horas antes. Si necesitas cambiarla, escríbenos y la movemos sin problema.`;
-  if (n) $('#book-policy').textContent += ` Reservas con al menos ${n} h de antelación.`;
+  if (n) $('#book-policy').textContent += ` Se reserva con al menos ${n} h de antelación.`;
 }
 
 function renderLd() {
@@ -137,7 +139,7 @@ const wizard = (() => {
   }
 
   function step1() {
-    body.innerHTML = `<h3 class="wz-title">¿Qué servicio necesitas?</h3>
+    body.innerHTML = `<h3 class="wz-title">Elige tu tratamiento</h3>
       <div class="opt-list">${services.map((s) => `
         <button class="opt" data-id="${s.id}" aria-pressed="${s.id === st.service}">
           <span><b>${esc(s.name)}</b><small>${dur(s.duration_min)} · ${esc(s.category)}</small></span>
@@ -261,7 +263,7 @@ const wizard = (() => {
         <label>Teléfono / WhatsApp<input name="phone" type="tel" autocomplete="tel" required value="${esc(v.phone)}"></label>
         <label class="full">Email<input name="email" type="email" autocomplete="email" required value="${esc(v.email)}"></label>
         ${st.location === 'home' ? `<label class="full">Dirección del servicio<input name="address" autocomplete="street-address" required maxlength="200" value="${esc(v.address)}"></label>` : ''}
-        <label class="full">Cuéntanos (ocasión, tipo de piel, referencias…)<textarea name="notes" maxlength="600">${esc(v.notes)}</textarea></label>
+        <label class="full">Cuéntanos (ocasión, piel, referencias)<textarea name="notes" maxlength="600">${esc(v.notes)}</textarea></label>
         <input class="hp" name="website" tabindex="-1" autocomplete="off" aria-hidden="true">
         <label class="check full"><input type="checkbox" name="consent" required><span>He leído y acepto la <a href="/privacidad" target="_blank">política de privacidad</a>.</span></label>
         ${settings.depositInfo ? `<p class="muted full" style="margin:0;font-size:.9rem">${esc(settings.depositInfo)}</p>` : ''}
@@ -300,8 +302,8 @@ const wizard = (() => {
     const link = `${location.origin}/cita?t=${b.token}`;
     const wa = settings.whatsapp ? `https://wa.me/${settings.whatsapp.replace(/\D/g, '')}?text=${encodeURIComponent(`Hola, soy ${b.name}. Acabo de reservar ${b.service} el ${longDate(b.date)} a las ${b.start}.`)}` : '';
     body.innerHTML = `<div class="success"><div class="tick"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="square"><path d="M4 12.5l5 5L20 6.5"/></svg></div>
-      <h3 class="wz-title">${confirmed ? '¡Cita confirmada!' : '¡Solicitud recibida!'}</h3>
-      <p>${confirmed ? 'Te esperamos. Guarda este enlace para consultar o cancelar tu cita.' : 'Revisaremos tu solicitud y te confirmaremos muy pronto. Guarda este enlace para consultar o cancelar tu cita.'}</p>
+      <h3 class="wz-title">${confirmed ? 'Cita confirmada' : 'Solicitud recibida'}</h3>
+      <p>${confirmed ? 'Te esperamos. Guarda este enlace privado para consultar o cancelar tu cita.' : 'Revisaremos tu solicitud y te la confirmaremos personalmente en breve. Guarda este enlace privado para consultar o cancelar tu cita.'}</p>
       <div class="summary"><b>${esc(b.service)}</b><span>${longDate(b.date)} · ${b.start}–${b.end}</span><span>${b.location === 'home' ? 'A domicilio: ' + esc(b.address) : 'En el estudio'}</span>
         <span><span class="badge ${b.status}">${confirmed ? 'Confirmada' : 'Pendiente de confirmar'}</span></span></div>
       <div class="cta-row" style="justify-content:center">
