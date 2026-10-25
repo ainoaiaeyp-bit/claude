@@ -66,15 +66,15 @@ const DEFAULT_HOURS = {
 };
 
 const DEFAULTS = {
-  businessName: 'Noelia Duque · Cejas, Maquillaje y Estética',
-  tagline: 'Más de 10 años diseñando cejas en Murcia. Microblading, micropigmentación, maquillaje y estética.',
-  city: 'Murcia',
-  address: '',
-  phone: '',
-  whatsapp: '',
-  email: '',
+  businessName: 'Noelia Duque Brow & Make Up',
+  tagline: 'Más de 10 años diseñando cejas en Alcantarilla, Murcia. Microblading, micropigmentación, maquillaje y estética.',
+  city: 'Alcantarilla, Murcia',
+  address: 'C. Joaquín Martínez López, 3, 30820 Alcantarilla, Murcia (en Peluquería Fina Carpe)',
+  phone: '606 10 24 00',
+  whatsapp: '34606102400',
+  email: 'noeliaduquebrowandmakeup@gmail.com',
   instagram: 'https://www.instagram.com/noeliaduque_brows/',
-  notificationEmail: '',
+  notificationEmail: 'noeliaduquebrowandmakeup@gmail.com',
   hours: JSON.stringify(DEFAULT_HOURS),
   slotStep: '30',
   buffer: '15',

@@ -86,7 +86,8 @@ function renderFooter() {
   if (settings.phone) c.push(`<li><a href="tel:${esc(settings.phone.replace(/\s/g, ''))}">${esc(settings.phone)}</a></li>`);
   if (settings.email) c.push(`<li><a href="mailto:${esc(settings.email)}">${esc(settings.email)}</a></li>`);
   if (settings.instagram) c.push(`<li><a href="${esc(settings.instagram)}" rel="noopener" target="_blank">Instagram</a></li>`);
-  if (settings.address || settings.city) c.push(`<li>${esc(settings.address || settings.city)}</li>`);
+  if (settings.address) c.push(`<li><a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(settings.address.replace(/\s*\(.*\)\s*$/, ''))}" target="_blank" rel="noopener">${esc(settings.address)}</a></li>`);
+  else if (settings.city) c.push(`<li>${esc(settings.city)}</li>`);
   $('#ft-contact').innerHTML = c.join('') || '<li>Reserva online las 24 h.</li>';
   $('#ft-tag').textContent = settings.tagline;
   const order = [1, 2, 3, 4, 5, 6, 0];
