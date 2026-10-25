@@ -12,12 +12,12 @@ const TABS = [
   { id: 'resumen', label: 'Hoy', icon: 'resumen', match: ['resumen'] },
   { id: 'agenda', label: 'Agenda', icon: 'agenda', match: ['agenda'], badge: 'pending' },
   { id: 'clientas', label: 'Clientas', icon: 'clientas', match: ['clientas'] },
-  { id: 'contabilidad', label: 'Dinero', icon: 'dinero', match: ['contabilidad', 'rentabilidad', 'informes'], badge: 'drafts' },
+  { id: 'resultados', label: 'Dinero', icon: 'dinero', match: ['resultados', 'contabilidad', 'rentabilidad', 'informes'], badge: 'drafts' },
   { id: 'mas', label: 'Más', icon: 'mas', match: ['seguimiento', 'automatizaciones', 'servicios', 'horarios', 'portfolio', 'ajustes'], badge: ['followups', 'outbox_pending'] },
 ];
 const MORE = [
   ['Seguimiento', [['seguimiento', 'Seguimiento de clientas', 'followups'], ['automatizaciones', 'Automatizaciones de email', 'outbox_pending']]],
-  ['Dinero', [['rentabilidad', 'Rentabilidad (CFO)'], ['informes', 'Informes']]],
+  ['Dinero', [['contabilidad', 'Contabilidad y trimestres', 'drafts'], ['rentabilidad', 'Rentabilidad (CFO)'], ['informes', 'Informes']]],
   ['Estudio', [['servicios', 'Servicios y costes'], ['horarios', 'Horarios y bloqueos'], ['portfolio', 'Portfolio'], ['ajustes', 'Ajustes']]],
 ];
 

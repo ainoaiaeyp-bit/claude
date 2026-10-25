@@ -39,6 +39,7 @@ Acceso: `/admin.html`. Contraseña inicial en `ADMIN_PASSWORD` (se guarda con sc
 - **Agenda**: calendario semanal, mover/confirmar/cancelar citas, bloqueos.
 - **Automatizaciones por email**: confirmación, recordatorio, reseña, retoque, cumpleaños, reactivación. Los envíos de marketing exigen consentimiento y llevan enlace de baja.
 - **Contabilidad**: subida de varias facturas (borrador, revisión, confirmación), IVA/IRPF, paquete trimestral en ZIP y envío a la asesoría. Son estimaciones, no presentaciones oficiales. El panel no emite facturas.
+- **Resultados**: beneficio, ingresos y gastos de un mes, trimestre, año, últimos 12 meses, todo el historial o fechas a medida, con comparación con el periodo anterior, gráfico mes a mes y desglose por servicio, gasto y clienta.
 - **Rentabilidad (CFO)**: costes fijos, umbral de rentabilidad, margen y €/hora por servicio.
 
 Variables de entorno: `PORT`, `DATA_DIR`, `ADMIN_PASSWORD`, `SITE_URL`, `TRUST_PROXY`, `WEBHOOK_URL`,

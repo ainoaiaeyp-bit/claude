@@ -10,6 +10,7 @@ import {
 } from './crm.js';
 import { buildQuarterZip, catLabel, draftFromExtraction, expenseLedger, incomeLedger, normalizeExpense, quarterSummary } from './accounting.js';
 import { cfoReport } from './cfo.js';
+import { dataBounds, periodReport } from './results.js';
 import { planAutomations, runAutomations, sendNow, templateVars, unsubscribe } from './automations.js';
 
 const ok = (data, status = 200, headers) => ({ status, json: data, headers });
@@ -409,6 +410,13 @@ export function createApi(store, ctx) {
     return ok({ confirmed: n });
   });
 
+  route('GET', /^\/api\/admin\/results$/, (r) => {
+    const b = dataBounds(store), t = today();
+    let from = r.query.from, to = r.query.to;
+    if (r.query.all) { from = b.first || t; to = t; }
+    if (!isDate(from) || !isDate(to) || from > to) throw new ApiError('Periodo no válido.');
+    return ok(periodReport(store, { from, to }, now()));
+  });
   route('GET', /^\/api\/admin\/accounting$/, (r) => {
     const t = today(), y = Number(r.query.year) || Number(t.slice(0, 4)), q = Number(r.query.q) || quarterOf(t);
     const s = quarterSummary(store, y, q, now());

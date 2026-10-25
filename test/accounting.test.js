@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import net from 'node:net';
 import { boot, freeDay, person } from './helpers.js';
 import { addDays, nowLocal, quarterOf } from '../server/core/util.js';
+import { seedDemo } from '../server/core/demo.js';
 import { zip, crc32 } from '../server/core/zip.js';
 import { createMailer } from '../server/mail.js';
 
@@ -121,4 +122,17 @@ test('cliente SMTP: AUTH, adjunto y cuerpo llegan al servidor', async () => {
   srv.close();
   assert.ok(got.cmds.includes('AUTH') && got.cmds.includes('MAIL') && got.cmds.includes('RCPT'));
   assert.match(got.data, /multipart\/mixed/); assert.match(got.data, /filename="p\.zip"/); assert.match(got.data, /UEsDBA==/);
+});
+
+test('resultados: año completo y desde el principio', async () => {
+  const t2 = await boot(); await t2.login();
+  seedDemo(t2.app.store, new Date(), { saveFile: () => 'f'.repeat(32) });
+  const all = await t2.call('/api/admin/results?all=1');
+  assert.equal(all.status, 200);
+  const yr = new Date().getFullYear();
+  const y = await t2.call(`/api/admin/results?from=${yr}-01-01&to=${yr}-12-31`);
+  assert.equal(y.data.profit, y.data.income - y.data.expenses);
+  assert.ok(all.data.income >= y.data.income);
+  assert.equal((await t2.call('/api/admin/results?from=2026-05-01&to=2026-01-01')).status, 400);
+  await t2.close();
 });

@@ -8,6 +8,7 @@ const VIEWS = [
   { id: 'clientas', label: 'Clientas', load: () => import('./clientas.js') },
   { id: 'seguimiento', label: 'Seguimiento', load: () => import('./seguimiento.js'), badge: 'followups' },
   { group: 'Dinero' },
+  { id: 'resultados', label: 'Resultados', load: () => import('./resultados.js') },
   { id: 'contabilidad', label: 'Contabilidad', load: () => import('./contabilidad.js'), badge: 'drafts' },
   { id: 'rentabilidad', label: 'Rentabilidad (CFO)', load: () => import('./cfo.js') },
   { id: 'informes', label: 'Informes', load: () => import('./informes.js') },
