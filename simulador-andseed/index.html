@@ -1,0 +1,812 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Simulador de financiación | Andseed</title>
+</head>
+<body style="margin:0;background:#fff">
+
+<!-- ===================== INICIO BLOQUE ELEMENTOR (copiar desde aquí) ===================== -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<!-- MOTOR: configuración, reglas y lógica de evaluación (sin acceso al DOM) -->
+<script id="as-engine">
+(function (global) {
+  'use strict';
+
+  /* =====================================================================
+   * CONFIGURACIÓN (editar aquí)
+   * ===================================================================== */
+  const WEBHOOK_URL = '';  // TODO: URL del webhook de n8n (POST JSON). Con la cadena vacía el envío falla de forma visible.
+  const PRIVACY_URL = 'https://andseed.com/politica-de-privacidad/'; // TODO: verificar la URL real de la política de privacidad
+  const AGENDA_URL  = 'https://andseed.com/contacto/';               // TODO: URL del calendario de llamadas (si queda vacía, no se muestra el botón)
+  const DRY_RUN     = false;   // true: no envía nada, escribe el JSON en la consola y simula un envío correcto (solo para pruebas)
+
+  /* =====================================================================
+   * REGLAS
+   * Fuente: briefing de Andseed del 27/10/2026.
+   *  - ENISA: reglas del briefing. TODO: verificar todo el bloque en enisa.es (hay fuentes que
+   *    indican que ENISA reorganizó sus líneas en 2026).
+   *  - NEOTEC: convocatoria 2026 del CDTI, plazo del 14/04/2026 al 14/05/2026. La ayuda máxima de
+   *    325.000 € sale de la web de Andseed. La convocatoria 2027 no está publicada.
+   * Para actualizar una regla basta con cambiar un valor de este objeto: la lógica de más abajo no
+   * contiene cifras ni fechas. Cualquier regla que no figure aquí queda como TODO y no se evalúa.
+   * ===================================================================== */
+  const RULES = {
+    version: '2026-10-27',
+
+    enisa: {
+      // TODO: verificar en enisa.es (todos los valores de este bloque)
+      fundsToLoanRatio: 1,          // Emprendedores y Crecimiento: fondos propios >= importe solicitado
+      fundsToLoanRatioJovenes: 0.5, // Jóvenes Emprendedores: el mínimo puede ser el 50 % del préstamo (solo informativo)
+      minAmount: 25000,
+      maxEmprendedores: 300000,
+      maxCrecimiento: 1500000,
+      auditThreshold: 300000        // por encima de esta cifra se exigen estados financieros auditados
+      // TODO: criterios para distinguir Emprendedores / Crecimiento / Jóvenes Emprendedores (no figuran en el briefing).
+      //       Mientras tanto se asume Emprendedores hasta 300.000 € y Crecimiento por encima.
+      // TODO: ¿ENISA exige sociedad ya constituida? Sin confirmar, una empresa no constituida queda como "no evaluable".
+    },
+
+    neotec: {
+      convocatoria: 2026,
+      windowStart: '2026-04-14',
+      windowEnd: '2026-05-14',   // cierre del plazo: referencia para antigüedad y escritura
+      maxAgeYears: 3,            // constituida como máximo 3 años antes del cierre
+      minDeedMonths: 6,          // escritura otorgada al menos 6 meses antes del cierre
+      minCapital: 20000,         // capital desembolsado e inscrito
+      maxAid: 325000             // ayuda de hasta 325.000 € (web de Andseed)
+      // El modelo de negocio debe basarse en tecnología propia (se excluyen los modelos de servicios).
+    },
+
+    /* Tramos de las preguntas. Los cortes del importe están alineados con minAmount (25.000),
+     * auditThreshold / maxEmprendedores (300.000) y maxCrecimiento (1.500.000): si esas cifras cambian, revisar. */
+    tramos: {
+      capital: [
+        { id: 'lt20k',  label: 'Menos de 20.000 €',      lo: 0,     hi: 20000 },
+        { id: '20-50k', label: 'De 20.000 a 50.000 €',   lo: 20000, hi: 50000 },
+        { id: 'gt50k',  label: 'Más de 50.000 €',        lo: 50000, hi: null }
+      ],
+      importe: [
+        { id: 'lt25k',     label: 'Menos de 25.000 €',         lo: 0,       hi: 25000 },
+        { id: '25-100k',   label: 'De 25.000 a 100.000 €',     lo: 25000,   hi: 100000 },
+        { id: '100-300k',  label: 'De 100.000 a 300.000 €',    lo: 100000,  hi: 300000 },
+        { id: '300-1500k', label: 'De 300.000 a 1.500.000 €',  lo: 300000,  hi: 1500000 },
+        { id: 'gt1500k',   label: 'Más de 1.500.000 €',        lo: 1500000, hi: null }
+      ]
+    },
+
+    /* PUNTUACIÓN DEL LEAD (0 a 100) y CUALIFICACIÓN
+     *   score = fondos propios (35 si cubren el tramo completo; 17 si cubren al menos su inicio; 0 si no)
+     *         + empresa constituida (15)
+     *         + tecnología (30 propia, 10 servicios, 0 no)
+     *         + ampliación de capital (20 reciente, 10 próxima, 0 no)
+     *   qualified = score >= qualifiedMinScore Y encaje "encaja" o "a confirmar" en ENISA o NEOTEC.
+     * El umbral (50) y los pesos son criterio comercial, no normativa: ajustarlos con ventas. */
+    score: {
+      ownFundsFull: 35,
+      ownFundsPartial: 17,
+      constituida: 15,
+      tecnologia: { propia: 30, servicios: 10, no: 0 },
+      ampliacion: { reciente: 20, proxima: 10, no: 0 }
+    },
+    qualifiedMinScore: 50
+  };
+
+  /* =====================================================================
+   * LÓGICA (no editar para cambiar reglas)
+   * ===================================================================== */
+  const MONTHS = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+  const TRACK_KEYS = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content', 'gclid'];
+
+  function fmtEUR(n) {
+    const r = Math.round(Math.abs(n));
+    return (n < 0 ? '-' : '') + String(r).replace(/\B(?=(\d{3})+(?!\d))/g, '.') + ' €';
+  }
+  function isoToDate(s) { const p = s.split('-').map(Number); return new Date(Date.UTC(p[0], p[1] - 1, p[2])); }
+  function addMonths(d, n) { const r = new Date(d.getTime()); r.setUTCMonth(r.getUTCMonth() + n); return r; }
+  function fmtDate(d) { return d.getUTCDate() + ' de ' + MONTHS[d.getUTCMonth()] + ' de ' + d.getUTCFullYear(); }
+  function tramo(kind, id) {
+    const t = RULES.tramos[kind].find(function (x) { return x.id === id; });
+    if (!t) throw new Error('Tramo desconocido: ' + kind + '/' + id);
+    return t;
+  }
+  function reason(code, text) { return { code: code, text: text }; }
+  function isOpen(status) { return status === 'encaja' || status === 'a_confirmar'; }
+
+  function evalEnisa(a) {
+    const E = RULES.enisa;
+    const reasons = [];
+    const out = function (status, maxAmount, line) { return { status: status, maxAmount: maxAmount, line: line, reasons: reasons }; };
+
+    if (!a.constituida) {
+      reasons.push(reason('NO_CONSTITUIDA', 'Con la sociedad sin constituir no podemos estimar el encaje en ENISA. Lo revisamos contigo en una llamada.'));
+      return out('no_evaluable', null, null);
+    }
+    const t = tramo('importe', a.importe_tramo);
+    if (t.hi !== null && t.hi <= E.minAmount) {
+      reasons.push(reason('IMPORTE_BAJO_MINIMO', 'ENISA financia desde ' + fmtEUR(E.minAmount) + ' y el importe que buscáis queda por debajo.'));
+      return out('no_encaja', null, null);
+    }
+    if (t.hi === null && t.lo >= E.maxCrecimiento) {
+      reasons.push(reason('IMPORTE_SUPERA_MAXIMO', 'El máximo de ENISA es ' + fmtEUR(E.maxCrecimiento) + ' y el importe que buscáis lo supera.'));
+      return out('no_encaja', null, 'Crecimiento');
+    }
+    const crecimiento = t.lo >= E.maxEmprendedores;
+    const cap = crecimiento ? E.maxCrecimiento : E.maxEmprendedores;
+    const line = crecimiento ? 'Crecimiento' : 'Emprendedores';
+    const fp = a.fondos_propios;
+
+    if (fp <= 0) {
+      reasons.push(reason('FONDOS_PROPIOS_NO_POSITIVOS', 'Con fondos propios iguales o inferiores a cero no se cumple el requisito de cubrir el préstamo con fondos propios.'));
+      reasons.push(jovenesNote());
+      return out('no_encaja', null, line);
+    }
+    const capacity = Math.round(Math.min(fp / E.fundsToLoanRatio, cap));
+
+    if (capacity < t.lo) {
+      const reaches = capacity >= E.minAmount;
+      reasons.push(reason('FONDOS_PROPIOS_INSUFICIENTES', reaches
+        ? 'Con ' + fmtEUR(fp) + ' de fondos propios, el préstamo máximo orientativo sería de ' + fmtEUR(capacity) + ', por debajo del importe que buscáis.'
+        : 'Con ' + fmtEUR(fp) + ' de fondos propios no se alcanza el importe mínimo de ' + fmtEUR(E.minAmount) + '.'));
+      reasons.push(jovenesNote());
+      return out('no_encaja', reaches ? capacity : null, line);
+    }
+
+    let status;
+    if (capacity >= t.hi) {
+      status = 'encaja';
+      reasons.push(reason('FONDOS_PROPIOS_SUFICIENTES', 'Tus fondos propios cubren el importe que buscáis, que es lo que piden las líneas Emprendedores y Crecimiento.'));
+    } else {
+      status = 'a_confirmar';
+      reasons.push(reason('IMPORTE_PARCIAL', 'Tus fondos propios cubren hasta ' + fmtEUR(capacity) + '. Si el importe final es mayor, el encaje cambia.'));
+      reasons.push(jovenesNote());
+    }
+    if (t.hi > E.auditThreshold) {
+      reasons.push(reason('AUDITORIA', 'Por encima de ' + fmtEUR(E.auditThreshold) + ' ENISA exige estados financieros auditados.'));
+    }
+    return out(status, capacity, line);
+  }
+  function jovenesNote() {
+    return reason('JOVENES_NOTA', 'En la línea Jóvenes Emprendedores el mínimo de fondos propios puede ser el ' +
+      Math.round(RULES.enisa.fundsToLoanRatioJovenes * 100) + ' % del préstamo. Lo revisamos contigo si aplica a vuestro caso.');
+    // TODO: criterios de elegibilidad de Jóvenes Emprendedores (no figuran en el briefing); por eso no se calcula.
+  }
+
+  function evalNeotec(a, now) {
+    const N = RULES.neotec;
+    const end = isoToDate(N.windowEnd);
+    const endMs = end.getTime() + 24 * 3600 * 1000 - 1; // el último día del plazo cuenta entero
+    const base = {
+      convocatoria: N.convocatoria,
+      windowEnd: N.windowEnd,
+      closed: now.getTime() > endMs,
+      maxAid: null
+    };
+    if (!a.constituida) {
+      return Object.assign(base, { status: 'no_encaja', reasons: [reason('NO_CONSTITUIDA', 'NEOTEC exige una empresa ya constituida.')] });
+    }
+    const earliest = addMonths(end, -12 * N.maxAgeYears); // fecha más antigua admitida
+    const latest = addMonths(end, -N.minDeedMonths);      // fecha más reciente admitida para la escritura
+    const y = a.anio_constitucion;
+    const yStart = Date.UTC(y, 0, 1);
+    const yEnd = Date.UTC(y, 11, 31);
+    const fails = [];
+    const unsure = [];
+
+    if (yEnd < earliest.getTime()) {
+      fails.push(reason('ANTIGUEDAD_EXCEDIDA', 'NEOTEC exige constituirse como máximo ' + N.maxAgeYears + ' años antes del cierre del plazo (' + fmtDate(end) + '). Una empresa de ' + y + ' queda fuera.'));
+    } else if (yStart < earliest.getTime()) {
+      unsure.push(reason('ANTIGUEDAD_REVISAR', 'Para constituirse en ' + y + ' y cumplir el límite de ' + N.maxAgeYears + ' años, la constitución debe ser posterior al ' + fmtDate(earliest) + '. Hay que confirmar la fecha exacta.'));
+    }
+    if (yStart > latest.getTime()) {
+      fails.push(reason('ESCRITURA_RECIENTE', 'La escritura debía otorgarse al menos ' + N.minDeedMonths + ' meses antes del cierre del plazo, es decir, hasta el ' + fmtDate(latest) + '.'));
+    } else if (yEnd > latest.getTime()) {
+      unsure.push(reason('ESCRITURA_REVISAR', 'Con constitución en ' + y + ', la escritura debe ser anterior al ' + fmtDate(latest) + '. Hay que confirmar la fecha exacta.'));
+    }
+    if (tramo('capital', a.capital_tramo).hi !== null && tramo('capital', a.capital_tramo).hi <= N.minCapital) {
+      fails.push(reason('CAPITAL_INSUFICIENTE', 'NEOTEC pide un capital mínimo de ' + fmtEUR(N.minCapital) + ' desembolsado e inscrito en el Registro Mercantil.'));
+    }
+    if (a.tecnologia === 'servicios') {
+      fails.push(reason('TECNOLOGIA_SERVICIOS', 'NEOTEC excluye los modelos basados sobre todo en servicios; el modelo debe apoyarse en tecnología propia.'));
+    } else if (a.tecnologia !== 'propia') {
+      fails.push(reason('TECNOLOGIA_NO', 'NEOTEC exige un modelo de negocio basado en tecnología propia.'));
+    }
+
+    const status = fails.length ? 'no_encaja' : (unsure.length ? 'a_confirmar' : 'encaja');
+    let reasons = fails.concat(unsure);
+    if (!reasons.length) {
+      reasons = [reason('CUMPLE', 'Cumples antigüedad, escritura, capital y tecnología propia según los requisitos de la convocatoria ' + N.convocatoria + '.')];
+    }
+    return Object.assign(base, { status: status, reasons: reasons, maxAid: status === 'no_encaja' ? null : N.maxAid });
+  }
+
+  function computeScore(a) {
+    const S = RULES.score;
+    const t = tramo('importe', a.importe_tramo);
+    const needFull = t.hi !== null ? t.hi : t.lo;
+    let s = 0;
+    if (a.fondos_propios > 0) {
+      if (a.fondos_propios >= needFull) s += S.ownFundsFull;
+      else if (a.fondos_propios >= t.lo) s += S.ownFundsPartial;
+    }
+    if (a.constituida) s += S.constituida;
+    s += S.tecnologia[a.tecnologia] || 0;
+    s += S.ampliacion[a.ampliacion] || 0;
+    return Math.max(0, Math.min(100, Math.round(s)));
+  }
+
+  function buildNextSteps(enisa, neotec) {
+    const E = RULES.enisa;
+    const has = function (res, code) { return res.reasons.some(function (r) { return r.code === code; }); };
+    const steps = [];
+    if (neotec.status === 'a_confirmar') steps.push('Localiza la fecha exacta de la escritura de constitución para confirmar el encaje en NEOTEC.');
+    if (isOpen(neotec.status) && neotec.closed) steps.push('La convocatoria NEOTEC ' + neotec.convocatoria + ' cerró el ' + fmtDate(isoToDate(neotec.windowEnd)) + '. La siguiente aún no está publicada, así que conviene tener la candidatura preparada.');
+    if (isOpen(enisa.status)) steps.push('Reúne las últimas cuentas y el balance para ajustar el importe de ENISA.');
+    if (has(enisa, 'AUDITORIA')) steps.push('Prepara estados financieros auditados, necesarios por encima de ' + fmtEUR(E.auditThreshold) + '.');
+    if (enisa.status === 'no_encaja' && (has(enisa, 'FONDOS_PROPIOS_INSUFICIENTES') || has(enisa, 'FONDOS_PROPIOS_NO_POSITIVOS'))) steps.push('Valora reforzar los fondos propios con una ampliación de capital antes de solicitar ENISA.');
+    if (has(neotec, 'TECNOLOGIA_SERVICIOS') || has(neotec, 'TECNOLOGIA_NO')) steps.push('Identifica qué parte de vuestro negocio descansa en tecnología propia, porque NEOTEC la exige como base del modelo.');
+    const out = steps.slice(0, 3);
+    out.push('Agenda una llamada gratuita con Andseed para revisar el resultado completo y decidir por dónde empezar.');
+    return out;
+  }
+
+  /* answers: { anio_constitucion, constituida, capital_tramo, fondos_propios, tecnologia, importe_tramo, ampliacion } */
+  function evaluate(answers, opts) {
+    const now = opts && opts.now ? new Date(opts.now) : new Date();
+    const enisa = evalEnisa(answers);
+    const neotec = evalNeotec(answers, now);
+    const score = computeScore(answers);
+    const qualified = score >= RULES.qualifiedMinScore && (isOpen(enisa.status) || isOpen(neotec.status));
+    return {
+      rulesVersion: RULES.version,
+      enisa: enisa,
+      neotec: neotec,
+      score: score,
+      qualified: qualified,
+      nextSteps: buildNextSteps(enisa, neotec)
+    };
+  }
+
+  /* ----- Validaciones de contacto ----- */
+  function validEmail(s) { return typeof s === 'string' && s.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(s.trim()); }
+  function normPhone(s) {
+    let p = String(s).replace(/[\s.\-()]/g, '');
+    if (p.indexOf('0034') === 0) p = '+34' + p.slice(4);
+    return p;
+  }
+  function validPhone(s) {
+    const p = normPhone(s);
+    if (p.charAt(0) === '+') return /^\+\d{8,15}$/.test(p) && (p.indexOf('+34') !== 0 || /^\+34[6-9]\d{8}$/.test(p));
+    return /^[6-9]\d{8}$/.test(p);
+  }
+
+  /* ----- Carga útil para el webhook ----- */
+  function buildLead(o) {
+    const ev = o.evaluation;
+    const codes = function (res) { return res.reasons.map(function (r) { return r.code; }); };
+    const tracking = {};
+    TRACK_KEYS.forEach(function (k) { tracking[k] = (o.tracking && o.tracking[k]) || ''; });
+    return {
+      schema_version: '1.0',
+      lead_id: o.leadId,
+      submitted_at: o.now.toISOString(),
+      page_url: o.pageUrl,
+      answers: o.answers,
+      result: {
+        rules_version: ev.rulesVersion,
+        enisa: { status: ev.enisa.status, max_amount: ev.enisa.maxAmount, line: ev.enisa.line, reasons: codes(ev.enisa) },
+        neotec: { status: ev.neotec.status, convocatoria: ev.neotec.convocatoria, closed: ev.neotec.closed, max_aid: ev.neotec.maxAid, reasons: codes(ev.neotec) }
+      },
+      score: ev.score,
+      qualified: ev.qualified,
+      contact: {
+        name: o.contact.name,
+        email: o.contact.email,
+        phone: o.contact.phone,
+        company: o.contact.company,
+        consent: true,
+        consent_at: o.now.toISOString(),
+        consent_text: o.consentText
+      },
+      tracking: tracking
+    };
+  }
+
+  global.AndseedSim = {
+    config: { WEBHOOK_URL: WEBHOOK_URL, PRIVACY_URL: PRIVACY_URL, AGENDA_URL: AGENDA_URL, DRY_RUN: DRY_RUN },
+    RULES: RULES, TRACK_KEYS: TRACK_KEYS,
+    evaluate: evaluate, buildLead: buildLead,
+    validEmail: validEmail, validPhone: validPhone, normPhone: normPhone,
+    fmtEUR: fmtEUR, fmtDate: fmtDate, isoToDate: isoToDate
+  };
+})(typeof window !== 'undefined' ? window : globalThis);
+</script>
+
+<style>
+#as-sim{
+  --navy:#0d1b4b;--navy-2:#012060;--ink:#0d1b4b;--muted:#4a5578;--line:#dce1ef;--soft:#f3f5fb;
+  --ok:#0a6b43;--ok-bg:#e5f5ed;--warn:#7a4a00;--warn-bg:#fff2d6;--bad:#9a1b1b;--bad-bg:#fcebeb;
+  font-family:'DM Sans',Arial,sans-serif;font-size:16px;line-height:1.5;color:var(--ink);
+  max-width:760px;margin:0 auto;scroll-margin-top:16px;-webkit-text-size-adjust:100%;text-align:left
+}
+#as-sim *,#as-sim *::before,#as-sim *::after{box-sizing:border-box}
+#as-sim [hidden]{display:none!important}
+#as-sim h2,#as-sim h3,#as-sim p,#as-sim ul,#as-sim ol{margin:0;padding:0;font-family:inherit}
+#as-sim button,#as-sim input,#as-sim select{font:inherit;color:inherit;margin:0;letter-spacing:normal;text-transform:none;text-shadow:none;-webkit-appearance:none;appearance:none}
+#as-sim a{color:var(--navy-2);text-decoration:underline;text-underline-offset:3px}
+#as-sim :focus-visible{outline:3px solid var(--navy-2);outline-offset:3px;box-shadow:0 0 0 7px rgba(1,32,96,.16)}
+
+#as-sim .as-shell{background:#fff;border:1px solid var(--line);border-radius:24px;overflow:hidden;box-shadow:0 30px 60px -30px rgba(13,27,75,.38)}
+#as-sim .as-head{padding:24px 20px 22px;color:#fff;background:radial-gradient(circle at 92% -10%,rgba(255,255,255,.16),transparent 55%),linear-gradient(135deg,#0d1b4b 0%,#012060 100%)}
+#as-sim .as-eyebrow{font-size:12px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#bccaf7}
+#as-sim .as-title{margin-top:8px;font-size:24px;line-height:1.2;font-weight:700;letter-spacing:-.02em;color:#fff}
+#as-sim .as-sub{margin-top:8px;font-size:15px;color:#d9e0fa}
+#as-sim .as-progress{margin-top:20px;height:6px;border-radius:99px;background:rgba(255,255,255,.22);overflow:hidden}
+#as-sim .as-bar{display:block;height:100%;width:16%;border-radius:99px;background:#fff;transition:width .35s ease}
+
+#as-sim .as-body{padding:20px}
+#as-sim .as-top{display:flex;align-items:center;justify-content:space-between;min-height:40px;margin-bottom:12px}
+#as-sim .as-count{font-size:14px;font-weight:600;color:var(--muted)}
+#as-sim .as-back{display:inline-flex;align-items:center;gap:6px;background:none;border:0;border-radius:10px;padding:8px 10px;margin-left:-10px;font-size:15px;font-weight:600;color:var(--navy-2);cursor:pointer}
+#as-sim .as-back:hover{background:var(--soft)}
+
+#as-sim .as-step{animation:as-in .28s ease both}
+@keyframes as-in{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+#as-sim .as-q{font-size:22px;line-height:1.25;font-weight:700;letter-spacing:-.015em;color:var(--ink);outline:none}
+#as-sim .as-q:focus-visible{outline:none;box-shadow:none}
+#as-sim .as-hint{margin-top:8px;font-size:15px;color:var(--muted)}
+#as-sim .as-opts{display:grid;gap:10px;margin-top:20px}
+
+#as-sim .as-opt{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;min-height:58px;padding:14px 16px;background:#fff;border:1.5px solid var(--line);border-radius:14px;text-align:left;font-weight:500;cursor:pointer;transition:border-color .15s,background .15s,transform .15s,box-shadow .15s}
+#as-sim .as-opt:hover{border-color:var(--navy-2);background:var(--soft);transform:translateY(-1px)}
+#as-sim .as-opt[aria-pressed="true"]{border-color:var(--navy-2);background:var(--soft);box-shadow:inset 0 0 0 1px var(--navy-2)}
+#as-sim .as-opt-text{display:grid;gap:2px}
+#as-sim .as-opt-desc{font-size:14px;font-weight:400;color:var(--muted)}
+#as-sim .as-opt-go{flex:none;display:grid;place-items:center;width:30px;height:30px;border-radius:50%;background:var(--soft);color:var(--navy-2);font-weight:700;transition:background .15s,color .15s}
+#as-sim .as-opt:hover .as-opt-go,#as-sim .as-opt[aria-pressed="true"] .as-opt-go{background:var(--navy-2);color:#fff}
+
+#as-sim .as-field{margin-top:20px}
+#as-sim .as-field label.as-label{display:block;margin-bottom:6px;font-size:14px;font-weight:600}
+#as-sim .as-input{display:block;width:100%;height:52px;padding:0 14px;background:#fff;border:1.5px solid #b7c0da;border-radius:12px;font-size:16px;color:var(--ink)}
+#as-sim select.as-input{padding-right:40px;background:#fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='9' viewBox='0 0 14 9'%3E%3Cpath d='M1 1.5l6 6 6-6' fill='none' stroke='%230d1b4b' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E") no-repeat right 14px center}
+#as-sim .as-input::placeholder{color:#6b7597}
+#as-sim .as-input[aria-invalid="true"]{border-color:var(--bad);background-color:#fffafa}
+#as-sim .as-money{position:relative}
+#as-sim .as-money .as-input{padding-right:40px}
+#as-sim .as-money span{position:absolute;right:14px;top:50%;transform:translateY(-50%);font-weight:600;color:var(--muted);pointer-events:none}
+#as-sim .as-err{margin-top:6px;font-size:14px;font-weight:500;color:var(--bad)}
+#as-sim .as-err:empty{display:none}
+
+#as-sim .as-check{display:flex;align-items:flex-start;gap:12px;margin-top:16px;font-size:15px;cursor:pointer}
+#as-sim .as-check input{flex:none;width:22px;height:22px;margin-top:1px;border:1.5px solid #8f9bc0;border-radius:6px;background:#fff;cursor:pointer;display:grid;place-content:center}
+#as-sim .as-check input::after{content:"";width:12px;height:12px;transform:scale(0);transition:transform .12s;background:#fff;clip-path:polygon(14% 44%,0 65%,50% 100%,100% 16%,80% 0,43% 62%)}
+#as-sim .as-check input:checked{background:var(--navy-2);border-color:var(--navy-2)}
+#as-sim .as-check input:checked::after{transform:scale(1)}
+
+#as-sim .as-btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:52px;padding:0 28px;border:0;border-radius:99px;font-size:16px;font-weight:600;line-height:1;text-decoration:none;cursor:pointer;transition:transform .15s,box-shadow .15s,opacity .15s}
+#as-sim .as-btn-primary,#as-sim a.as-btn-primary{background:linear-gradient(135deg,#0d1b4b,#012060);color:#fff;box-shadow:0 10px 22px -10px rgba(1,32,96,.7)}
+#as-sim .as-btn-primary:hover{transform:translateY(-1px);box-shadow:0 14px 26px -10px rgba(1,32,96,.75)}
+#as-sim .as-btn[disabled]{opacity:.6;cursor:progress;transform:none}
+#as-sim .as-submit{margin-top:20px;width:100%}
+#as-sim .as-or{display:flex;align-items:center;gap:12px;margin:18px 0 0;font-size:14px;color:var(--muted)}
+#as-sim .as-or::before,#as-sim .as-or::after{content:"";flex:1;height:1px;background:var(--line)}
+#as-sim .as-or+.as-opts{margin-top:14px}
+
+#as-sim .as-cards{display:grid;gap:14px;margin-top:20px}
+#as-sim .as-card{padding:20px;border:1px solid var(--line);border-radius:18px;background:#fff}
+#as-sim .as-card-head{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px}
+#as-sim .as-card-title{font-size:18px;font-weight:700}
+#as-sim .as-card-sub{margin-top:2px;font-size:14px;color:var(--muted)}
+#as-sim .as-pill{display:inline-flex;align-items:center;gap:6px;padding:4px 12px;border-radius:99px;font-size:13px;font-weight:700}
+#as-sim .as-pill i{font-style:normal;font-size:12px}
+#as-sim .as-pill.ok{background:var(--ok-bg);color:var(--ok)}
+#as-sim .as-pill.warn{background:var(--warn-bg);color:var(--warn)}
+#as-sim .as-pill.bad{background:var(--bad-bg);color:var(--bad)}
+#as-sim .as-amount{margin-top:14px;padding:14px 16px;border-radius:14px;background:var(--soft)}
+#as-sim .as-amount small{display:block;font-size:13px;font-weight:600;color:var(--muted)}
+#as-sim .as-amount strong{display:block;font-size:30px;line-height:1.15;font-weight:700;letter-spacing:-.02em;color:var(--navy)}
+#as-sim .as-list{margin-top:14px;list-style:none;display:grid;gap:8px;font-size:15px}
+#as-sim .as-list li{position:relative;padding-left:20px}
+#as-sim .as-list li::before{content:"";position:absolute;left:2px;top:.6em;width:7px;height:7px;border-radius:50%;background:var(--navy-2)}
+#as-sim ol.as-list{counter-reset:s}
+#as-sim ol.as-list li{counter-increment:s;padding-left:34px}
+#as-sim ol.as-list li::before{counter-increment:none;content:counter(s);top:0;left:0;width:24px;height:24px;border-radius:50%;display:grid;place-items:center;font-size:13px;font-weight:700;color:#fff;background:var(--navy-2)}
+#as-sim .as-disclaimer{margin-top:16px;padding:12px 16px;border-radius:12px;background:var(--soft);font-size:14px;font-weight:600;color:var(--navy)}
+
+#as-sim .as-lead{margin-top:24px;padding:20px;border-radius:20px;background:var(--soft)}
+#as-sim .as-lead h3{font-size:20px;font-weight:700;letter-spacing:-.01em}
+#as-sim .as-grid{display:grid;gap:0 14px}
+#as-sim .as-hp{position:absolute!important;left:-9999px;width:1px;height:1px;overflow:hidden}
+#as-sim .as-alert{margin-top:16px;padding:12px 14px;border-radius:12px;background:var(--bad-bg);color:var(--bad);font-size:15px;font-weight:500}
+#as-sim .as-done{margin-top:24px;padding:24px 20px;border-radius:20px;background:var(--soft);text-align:left}
+#as-sim .as-done h3{font-size:22px;font-weight:700}
+#as-sim .as-done p{margin-top:8px;color:var(--muted)}
+#as-sim .as-done .as-btn{margin-top:18px}
+
+@media (min-width:640px){
+  #as-sim .as-head{padding:32px 36px 28px}
+  #as-sim .as-title{font-size:30px}
+  #as-sim .as-body{padding:32px 36px 36px}
+  #as-sim .as-q{font-size:26px}
+  #as-sim .as-grid{grid-template-columns:1fr 1fr}
+  #as-sim .as-submit{width:auto}
+  #as-sim .as-lead{padding:28px}
+  #as-sim .as-done .as-btn{width:auto}
+}
+@media (prefers-reduced-motion:reduce){
+  #as-sim *,#as-sim *::before,#as-sim *::after{animation:none!important;transition:none!important}
+}
+</style>
+
+<section id="as-sim" aria-labelledby="as-title">
+  <div class="as-shell">
+    <header class="as-head">
+      <p class="as-eyebrow">Simulador de financiación</p>
+      <h2 class="as-title" id="as-title">Descubre si tu empresa encaja en ENISA y NEOTEC</h2>
+      <p class="as-sub">Seis preguntas y una estimación orientativa en menos de un minuto.</p>
+      <div class="as-progress" id="as-progress" role="progressbar" aria-label="Progreso del simulador" aria-valuemin="1" aria-valuemax="6" aria-valuenow="1" aria-valuetext="Pregunta 1 de 6"><span class="as-bar" id="as-bar"></span></div>
+    </header>
+    <div class="as-body">
+      <div class="as-top">
+        <button type="button" class="as-back" id="as-back" hidden><span aria-hidden="true">←</span> Atrás</button>
+        <span class="as-count" id="as-count">Pregunta 1 de 6</span>
+      </div>
+      <div id="as-stage"></div>
+      <noscript>Activa JavaScript en tu navegador para usar el simulador.</noscript>
+    </div>
+  </div>
+</section>
+
+<script id="as-ui">
+(function () {
+  'use strict';
+  var Sim = window.AndseedSim;
+  var root = document.getElementById('as-sim');
+  if (!Sim || !root) return;
+
+  var RULES = Sim.RULES, CFG = Sim.config;
+  var TOTAL = 6;
+  var stage = document.getElementById('as-stage');
+  var backBtn = document.getElementById('as-back');
+  var countEl = document.getElementById('as-count');
+  var barEl = document.getElementById('as-bar');
+  var progressEl = document.getElementById('as-progress');
+  var reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  var state = { step: 1, maxSeen: 0, answers: {}, evaluation: null, leadId: uuid(), sent: false };
+  var tracking = {};
+  var inFrame = false;
+  try { inFrame = window.self !== window.top; } catch (e) { inFrame = true; }
+  var pageUrl = location.href;
+
+  /* ---------- utilidades ---------- */
+  function uuid() {
+    if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+      var r = Math.random() * 16 | 0; return (c === 'x' ? r : (r & 3 | 8)).toString(16);
+    });
+  }
+  function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+  function track(event, data) {
+    try { (window.dataLayer = window.dataLayer || []).push(Object.assign({ event: event }, data || {})); } catch (e) { /* sin dataLayer no hay medición, pero el simulador sigue */ }
+  }
+  function tramoLabel(kind, id) { var t = RULES.tramos[kind].filter(function (x) { return x.id === id; })[0]; return t ? t.label : ''; }
+
+  /* ---------- UTM, gclid y URL de la página contenedora ---------- */
+  function readParams(search) {
+    var out = {};
+    try {
+      var p = new URLSearchParams(search);
+      Sim.TRACK_KEYS.forEach(function (k) { var v = p.get(k); if (v) out[k] = v.slice(0, 200); });
+    } catch (e) { /* búsqueda mal formada */ }
+    return out;
+  }
+  tracking = readParams(location.search);
+  if (inFrame) {
+    if (document.referrer) {
+      pageUrl = document.referrer;
+      try { var fromRef = readParams(new URL(document.referrer).search); Object.keys(fromRef).forEach(function (k) { if (!tracking[k]) tracking[k] = fromRef[k]; }); } catch (e) { /* referrer ilegible */ }
+    }
+    try { window.parent.postMessage({ type: 'andseed-sim-ready' }, '*'); } catch (e) { /* sin padre accesible */ }
+  }
+  window.addEventListener('message', function (ev) {
+    var d = ev.data;
+    if (typeof d === 'string') { try { d = JSON.parse(d); } catch (e) { return; } }
+    if (!d || typeof d !== 'object' || d.type !== 'andseed-sim-context') return;
+    Sim.TRACK_KEYS.forEach(function (k) { if (typeof d[k] === 'string' && d[k]) tracking[k] = d[k].slice(0, 200); });
+    if (typeof d.page_url === 'string' && /^https?:\/\//.test(d.page_url)) pageUrl = d.page_url.slice(0, 500);
+  });
+  if (inFrame && window.ResizeObserver) {
+    new ResizeObserver(function () { try { window.parent.postMessage({ type: 'andseed-sim-height', height: root.offsetHeight }, '*'); } catch (e) { /* ignorar */ } }).observe(root);
+  }
+
+  /* ---------- pasos ---------- */
+  var OPTS = {
+    capital_tramo: RULES.tramos.capital.map(function (t) { return { id: t.id, label: t.label }; }),
+    tecnologia: [
+      { id: 'propia', label: 'Sí, desarrollamos tecnología propia' },
+      { id: 'servicios', label: 'Sí, pero prestamos servicios sobre todo' },
+      { id: 'no', label: 'No' }
+    ],
+    importe_tramo: RULES.tramos.importe.map(function (t) { return { id: t.id, label: t.label }; }),
+    ampliacion: [
+      { id: 'reciente', label: 'Sí, en los últimos 6 meses' },
+      { id: 'proxima', label: 'Sí, en los próximos 4 meses' },
+      { id: 'no', label: 'No' }
+    ]
+  };
+  var CHOICE_STEPS = {
+    2: { key: 'capital_tramo', q: '¿Qué capital social tenéis desembolsado e inscrito en el Registro Mercantil?', hint: 'Marca el tramo que más se acerque.' },
+    4: { key: 'tecnologia', q: '¿Desarrolláis tecnología propia o hacéis I+D?', hint: 'Piensa en lo que sostiene vuestro modelo de negocio.' },
+    5: { key: 'importe_tramo', q: '¿Qué importe de financiación buscáis?', hint: 'Una horquilla aproximada es suficiente.' },
+    6: { key: 'ampliacion', q: '¿Habéis ampliado capital en los últimos 6 meses o lo haréis en los próximos 4?', hint: 'Cuenta tanto las ampliaciones ya cerradas como las previstas.' }
+  };
+
+  function setProgress(step) {
+    var n = Math.min(step, TOTAL);
+    var label = step > TOTAL ? 'Resultado' : 'Pregunta ' + n + ' de ' + TOTAL;
+    barEl.style.width = (step > TOTAL ? 100 : Math.round(n / TOTAL * 100)) + '%';
+    countEl.textContent = label;
+    progressEl.setAttribute('aria-valuenow', String(n));
+    progressEl.setAttribute('aria-valuetext', label);
+    backBtn.hidden = step === 1 || state.sent;
+  }
+  function focusHeading() {
+    var h = document.getElementById('as-q');
+    if (h) h.focus({ preventScroll: true });
+    var r = root.getBoundingClientRect();
+    if (r.top < 0 || r.top > window.innerHeight * 0.6) root.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' });
+  }
+
+  function go(step) {
+    state.step = step;
+    setProgress(step);
+    if (step === 1) renderYear();
+    else if (step === 3) renderFunds();
+    else if (step <= TOTAL) renderChoice(step);
+    else renderResult();
+    focusHeading();
+    if (step <= TOTAL && step > state.maxSeen) {
+      state.maxSeen = step;
+      track('simulador_paso', { paso: step });
+    }
+  }
+  function advance() { go(state.step + 1); }
+
+  function renderChoice(step) {
+    var c = CHOICE_STEPS[step];
+    var cur = state.answers[c.key];
+    stage.innerHTML = '<div class="as-step"><h3 class="as-q" id="as-q" tabindex="-1">' + esc(c.q) + '</h3><p class="as-hint">' + esc(c.hint) + '</p>' +
+      '<div class="as-opts" role="group" aria-labelledby="as-q">' +
+      OPTS[c.key].map(function (o) {
+        return '<button type="button" class="as-opt" data-value="' + esc(o.id) + '" aria-pressed="' + (cur === o.id) + '"><span class="as-opt-text"><span>' + esc(o.label) + '</span></span><span class="as-opt-go" aria-hidden="true">→</span></button>';
+      }).join('') + '</div></div>';
+    Array.prototype.forEach.call(stage.querySelectorAll('.as-opt'), function (b) {
+      b.addEventListener('click', function () { state.answers[c.key] = b.getAttribute('data-value'); advance(); });
+    });
+  }
+
+  function renderYear() {
+    var a = state.answers;
+    var thisYear = new Date().getFullYear();
+    var opts = '<option value="">Selecciona un año</option>';
+    for (var y = thisYear; y > 2000; y--) opts += '<option value="' + y + '"' + (a.anio_constitucion === y ? ' selected' : '') + '>' + y + '</option>';
+    opts += '<option value="2000"' + (a.anio_constitucion === 2000 ? ' selected' : '') + '>2000 o antes</option>';
+    stage.innerHTML = '<div class="as-step"><h3 class="as-q" id="as-q" tabindex="-1">¿En qué año se constituyó tu empresa?</h3>' +
+      '<p class="as-hint">Si todavía no existe como sociedad, indícalo más abajo.</p>' +
+      '<form id="as-year-form" novalidate><div class="as-field"><label class="as-label" for="as-year">Año de constitución</label>' +
+      '<select class="as-input" id="as-year" aria-describedby="as-year-err">' + opts + '</select><p class="as-err" id="as-year-err" role="alert"></p></div>' +
+      '<div class="as-field"><button type="submit" class="as-btn as-btn-primary">Continuar</button></div></form>' +
+      '<p class="as-or"><span>o</span></p>' +
+      '<div class="as-opts"><button type="button" class="as-opt" id="as-none" aria-pressed="' + (a.constituida === false) + '"><span class="as-opt-text"><span>Aún no constituida</span></span><span class="as-opt-go" aria-hidden="true">→</span></button></div></div>';
+    document.getElementById('as-year-form').addEventListener('submit', function (e) {
+      e.preventDefault();
+      var sel = document.getElementById('as-year');
+      if (!sel.value) {
+        sel.setAttribute('aria-invalid', 'true');
+        document.getElementById('as-year-err').textContent = 'Selecciona un año para continuar.';
+        sel.focus();
+        return;
+      }
+      a.anio_constitucion = parseInt(sel.value, 10);
+      a.constituida = true;
+      advance();
+    });
+    document.getElementById('as-none').addEventListener('click', function () {
+      a.anio_constitucion = null;
+      a.constituida = false;
+      advance();
+    });
+  }
+
+  function parseEuros(str) {
+    var s = String(str).trim();
+    var neg = /^[-−]/.test(s);
+    var digits = s.split(',')[0].replace(/\D/g, '');
+    if (!digits || digits.length > 12) return NaN;
+    return (neg ? -1 : 1) * parseInt(digits, 10);
+  }
+  function renderFunds() {
+    var a = state.answers;
+    var has = typeof a.fondos_propios === 'number';
+    stage.innerHTML = '<div class="as-step"><h3 class="as-q" id="as-q" tabindex="-1">¿Cuáles son vuestros fondos propios actuales, aproximadamente?</h3>' +
+      '<p class="as-hint" id="as-fp-hint">Capital, prima de emisión y reservas, menos pérdidas. Vale una cifra aproximada.</p>' +
+      '<form id="as-fp-form" novalidate><div class="as-field"><label class="as-label" for="as-fp">Fondos propios en euros</label>' +
+      '<div class="as-money"><input class="as-input" id="as-fp" type="text" inputmode="numeric" autocomplete="off" placeholder="Por ejemplo, 80.000" aria-describedby="as-fp-hint as-fp-err" value="' + (has ? String(Math.abs(a.fondos_propios)).replace(/\B(?=(\d{3})+(?!\d))/g, '.') : '') + '"><span aria-hidden="true">€</span></div>' +
+      '<p class="as-err" id="as-fp-err" role="alert"></p></div>' +
+      '<label class="as-check"><input type="checkbox" id="as-neg"' + (has && a.fondos_propios < 0 ? ' checked' : '') + '><span>Son negativos: las pérdidas superan al capital y a las reservas.</span></label>' +
+      '<div class="as-field"><button type="submit" class="as-btn as-btn-primary">Continuar</button></div></form></div>';
+    var input = document.getElementById('as-fp');
+    input.addEventListener('blur', function () {
+      var v = parseEuros(input.value);
+      if (!isNaN(v)) input.value = String(Math.abs(v)).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    });
+    document.getElementById('as-fp-form').addEventListener('submit', function (e) {
+      e.preventDefault();
+      var v = parseEuros(input.value);
+      if (isNaN(v)) {
+        input.setAttribute('aria-invalid', 'true');
+        document.getElementById('as-fp-err').textContent = 'Escribe una cifra en euros, por ejemplo 80.000. Si no tenéis fondos propios, escribe 0.';
+        input.focus();
+        return;
+      }
+      a.fondos_propios = document.getElementById('as-neg').checked ? -Math.abs(v) : v;
+      advance();
+    });
+  }
+
+  /* ---------- resultado ---------- */
+  var STATUS = {
+    encaja: { label: 'Encaja', cls: 'ok', icon: '✓' },
+    a_confirmar: { label: 'A confirmar', cls: 'warn', icon: '!' },
+    no_encaja: { label: 'No encaja', cls: 'bad', icon: '✕' },
+    no_evaluable: { label: 'Por revisar', cls: 'warn', icon: '?' }
+  };
+  function pill(status) { var s = STATUS[status]; return '<span class="as-pill ' + s.cls + '"><i aria-hidden="true">' + s.icon + '</i>' + s.label + '</span>'; }
+  function reasonList(res) { return '<ul class="as-list">' + res.reasons.map(function (r) { return '<li>' + esc(r.text) + '</li>'; }).join('') + '</ul>'; }
+
+  function enisaCard(e) {
+    var amount = e.maxAmount !== null ? '<div class="as-amount"><small>Importe máximo orientativo</small><strong>' + esc(Sim.fmtEUR(e.maxAmount)) + '</strong></div>' : '';
+    return '<article class="as-card" aria-labelledby="as-c-enisa"><div class="as-card-head"><div><h4 class="as-card-title" id="as-c-enisa" style="margin:0">ENISA</h4>' +
+      (e.line ? '<p class="as-card-sub">Línea de referencia: ' + esc(e.line) + '</p>' : '') + '</div>' + pill(e.status) + '</div>' + amount + reasonList(e) + '</article>';
+  }
+  function neotecCard(n) {
+    var sub = 'Según los requisitos de la convocatoria ' + n.convocatoria + (n.closed ? ' (plazo cerrado el ' + Sim.fmtDate(Sim.isoToDate(n.windowEnd)) + ')' : '');
+    var amount = n.maxAid !== null ? '<div class="as-amount"><small>Ayuda de hasta</small><strong>' + esc(Sim.fmtEUR(n.maxAid)) + '</strong></div>' : '';
+    return '<article class="as-card" aria-labelledby="as-c-neotec"><div class="as-card-head"><div><h4 class="as-card-title" id="as-c-neotec" style="margin:0">NEOTEC</h4>' +
+      '<p class="as-card-sub">' + esc(sub) + '</p></div>' + pill(n.status) + '</div>' + amount + reasonList(n) + '</article>';
+  }
+  function stepsCard(steps) {
+    return '<article class="as-card" aria-labelledby="as-c-steps"><h4 class="as-card-title" id="as-c-steps" style="margin:0">Siguientes pasos</h4><ol class="as-list">' +
+      steps.map(function (s) { return '<li>' + esc(s) + '</li>'; }).join('') + '</ol></article>';
+  }
+
+  function renderResult() {
+    var ev = state.evaluation = Sim.evaluate(state.answers);
+    stage.innerHTML = '<div class="as-step"><h3 class="as-q" id="as-q" tabindex="-1">Tu resultado orientativo</h3>' +
+      '<p class="as-hint">Esto es lo que vemos con las respuestas que nos has dado.</p>' +
+      '<div class="as-cards">' + enisaCard(ev.enisa) + neotecCard(ev.neotec) + stepsCard(ev.nextSteps) + '</div>' +
+      '<p class="as-disclaimer">Estimación orientativa. No garantiza la concesión de ninguna ayuda.</p>' +
+      '<div id="as-lead-wrap">' + formHTML() + '</div></div>';
+    document.getElementById('as-form').addEventListener('submit', onSubmit);
+    track('simulador_resultado', { enisa_status: ev.enisa.status, neotec_status: ev.neotec.status, score: ev.score, qualified: ev.qualified });
+  }
+
+  function field(id, label, type, autocomplete, extra) {
+    return '<div class="as-field"><label class="as-label" for="' + id + '">' + label + '</label>' +
+      '<input class="as-input" id="' + id + '" name="' + id + '" type="' + type + '" autocomplete="' + autocomplete + '" ' + (extra || '') + ' aria-describedby="' + id + '-err"><p class="as-err" id="' + id + '-err" role="alert"></p></div>';
+  }
+  function formHTML() {
+    return '<form class="as-lead" id="as-form" novalidate aria-labelledby="as-lead-title">' +
+      '<h3 id="as-lead-title">Recibe el resultado completo por email</h3>' +
+      '<p class="as-hint">Te lo enviamos con el detalle y te proponemos una llamada gratuita para revisarlo.</p>' +
+      '<div class="as-grid">' +
+      field('as-name', 'Nombre', 'text', 'name', 'maxlength="100"') +
+      field('as-email', 'Email', 'email', 'email', 'maxlength="254" inputmode="email"') +
+      field('as-phone', 'Teléfono', 'tel', 'tel', 'maxlength="20" inputmode="tel"') +
+      field('as-company', 'Empresa', 'text', 'organization', 'maxlength="120"') + '</div>' +
+      '<div class="as-hp" aria-hidden="true"><label>No rellenar este campo<input type="text" name="website" id="as-website" tabindex="-1" autocomplete="off"></label></div>' +
+      '<label class="as-check"><input type="checkbox" id="as-consent" aria-describedby="as-consent-err"><span id="as-consent-text">Acepto la <a href="' + esc(CFG.PRIVACY_URL) + '" target="_blank" rel="noopener">política de privacidad</a> y el tratamiento de mis datos para recibir el resultado y que Andseed contacte conmigo.</span></label>' +
+      '<p class="as-err" id="as-consent-err" role="alert"></p>' +
+      '<div class="as-alert" id="as-form-err" role="alert" hidden></div>' +
+      '<button type="submit" class="as-btn as-btn-primary as-submit" id="as-send">Recibir mi resultado</button></form>';
+  }
+
+  function setErr(id, msg) {
+    var input = document.getElementById(id), err = document.getElementById(id + '-err');
+    if (err) err.textContent = msg || '';
+    if (input) { if (msg) input.setAttribute('aria-invalid', 'true'); else input.removeAttribute('aria-invalid'); }
+    return !msg;
+  }
+  function validateForm() {
+    var v = function (id) { return document.getElementById(id).value.trim(); };
+    var firstBad = null;
+    function check(id, msg) { if (!setErr(id, msg) && !firstBad) firstBad = id; }
+    check('as-name', v('as-name').length < 2 ? 'Escribe tu nombre.' : '');
+    check('as-email', !Sim.validEmail(v('as-email')) ? 'Escribe un email válido, por ejemplo nombre@empresa.com.' : '');
+    check('as-phone', !Sim.validPhone(v('as-phone')) ? 'Escribe un teléfono válido, por ejemplo 612 345 678.' : '');
+    check('as-company', v('as-company').length < 2 ? 'Escribe el nombre de tu empresa.' : '');
+    var consent = document.getElementById('as-consent').checked;
+    document.getElementById('as-consent-err').textContent = consent ? '' : 'Necesitamos tu consentimiento para enviarte el resultado.';
+    if (!consent && !firstBad) firstBad = 'as-consent';
+    if (firstBad) document.getElementById(firstBad).focus();
+    return !firstBad;
+  }
+
+  function wait(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+  function send(payload) {
+    if (CFG.DRY_RUN) { console.info('[Andseed simulador] DRY_RUN, no se envía:', payload); return wait(500); }
+    if (!CFG.WEBHOOK_URL) return Promise.reject(new Error('WEBHOOK_URL sin configurar'));
+    var ctrl = new AbortController();
+    var timer = setTimeout(function () { ctrl.abort(); }, 15000);
+    return fetch(CFG.WEBHOOK_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload), signal: ctrl.signal })
+      .then(function (res) { if (!res.ok) throw new Error('HTTP ' + res.status); })
+      .finally(function () { clearTimeout(timer); });
+  }
+
+  function onSubmit(e) {
+    e.preventDefault();
+    if (state.sending) return;
+    var errBox = document.getElementById('as-form-err');
+    errBox.hidden = true;
+    if (!validateForm()) return;
+    var btn = document.getElementById('as-send');
+    var contact = {
+      name: document.getElementById('as-name').value.trim(),
+      email: document.getElementById('as-email').value.trim(),
+      phone: Sim.normPhone(document.getElementById('as-phone').value),
+      company: document.getElementById('as-company').value.trim()
+    };
+    if (document.getElementById('as-website').value) { showDone(contact); return; } // honeypot: se simula el éxito sin enviar nada
+    var payload = Sim.buildLead({
+      leadId: state.leadId, answers: state.answers, evaluation: state.evaluation, contact: contact,
+      tracking: tracking, pageUrl: pageUrl, now: new Date(),
+      consentText: document.getElementById('as-consent-text').textContent.trim()
+    });
+    state.sending = true;
+    btn.disabled = true;
+    btn.textContent = 'Enviando…';
+    send(payload).then(function () {
+      state.sending = false;
+      track('simulador_lead', { score: state.evaluation.score, qualified: state.evaluation.qualified, enisa_status: state.evaluation.enisa.status, neotec_status: state.evaluation.neotec.status });
+      showDone(contact);
+    }).catch(function (err) {
+      state.sending = false;
+      if (window.console) console.error('[Andseed simulador] Error al enviar el lead:', err);
+      btn.disabled = false;
+      btn.textContent = 'Reintentar envío';
+      errBox.textContent = 'No hemos podido enviar tus datos. Comprueba tu conexión e inténtalo de nuevo; tus respuestas se mantienen.';
+      errBox.hidden = false;
+    });
+  }
+
+  function showDone(contact) {
+    state.sent = true;
+    backBtn.hidden = true;
+    var wrap = document.getElementById('as-lead-wrap');
+    wrap.innerHTML = '<div class="as-done"><h3 id="as-done-title" tabindex="-1"></h3><p id="as-done-text"></p>' +
+      (CFG.AGENDA_URL ? '<a class="as-btn as-btn-primary" id="as-agenda" target="_blank" rel="noopener">Agenda una llamada gratuita</a>' : '') + '</div>';
+    document.getElementById('as-done-title').textContent = 'Listo, ' + contact.name.split(/\s+/)[0] + '. Resultado en camino';
+    document.getElementById('as-done-text').textContent = 'Te enviamos el resultado completo a ' + contact.email + '. Si quieres revisarlo con un asesor de Andseed, reserva una llamada gratuita.';
+    var link = document.getElementById('as-agenda');
+    if (link) link.setAttribute('href', CFG.AGENDA_URL);
+    var t = document.getElementById('as-done-title');
+    t.style.outline = 'none';
+    t.focus({ preventScroll: true });
+    t.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'center' });
+  }
+
+  backBtn.addEventListener('click', function () { go(state.step - 1); });
+
+  track('simulador_inicio');
+  go(1);
+})();
+</script>
+<!-- ===================== FIN BLOQUE ELEMENTOR (copiar hasta aquí) ===================== -->
+
+</body>
+</html>
