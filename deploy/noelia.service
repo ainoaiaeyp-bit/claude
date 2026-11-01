@@ -1,0 +1,17 @@
+[Unit]
+Description=Noelia Duque · web, citas y gestión
+After=network.target
+
+[Service]
+User=noelia
+WorkingDirectory=/opt/noelia/app
+EnvironmentFile=/etc/noelia.env
+ExecStart=/usr/bin/node --disable-warning=ExperimentalWarning server/index.js
+Restart=always
+RestartSec=3
+NoNewPrivileges=true
+ProtectSystem=full
+ReadWritePaths=/var/lib/noelia
+
+[Install]
+WantedBy=multi-user.target
