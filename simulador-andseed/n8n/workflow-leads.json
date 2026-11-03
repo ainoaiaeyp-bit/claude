@@ -1,0 +1,133 @@
+{
+  "name": "Simulador Andseed: leads a prospector y correo",
+  "nodes": [
+    {
+      "id": "n1",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        200
+      ],
+      "webhookId": "simulador-andseed",
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "simulador-andseed",
+        "responseMode": "onReceived",
+        "options": {
+          "allowedOrigins": "https://andseed.com"
+        }
+      }
+    },
+    {
+      "id": "n2",
+      "name": "Preparar emails",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        240,
+        200
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// Prepara los textos de los dos emails a partir del lead que envía el simulador.\nconst b = $input.first().json.body || {};\nconst esc = (s) => String(s == null ? '' : s).replace(/[&<>\"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '\"': '&quot;', \"'\": '&#39;' }[c]));\nconst eur = (n) => (n == null ? '' : String(Math.round(n)).replace(/\\B(?=(\\d{3})+(?!\\d))/g, '.') + ' €');\nconst LABEL = { encaja: 'Encaja', a_confirmar: 'A confirmar', no_encaja: 'No encaja', no_evaluable: 'Por revisar' };\nconst r = b.result || {}, c = b.contact || {}, a = b.answers || {}, t = b.tracking || {};\nconst e = r.enisa || {}, n = r.neotec || {};\nconst li = (arr) => '<ul>' + (arr || []).map((x) => '<li>' + esc(x) + '</li>').join('') + '</ul>';\nconst AGENDA_URL = 'https://andseed.com/contacto/'; // TODO: URL del calendario de llamadas\n\nconst reportHtml =\n  '<h2>ENISA: ' + esc(LABEL[e.status] || e.status) + '</h2>' +\n  (e.max_amount != null ? '<p><strong>Importe máximo orientativo: ' + eur(e.max_amount) + '</strong>' + (e.line ? ' (línea de referencia: ' + esc(e.line) + ')' : '') + '</p>' : '') +\n  li(e.reason_texts) +\n  '<h2>NEOTEC: ' + esc(LABEL[n.status] || n.status) + '</h2>' +\n  '<p>Según los requisitos de la convocatoria ' + esc(n.convocatoria) + (n.closed ? ' (plazo cerrado)' : '') + '.</p>' +\n  (n.max_aid != null ? '<p><strong>Ayuda de hasta ' + eur(n.max_aid) + '</strong></p>' : '') +\n  li(n.reason_texts) +\n  '<h2>Siguientes pasos</h2><ol>' + (r.next_steps || []).map((x) => '<li>' + esc(x) + '</li>').join('') + '</ol>' +\n  '<p><em>Estimación orientativa. No garantiza la concesión de ninguna ayuda.</em></p>';\n\nconst htmlLead =\n  '<div style=\"font-family:Arial,sans-serif;color:#0d1b4b;max-width:620px\">' +\n  '<p>Hola ' + esc((c.name || '').split(' ')[0]) + ',</p>' +\n  '<p>Este es el informe completo que has desbloqueado en el simulador de financiación de Andseed.</p>' +\n  reportHtml +\n  '<p><a href=\"' + AGENDA_URL + '\" style=\"background:#012060;color:#fff;padding:12px 22px;border-radius:99px;text-decoration:none\">Agenda una llamada gratuita</a></p>' +\n  '</div>';\n\nconst row = (k, v) => '<tr><td style=\"padding:4px 12px 4px 0\"><strong>' + k + '</strong></td><td>' + esc(v) + '</td></tr>';\nconst htmlInternal =\n  '<div style=\"font-family:Arial,sans-serif;color:#0d1b4b\">' +\n  '<h2>Nuevo lead del simulador ' + (b.qualified ? '(CUALIFICADO)' : '(no cualificado)') + ' · score ' + esc(b.score) + '</h2>' +\n  '<table>' + row('Nombre', c.name) + row('Empresa', c.company) + row('Email', c.email) + row('Teléfono', c.phone) +\n  row('Año constitución', a.anio_constitucion == null ? 'Sin constituir' : a.anio_constitucion) + row('Capital', a.capital_tramo) + row('Fondos propios', eur(a.fondos_propios)) +\n  row('Tecnología', a.tecnologia) + row('Importe buscado', a.importe_tramo) + row('Ampliación de capital', a.ampliacion) +\n  row('Fuente', [t.utm_source, t.utm_medium, t.utm_campaign].filter(Boolean).join(' / ')) + row('gclid', t.gclid) + row('Página', b.page_url) + '</table>' +\n  reportHtml + '</div>';\n\nreturn [{ json: {\n  body: b,\n  subjectInternal: (b.qualified ? '[CUALIFICADO] ' : '') + 'Nuevo lead simulador: ' + (c.company || c.name || ''),\n  subjectLead: 'Tu informe de financiación ENISA y NEOTEC | Andseed',\n  htmlInternal, htmlLead,\n  leadEmail: c.email\n} }];"
+      }
+    },
+    {
+      "id": "n3",
+      "name": "Enviar al prospector",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        500,
+        40
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://CAMBIAR-URL-DEL-PROSPECTOR/api/leads",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.body) }}",
+        "sendHeaders": false,
+        "options": {
+          "timeout": 15000
+        }
+      }
+    },
+    {
+      "id": "n4",
+      "name": "Aviso interno por email",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        500,
+        200
+      ],
+      "parameters": {
+        "fromEmail": "info@andseed.com",
+        "toEmail": "CAMBIAR@andseed.com",
+        "subject": "={{ $json.subjectInternal }}",
+        "emailFormat": "html",
+        "html": "={{ $json.htmlInternal }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "n5",
+      "name": "Informe al lead por email",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        500,
+        360
+      ],
+      "parameters": {
+        "fromEmail": "info@andseed.com",
+        "toEmail": "={{ $json.leadEmail }}",
+        "subject": "={{ $json.subjectLead }}",
+        "emailFormat": "html",
+        "html": "={{ $json.htmlLead }}",
+        "options": {}
+      }
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Preparar emails",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar emails": {
+      "main": [
+        [
+          {
+            "node": "Enviar al prospector",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Aviso interno por email",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Informe al lead por email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

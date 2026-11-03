@@ -37,9 +37,23 @@ En n8n, activa en el nodo Webhook la opción **Allowed Origins (CORS)** con `htt
 
 Al terminar las 6 preguntas se ve solo el estado de ENISA y NEOTEC (encaja, a confirmar, no encaja). El importe máximo, los motivos por requisito y los siguientes pasos quedan bloqueados hasta que la persona deja sus datos con el botón "Obtener mi informe completo". Al enviar el formulario con éxito, el informe se desbloquea en pantalla y aparece el botón "Agenda una llamada gratuita". El email con el informe lo envía tu flujo de n8n.
 
+## Enviar los leads al prospector y a tu correo
+
+El simulador envía un único POST a `WEBHOOK_URL` y n8n reparte el lead. Los emails no salen del navegador, para no exponer claves de correo en la web.
+
+1. En n8n, importa `n8n/workflow-leads.json` (Workflows, Import from file).
+2. Edita tres valores del flujo:
+   - Nodo **Enviar al prospector**: la URL (y la autenticación, si la pide) del endpoint de entrada de leads.
+   - Nodo **Aviso interno por email**: en `Para`, el correo (o varios, separados por coma) que quieres que reciba cada lead. Los cualificados llevan `[CUALIFICADO]` en el asunto.
+   - Nodos de email: el remitente y las credenciales SMTP.
+3. En el nodo **Preparar emails**, comprueba `AGENDA_URL` (enlace del botón del email del lead).
+4. Activa el flujo y copia la URL de producción del Webhook en `WEBHOOK_URL`.
+
+El flujo hace tres cosas a la vez: manda el JSON al prospector, avisa a tu equipo con los datos del lead y su resultado, y envía al lead su informe completo. El flujo está sin probar en tu n8n: revisa el primer envío con `DRY_RUN` y un lead de prueba.
+
 ## Datos que recibe el webhook
 
-`schema_version`, `lead_id`, `submitted_at`, `page_url`, `answers`, `result` (estado de ENISA y NEOTEC, importes y códigos de motivo), `score`, `qualified`, `contact` (incluye `consent`, `consent_at` y el texto aceptado) y `tracking` (`utm_*` y `gclid`).
+`schema_version`, `lead_id`, `submitted_at`, `page_url`, `answers`, `result` (estado de ENISA y NEOTEC, importes, códigos de motivo, textos de motivo y siguientes pasos), `score`, `qualified`, `contact` (incluye `consent`, `consent_at` y el texto aceptado) y `tracking` (`utm_*` y `gclid`).
 
 ## Eventos en dataLayer
 

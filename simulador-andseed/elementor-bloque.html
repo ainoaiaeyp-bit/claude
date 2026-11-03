@@ -278,6 +278,7 @@
   function buildLead(o) {
     const ev = o.evaluation;
     const codes = function (res) { return res.reasons.map(function (r) { return r.code; }); };
+    const texts = function (res) { return res.reasons.map(function (r) { return r.text; }); };
     const tracking = {};
     TRACK_KEYS.forEach(function (k) { tracking[k] = (o.tracking && o.tracking[k]) || ''; });
     return {
@@ -288,8 +289,10 @@
       answers: o.answers,
       result: {
         rules_version: ev.rulesVersion,
-        enisa: { status: ev.enisa.status, max_amount: ev.enisa.maxAmount, line: ev.enisa.line, reasons: codes(ev.enisa) },
-        neotec: { status: ev.neotec.status, convocatoria: ev.neotec.convocatoria, closed: ev.neotec.closed, max_aid: ev.neotec.maxAid, reasons: codes(ev.neotec) }
+        // reasons: códigos estables para el CRM; reason_texts y next_steps: textos para redactar el email del informe
+        enisa: { status: ev.enisa.status, max_amount: ev.enisa.maxAmount, line: ev.enisa.line, reasons: codes(ev.enisa), reason_texts: texts(ev.enisa) },
+        neotec: { status: ev.neotec.status, convocatoria: ev.neotec.convocatoria, closed: ev.neotec.closed, max_aid: ev.neotec.maxAid, reasons: codes(ev.neotec), reason_texts: texts(ev.neotec) },
+        next_steps: ev.nextSteps
       },
       score: ev.score,
       qualified: ev.qualified,
