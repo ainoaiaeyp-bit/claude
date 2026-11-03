@@ -415,6 +415,8 @@
 #as-sim ol.as-list{counter-reset:s}
 #as-sim ol.as-list li{counter-increment:s;padding-left:34px}
 #as-sim ol.as-list li::before{counter-increment:none;content:counter(s);top:0;left:0;width:24px;height:24px;border-radius:50%;display:grid;place-items:center;font-size:13px;font-weight:700;color:#fff;background:var(--navy-2)}
+#as-sim .as-lock{display:flex;align-items:center;gap:10px;margin-top:14px;padding:12px 14px;border:1.5px dashed #b7c0da;border-radius:12px;background:var(--soft);font-size:14px;font-weight:500;color:var(--muted)}
+#as-sim .as-lock svg{flex:none;color:var(--navy-2)}
 #as-sim .as-disclaimer{margin-top:16px;padding:12px 16px;border-radius:12px;background:var(--soft);font-size:14px;font-weight:600;color:var(--navy)}
 
 #as-sim .as-lead{margin-top:24px;padding:20px;border-radius:20px;background:var(--soft)}
@@ -669,27 +671,35 @@
   function pill(status) { var s = STATUS[status]; return '<span class="as-pill ' + s.cls + '"><i aria-hidden="true">' + s.icon + '</i>' + s.label + '</span>'; }
   function reasonList(res) { return '<ul class="as-list">' + res.reasons.map(function (r) { return '<li>' + esc(r.text) + '</li>'; }).join('') + '</ul>'; }
 
-  function enisaCard(e) {
-    var amount = e.maxAmount !== null ? '<div class="as-amount"><small>Importe máximo orientativo</small><strong>' + esc(Sim.fmtEUR(e.maxAmount)) + '</strong></div>' : '';
-    return '<article class="as-card" aria-labelledby="as-c-enisa"><div class="as-card-head"><div><h4 class="as-card-title" id="as-c-enisa" style="margin:0">ENISA</h4>' +
-      (e.line ? '<p class="as-card-sub">Línea de referencia: ' + esc(e.line) + '</p>' : '') + '</div>' + pill(e.status) + '</div>' + amount + reasonList(e) + '</article>';
+  /* Antes de dejar los datos solo se ve el estado de cada línea; importes, motivos y siguientes pasos van en el informe completo. */
+  function lockNote(text) {
+    return '<p class="as-lock"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M4.5 7V5a3.5 3.5 0 017 0v2M3.5 7h9v6.5h-9z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg><span>' + esc(text) + '</span></p>';
   }
-  function neotecCard(n) {
+  function enisaCard(e, locked) {
+    var amount = !locked && e.maxAmount !== null ? '<div class="as-amount"><small>Importe máximo orientativo</small><strong>' + esc(Sim.fmtEUR(e.maxAmount)) + '</strong></div>' : '';
+    var body = locked ? lockNote('Importe máximo orientativo y motivos del encaje, en el informe completo.') : amount + reasonList(e);
+    return '<article class="as-card" aria-labelledby="as-c-enisa"><div class="as-card-head"><div><h4 class="as-card-title" id="as-c-enisa" style="margin:0">ENISA</h4>' +
+      (!locked && e.line ? '<p class="as-card-sub">Línea de referencia: ' + esc(e.line) + '</p>' : '') + '</div>' + pill(e.status) + '</div>' + body + '</article>';
+  }
+  function neotecCard(n, locked) {
     var sub = 'Según los requisitos de la convocatoria ' + n.convocatoria + (n.closed ? ' (plazo cerrado el ' + Sim.fmtDate(Sim.isoToDate(n.windowEnd)) + ')' : '');
     var amount = n.maxAid !== null ? '<div class="as-amount"><small>Ayuda de hasta</small><strong>' + esc(Sim.fmtEUR(n.maxAid)) + '</strong></div>' : '';
+    var body = locked ? lockNote('Ayuda estimada y motivos por requisito, en el informe completo.') : amount + reasonList(n);
     return '<article class="as-card" aria-labelledby="as-c-neotec"><div class="as-card-head"><div><h4 class="as-card-title" id="as-c-neotec" style="margin:0">NEOTEC</h4>' +
-      '<p class="as-card-sub">' + esc(sub) + '</p></div>' + pill(n.status) + '</div>' + amount + reasonList(n) + '</article>';
+      '<p class="as-card-sub">' + esc(sub) + '</p></div>' + pill(n.status) + '</div>' + body + '</article>';
   }
-  function stepsCard(steps) {
-    return '<article class="as-card" aria-labelledby="as-c-steps"><h4 class="as-card-title" id="as-c-steps" style="margin:0">Siguientes pasos</h4><ol class="as-list">' +
-      steps.map(function (s) { return '<li>' + esc(s) + '</li>'; }).join('') + '</ol></article>';
+  function stepsCard(steps, locked) {
+    var body = locked ? lockNote('Tus siguientes pasos personalizados, en el informe completo.')
+      : '<ol class="as-list">' + steps.map(function (s) { return '<li>' + esc(s) + '</li>'; }).join('') + '</ol>';
+    return '<article class="as-card" aria-labelledby="as-c-steps"><h4 class="as-card-title" id="as-c-steps" style="margin:0">Siguientes pasos</h4>' + body + '</article>';
   }
+  function cardsHTML(ev, locked) { return enisaCard(ev.enisa, locked) + neotecCard(ev.neotec, locked) + stepsCard(ev.nextSteps, locked); }
 
   function renderResult() {
     var ev = state.evaluation = Sim.evaluate(state.answers);
     stage.innerHTML = '<div class="as-step"><h3 class="as-q" id="as-q" tabindex="-1">Tu resultado orientativo</h3>' +
-      '<p class="as-hint">Esto es lo que vemos con las respuestas que nos has dado.</p>' +
-      '<div class="as-cards">' + enisaCard(ev.enisa) + neotecCard(ev.neotec) + stepsCard(ev.nextSteps) + '</div>' +
+      '<p class="as-hint" id="as-result-hint">Este es el encaje de tu empresa con cada línea. El detalle está en el informe completo.</p>' +
+      '<div class="as-cards" id="as-cards">' + cardsHTML(ev, true) + '</div>' +
       '<p class="as-disclaimer">Estimación orientativa. No garantiza la concesión de ninguna ayuda.</p>' +
       '<div id="as-lead-wrap">' + formHTML() + '</div></div>';
     document.getElementById('as-form').addEventListener('submit', onSubmit);
@@ -702,18 +712,18 @@
   }
   function formHTML() {
     return '<form class="as-lead" id="as-form" novalidate aria-labelledby="as-lead-title">' +
-      '<h3 id="as-lead-title">Recibe el resultado completo por email</h3>' +
-      '<p class="as-hint">Te lo enviamos con el detalle y te proponemos una llamada gratuita para revisarlo.</p>' +
+      '<h3 id="as-lead-title">Obtén tu informe completo</h3>' +
+      '<p class="as-hint">Incluye el importe máximo orientativo, el detalle de cada requisito y tus siguientes pasos. Lo ves al instante y te lo enviamos por email.</p>' +
       '<div class="as-grid">' +
       field('as-name', 'Nombre', 'text', 'name', 'maxlength="100"') +
       field('as-email', 'Email', 'email', 'email', 'maxlength="254" inputmode="email"') +
       field('as-phone', 'Teléfono', 'tel', 'tel', 'maxlength="20" inputmode="tel"') +
       field('as-company', 'Empresa', 'text', 'organization', 'maxlength="120"') + '</div>' +
       '<div class="as-hp" aria-hidden="true"><label>No rellenar este campo<input type="text" name="website" id="as-website" tabindex="-1" autocomplete="off"></label></div>' +
-      '<label class="as-check"><input type="checkbox" id="as-consent" aria-describedby="as-consent-err"><span id="as-consent-text">Acepto la <a href="' + esc(CFG.PRIVACY_URL) + '" target="_blank" rel="noopener">política de privacidad</a> y el tratamiento de mis datos para recibir el resultado y que Andseed contacte conmigo.</span></label>' +
+      '<label class="as-check"><input type="checkbox" id="as-consent" aria-describedby="as-consent-err"><span id="as-consent-text">Acepto la <a href="' + esc(CFG.PRIVACY_URL) + '" target="_blank" rel="noopener">política de privacidad</a> y el tratamiento de mis datos para recibir el informe y que Andseed contacte conmigo.</span></label>' +
       '<p class="as-err" id="as-consent-err" role="alert"></p>' +
       '<div class="as-alert" id="as-form-err" role="alert" hidden></div>' +
-      '<button type="submit" class="as-btn as-btn-primary as-submit" id="as-send">Recibir mi resultado</button></form>';
+      '<button type="submit" class="as-btn as-btn-primary as-submit" id="as-send">Obtener mi informe completo</button></form>';
   }
 
   function setErr(id, msg) {
@@ -787,17 +797,20 @@
   function showDone(contact) {
     state.sent = true;
     backBtn.hidden = true;
+    // Se desbloquea el informe completo en pantalla
+    document.getElementById('as-cards').innerHTML = cardsHTML(state.evaluation, false);
+    document.getElementById('as-q').textContent = 'Tu informe completo';
+    document.getElementById('as-result-hint').textContent = 'Este es el detalle de tu encaje con cada línea.';
     var wrap = document.getElementById('as-lead-wrap');
-    wrap.innerHTML = '<div class="as-done"><h3 id="as-done-title" tabindex="-1"></h3><p id="as-done-text"></p>' +
+    wrap.innerHTML = '<div class="as-done"><h3 id="as-done-title"></h3><p id="as-done-text"></p>' +
       (CFG.AGENDA_URL ? '<a class="as-btn as-btn-primary" id="as-agenda" target="_blank" rel="noopener">Agenda una llamada gratuita</a>' : '') + '</div>';
-    document.getElementById('as-done-title').textContent = 'Listo, ' + contact.name.split(/\s+/)[0] + '. Resultado en camino';
-    document.getElementById('as-done-text').textContent = 'Te enviamos el resultado completo a ' + contact.email + '. Si quieres revisarlo con un asesor de Andseed, reserva una llamada gratuita.';
+    document.getElementById('as-done-title').textContent = 'Listo, ' + contact.name.split(/\s+/)[0] + '. Informe en camino';
+    document.getElementById('as-done-text').textContent = 'Te lo enviamos también a ' + contact.email + '. Si quieres revisarlo con un asesor de Andseed, reserva una llamada gratuita.';
     var link = document.getElementById('as-agenda');
     if (link) link.setAttribute('href', CFG.AGENDA_URL);
-    var t = document.getElementById('as-done-title');
-    t.style.outline = 'none';
+    var t = document.getElementById('as-q');
     t.focus({ preventScroll: true });
-    t.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'center' });
+    t.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' });
   }
 
   backBtn.addEventListener('click', function () { go(state.step - 1); });

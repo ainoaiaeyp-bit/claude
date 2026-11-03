@@ -33,6 +33,10 @@ Están al principio del script `as-engine`, en el bloque CONFIGURACIÓN.
 
 En n8n, activa en el nodo Webhook la opción **Allowed Origins (CORS)** con `https://andseed.com`, porque el navegador envía una petición previa OPTIONS al mandar JSON. Cada lead lleva un `lead_id` que se reutiliza en los reintentos, por si quieres deduplicar.
 
+## Cómo funciona el informe completo
+
+Al terminar las 6 preguntas se ve solo el estado de ENISA y NEOTEC (encaja, a confirmar, no encaja). El importe máximo, los motivos por requisito y los siguientes pasos quedan bloqueados hasta que la persona deja sus datos con el botón "Obtener mi informe completo". Al enviar el formulario con éxito, el informe se desbloquea en pantalla y aparece el botón "Agenda una llamada gratuita". El email con el informe lo envía tu flujo de n8n.
+
 ## Datos que recibe el webhook
 
 `schema_version`, `lead_id`, `submitted_at`, `page_url`, `answers`, `result` (estado de ENISA y NEOTEC, importes y códigos de motivo), `score`, `qualified`, `contact` (incluye `consent`, `consent_at` y el texto aceptado) y `tracking` (`utm_*` y `gclid`).
