@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Transcriptor</title>
+<style>
+:root{--bg:#f6f7f9;--card:#fff;--tx:#1b1f24;--mut:#6b7380;--bd:#e3e6ea;--ac:#2f6df6;--ok:#16a34a;--er:#dc2626;--hl:#fff3b0}
+@media(prefers-color-scheme:dark){:root{--bg:#0f1115;--card:#171a20;--tx:#e8eaee;--mut:#8b93a1;--bd:#262b33;--ac:#5b8cff;--hl:#4a4200}}
+*{box-sizing:border-box}body{margin:0;font:15px/1.5 system-ui,sans-serif;background:var(--bg);color:var(--tx);display:grid;grid-template-columns:320px 1fr;height:100vh}
+@media(max-width:800px){body{grid-template-columns:1fr;height:auto}aside{max-height:45vh}}
+aside{border-right:1px solid var(--bd);background:var(--card);display:flex;flex-direction:column;overflow:hidden}
+main{overflow:auto;padding:20px}
+h1{font-size:18px;margin:0;padding:16px}
+input,select,textarea,button{font:inherit;color:inherit}
+input[type=text],input[type=search],select,textarea{background:var(--bg);border:1px solid var(--bd);border-radius:8px;padding:8px 10px;width:100%}
+button{background:var(--ac);color:#fff;border:0;border-radius:8px;padding:8px 14px;cursor:pointer}
+button.sec{background:transparent;color:var(--tx);border:1px solid var(--bd)}button.del{color:var(--er)}
+.search{padding:0 16px 10px}
+#list{overflow:auto;flex:1}
+.item{padding:10px 16px;border-top:1px solid var(--bd);cursor:pointer}.item:hover,.item.on{background:var(--bg)}
+.item b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.item small{color:var(--mut)}
+.bar{height:4px;background:var(--bd);border-radius:2px;margin-top:4px}.bar i{display:block;height:100%;background:var(--ac);border-radius:2px}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:16px;margin-bottom:16px}
+#drop{border:2px dashed var(--bd);border-radius:12px;padding:28px;text-align:center;color:var(--mut);cursor:pointer}
+#drop.over{border-color:var(--ac);color:var(--ac)}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-top:12px}.row>label{flex:1;min-width:140px;font-size:13px;color:var(--mut)}
+.row label.chk{flex:none;display:flex;gap:6px;align-items:center;color:var(--tx)}
+.seg{display:flex;gap:10px;padding:6px 8px;border-radius:8px}.seg.cur{background:var(--hl)}
+.seg .t{color:var(--ac);cursor:pointer;font-variant-numeric:tabular-nums;white-space:nowrap;font-size:13px;padding-top:2px}
+.seg .x{flex:1;outline:0;border-radius:4px}.seg .x:focus{background:var(--bg)}
+mark{background:var(--hl);color:inherit}
+.tools{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}.tools input{flex:1;min-width:140px;width:auto}
+audio{width:100%;position:sticky;top:0;z-index:2}
+.err{color:var(--er)}.muted{color:var(--mut)}
+</style>
+</head>
+<body>
+<aside>
+  <h1>🎙️ Transcriptor</h1>
+  <div class="search"><input type="search" id="q" placeholder="Buscar en todas las transcripciones…"></div>
+  <div id="list"></div>
+</aside>
+<main>
+  <div class="card">
+    <div id="drop">Arrastra audios o vídeos aquí, o haz clic para elegirlos<br><small>Sin límite de duración ni de tamaño · varios a la vez</small></div>
+    <input type="file" id="file" multiple accept="audio/*,video/*" hidden>
+    <div class="row"><label style="flex:3">…o pega enlaces (YouTube y +1000 sitios), uno por línea
+      <textarea id="urls" rows="2" placeholder="https://www.youtube.com/watch?v=…"></textarea></label>
+      <button id="goUrl">Transcribir enlaces</button></div>
+    <div class="row">
+      <label>Modelo<select id="model"></select></label>
+      <label>Idioma<select id="lang"><option value="">Detectar automáticamente</option>
+        <option value="es">Español</option><option value="en">Inglés</option><option value="ca">Català</option>
+        <option value="fr">Français</option><option value="de">Deutsch</option><option value="it">Italiano</option>
+        <option value="pt">Português</option><option value="nl">Nederlands</option><option value="ja">日本語</option>
+        <option value="zh">中文</option><option value="ar">العربية</option><option value="ru">Русский</option></select></label>
+      <label>Tarea<select id="task"><option value="transcribe">Transcribir</option><option value="translate">Traducir al inglés</option></select></label>
+      <label class="chk"><input type="checkbox" id="words"> Tiempos por palabra</label>
+      <label class="chk"><input type="checkbox" id="vad" checked> Saltar silencios</label>
+    </div>
+  </div>
+  <div id="view"><p class="muted">Selecciona una transcripción de la izquierda o sube un archivo.</p></div>
+</main>
+<script>
+const $=s=>document.querySelector(s);let cur=null,data=null,cfg={},timer=null,dirty=false;
+const fmt=s=>{s=Math.floor(s);const h=Math.floor(s/3600),m=Math.floor(s%3600/60),x=s%60;return(h?h+':':'')+String(m).padStart(h?2:1,'0')+':'+String(x).padStart(2,'0')};
+const esc=s=>s.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const api=async(u,o)=>{const r=await fetch(u,o);if(!r.ok){let m=r.statusText;try{m=(await r.json()).detail||m}catch{}throw new Error(m)}return r.json()};
+const opts=()=>({model:$('#model').value,language:$('#lang').value,task:$('#task').value,word_timestamps:$('#words').checked,vad:$('#vad').checked});
+
+async function init(){cfg=await api('/api/config');$('#model').innerHTML=cfg.models.map(m=>`<option ${m=='small'?'selected':''}>${m}</option>`).join('');refresh();setInterval(refresh,2000)}
+async function refresh(){
+  const items=await api('/api/transcripts?q='+encodeURIComponent($('#q').value));
+  $('#list').innerHTML=items.map(t=>`<div class="item ${t.id==cur?'on':''}" data-id="${t.id}"><b>${esc(t.title)}</b>
+    <small>${t.status=='done'?`${fmt(t.duration||0)} · ${t.language||''}`:t.status=='error'?'<span class=err>error</span>':t.status}</small>
+    ${['processing','downloading'].includes(t.status)?`<div class="bar"><i style="width:${(t.progress*100)|0}%"></i></div>`:''}</div>`).join('')||'<p class="muted" style="padding:16px">Aún no hay transcripciones.</p>';
+  if(cur&&!dirty){const t=items.find(i=>i.id==cur);if(t&&data&&(t.status!=data.status||t.status=='processing'))open(cur,true)}
+}
+$('#list').onclick=e=>{const i=e.target.closest('.item');if(i)open(i.dataset.id)};
+$('#q').oninput=refresh;
+
+async function send(body,json){
+  try{const r=await api(json?'/api/transcripts/url':'/api/transcripts',json?{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}:{method:'POST',body});
+    refresh();open(r.ids[0])}catch(e){alert(e.message)}
+}
+function upload(files){if(!files.length)return;const fd=new FormData();[...files].forEach(f=>fd.append('files',f));
+  const o=opts();for(const k in o)fd.append(k,o[k]);send(fd)}
+$('#drop').onclick=()=>$('#file').click();$('#file').onchange=e=>upload(e.target.files);
+$('#drop').ondragover=e=>{e.preventDefault();$('#drop').classList.add('over')};$('#drop').ondragleave=()=>$('#drop').classList.remove('over');
+$('#drop').ondrop=e=>{e.preventDefault();$('#drop').classList.remove('over');upload(e.dataTransfer.files)};
+$('#goUrl').onclick=()=>{const urls=$('#urls').value.split('\n').filter(x=>x.trim());if(urls.length){send({...opts(),urls},true);$('#urls').value=''}};
+
+async function open(id,soft){
+  cur=id;data=await api('/api/transcripts/'+id);const t=data;const v=$('#view');
+  if(soft&&['processing','downloading','queued'].includes(t.status)){const b=v.querySelector('.pg');if(b){b.style.width=(t.progress*100)+'%';return}}
+  if(t.status!='done'){v.innerHTML=`<div class="card"><h2>${esc(t.title)}</h2><p>${t.status=='error'?`<span class=err>Error: ${esc(t.error||'')}</span> <button class=sec onclick="retry()">Reintentar</button>`:`Estado: ${t.status}…`}</p>
+    <div class="bar"><i class="pg" style="width:${t.progress*100}%"></i></div><p><button class="sec del" onclick="del()">Eliminar</button></p></div>`;return}
+  v.innerHTML=`<div class="card">
+    <input type="text" id="title" value="${esc(t.title)}" style="font-size:18px;font-weight:600;margin-bottom:8px">
+    <div class="muted">${fmt(t.duration||0)} · idioma: ${t.language} · modelo: ${t.model} · ${t.segment_count} segmentos</div>
+    ${t.has_audio?`<audio id="au" controls src="/api/transcripts/${t.id}/audio" style="margin-top:10px"></audio>`:''}
+    <div class="tools"><input type="search" id="find" placeholder="Buscar en esta transcripción…">
+      <input type="text" id="rep" placeholder="Reemplazar por…"><button class="sec" id="repBtn">Reemplazar todo</button></div>
+    <div class="tools">${cfg.formats.map(f=>`<button class="sec" onclick="location='/api/transcripts/${t.id}/export?format=${f}&timestamps=true'">${f.toUpperCase()}</button>`).join('')}
+      <button class="sec" onclick="copyAll()">Copiar texto</button>
+      ${cfg.summary?`<button class="sec" id="sumBtn">✨ Resumir</button>`:''}
+      <button class="sec" onclick="retry()">Re-transcribir</button><button class="sec del" onclick="del()">Eliminar</button></div>
+    <div id="sum">${t.summary?`<div class="card" style="background:var(--bg)"><b>Resumen</b><p style="white-space:pre-wrap">${esc(t.summary)}</p></div>`:''}</div>
+  </div><div class="card" id="segs"></div>`;
+  drawSegs();
+  $('#title').onchange=e=>api('/api/transcripts/'+id,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({title:e.target.value})}).then(refresh);
+  $('#find').oninput=drawSegs;
+  $('#repBtn').onclick=()=>{const f=$('#find').value;if(!f)return;const r=$('#rep').value;
+    data.segments.forEach(s=>s.text=s.text.split(f).join(r));save();drawSegs()};
+  const sb=$('#sumBtn');if(sb)sb.onclick=async()=>{sb.disabled=true;sb.textContent='Resumiendo…';
+    try{const r=await api(`/api/transcripts/${id}/summary`,{method:'POST'});data.summary=r.summary;open(id)}catch(e){alert(e.message);sb.disabled=false;sb.textContent='✨ Resumir'}};
+  const au=$('#au');if(au)au.ontimeupdate=()=>{const n=data.segments.findIndex(s=>au.currentTime>=s.start&&au.currentTime<s.end);
+    document.querySelectorAll('.seg').forEach((e,i)=>e.classList.toggle('cur',i==n))};
+}
+function drawSegs(){
+  const f=($('#find')?.value||'').toLowerCase();
+  $('#segs').innerHTML=data.segments.map((s,i)=>{let h=esc(s.text.trim());
+    if(f)h=h.replace(new RegExp(f.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'gi'),m=>`<mark>${m}</mark>`);
+    return `<div class="seg"><span class="t" data-t="${s.start}">${fmt(s.start)}</span><span class="x" contenteditable data-i="${i}">${h}</span></div>`}).join('');
+  document.querySelectorAll('.seg .t').forEach(e=>e.onclick=()=>{const a=$('#au');if(a){a.currentTime=+e.dataset.t;a.play()}});
+  document.querySelectorAll('.seg .x').forEach(e=>{e.oninput=()=>{dirty=true;data.segments[e.dataset.i].text=e.textContent;delete data.segments[e.dataset.i].words;clearTimeout(timer);timer=setTimeout(save,800)}});
+}
+async function save(){await api('/api/transcripts/'+cur,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({segments:data.segments})});dirty=false}
+function copyAll(){navigator.clipboard.writeText(data.segments.map(s=>s.text.trim()).join('\n'))}
+async function del(){if(confirm('¿Eliminar esta transcripción y su audio?')){await api('/api/transcripts/'+cur,{method:'DELETE'});cur=null;data=null;$('#view').innerHTML='';refresh()}}
+async function retry(){await api(`/api/transcripts/${cur}/retry`,{method:'POST'});open(cur);refresh()}
+init();
+</script>
+</body>
+</html>
