@@ -1,12 +1,15 @@
 # Vida
 
-App personal todo-en-uno (PWA instalable, sin dependencias ni build).
+App personal todo-en-uno (PWA instalable, sin dependencias ni build). Tema automático/claro/oscuro.
 
-- **Hoy**: balance del mes, suscripciones, cobros pendientes y lo próximo de los siguientes 7 días.
-- **Dinero**: movimientos (personal/negocio), suscripciones con renovación automática y resumen por meses y categorías.
-- **Negocio**: presupuestos, por cobrar y cobrado (al cobrar se registra el ingreso solo).
-- **Recordar**: recordatorios con hora, repetición y notificaciones.
-- **Asistente**: chat con IA (Anthropic) que conoce tus datos.
+| Pestaña | Contenido |
+|---|---|
+| **Hoy** | Balance del mes, agenda de hoy y próximos 7 días, hábitos, nutrición y agua |
+| **Calendario** | Vista mensual con eventos, cumpleaños, tareas, recordatorios, cargos de suscripciones y cobros |
+| **Dinero** | Movimientos (personal/negocio), suscripciones con renovación automática, resumen, presupuestos por categoría |
+| **Negocio** | Presupuestos / por cobrar / cobrado (al cobrar se registra el ingreso) |
+| **Más** | Salud y nutrición (comidas, kcal y macros, agua, peso, ejercicio), tareas, recordatorios, cumpleaños, hábitos con rachas, objetivos de ahorro, notas, ajustes |
+| **✨ Asistente** | Chat con IA que conoce tus datos y puede **crear** tareas, eventos, recordatorios, gastos, comidas (estimando kcal), peso y ejercicio |
 
 ## Probar en local
 ```bash
@@ -18,8 +21,10 @@ Publicar la carpeta en HTTPS (GitHub Pages, Netlify, Cloudflare Pages…), abrir
 Compartir → **Añadir a pantalla de inicio**.
 
 ## Asistente IA
-Ajustes (⚙︎ en Hoy) → pega tu API key de Anthropic. Se guarda solo en el dispositivo.
+Ajustes (⚙︎) → pega tu API key de Anthropic. Se guarda solo en el dispositivo.
 Para uso real conviene un pequeño proxy (Cloudflare Worker) que guarde la clave en el servidor.
+Las estimaciones nutricionales son aproximadas y no sustituyen a un profesional.
 
 ## Datos
-Todo en `localStorage` del dispositivo. Ajustes permite exportar/importar JSON como copia de seguridad.
+Todo en `localStorage` del dispositivo. Ajustes permite exportar/importar JSON (copia de seguridad)
+y exportar los movimientos en CSV (para la gestoría).
