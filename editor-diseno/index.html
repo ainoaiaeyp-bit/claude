@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lienzo – Editor de diseño</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
+<style>
+:root{--bg:#f1f3f6;--panel:#fff;--ink:#1f2430;--muted:#6b7280;--line:#e3e6ec;--brand:#6c4cf1;--brand2:#18c5b4}
+*{box-sizing:border-box}
+body{margin:0;font:14px system-ui,sans-serif;color:var(--ink);background:var(--bg);height:100vh;display:flex;flex-direction:column}
+header{height:52px;background:linear-gradient(90deg,var(--brand),var(--brand2));color:#fff;display:flex;align-items:center;gap:10px;padding:0 14px}
+header h1{font-size:18px;margin:0 12px 0 0}
+header select,header button,header input{height:32px;border-radius:8px;border:0;padding:0 10px;font:inherit}
+header button{background:#fff;color:var(--brand);font-weight:600;cursor:pointer}
+header .sp{flex:1}
+main{flex:1;display:flex;min-height:0}
+aside{width:230px;background:var(--panel);border-right:1px solid var(--line);padding:12px;overflow:auto}
+aside.right{border-right:0;border-left:1px solid var(--line);width:240px}
+aside h3{margin:14px 0 8px;font-size:12px;text-transform:uppercase;color:var(--muted);letter-spacing:.05em}
+aside h3:first-child{margin-top:0}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.btn{border:1px solid var(--line);background:#fff;border-radius:8px;padding:9px 6px;cursor:pointer;font:inherit;text-align:center}
+.btn:hover{border-color:var(--brand);color:var(--brand)}
+.sw{height:32px;border-radius:8px;border:1px solid var(--line);cursor:pointer}
+#stage{flex:1;display:flex;align-items:center;justify-content:center;overflow:auto;padding:24px}
+.canvas-container{box-shadow:0 6px 30px rgba(0,0,0,.18)}
+label{display:block;font-size:12px;color:var(--muted);margin:10px 0 4px}
+input[type=range],input[type=color],select.f{width:100%}
+input[type=color]{height:32px;padding:0;border:1px solid var(--line);border-radius:8px}
+select.f,input.t{width:100%;height:32px;border:1px solid var(--line);border-radius:8px;padding:0 8px;font:inherit}
+.row{display:flex;gap:6px}.row .btn{flex:1}
+#layers .l{display:flex;align-items:center;gap:6px;padding:6px 8px;border:1px solid var(--line);border-radius:8px;margin-bottom:6px;cursor:pointer;font-size:13px}
+#layers .l.on{border-color:var(--brand);background:#f3f0ff}
+#empty{color:var(--muted);font-size:13px}
+@media(max-width:800px){aside{display:none}}
+</style>
+</head>
+<body>
+<header>
+  <h1>🎨 Lienzo</h1>
+  <select id="size">
+    <option value="1080x1080">Post Instagram 1080×1080</option>
+    <option value="1080x1920">Story 1080×1920</option>
+    <option value="1920x1080">Presentación 1920×1080</option>
+    <option value="1200x628">Facebook 1200×628</option>
+    <option value="794x1123">A4 794×1123</option>
+  </select>
+  <button id="undo">↶</button><button id="redo">↷</button>
+  <span class="sp"></span>
+  <button id="save">Guardar</button>
+  <button id="load">Abrir</button>
+  <button id="png">Descargar PNG</button>
+</header>
+<main>
+  <aside>
+    <h3>Elementos</h3>
+    <div class="grid">
+      <button class="btn" id="aTitle">Título</button>
+      <button class="btn" id="aText">Texto</button>
+      <button class="btn" id="aRect">▭ Rectángulo</button>
+      <button class="btn" id="aCircle">◯ Círculo</button>
+      <button class="btn" id="aTri">△ Triángulo</button>
+      <button class="btn" id="aLine">― Línea</button>
+      <button class="btn" id="aStar">★ Estrella</button>
+      <button class="btn" id="aImg">🖼 Imagen</button>
+    </div>
+    <input type="file" id="file" accept="image/*" hidden>
+    <input type="file" id="fileJson" accept=".json" hidden>
+    <h3>Fondo</h3>
+    <div class="grid" id="bgs"></div>
+    <h3>Plantillas</h3>
+    <div class="grid">
+      <button class="btn" data-tpl="promo">Promo</button>
+      <button class="btn" data-tpl="cita">Cita</button>
+    </div>
+  </aside>
+  <div id="stage"><canvas id="c"></canvas></div>
+  <aside class="right">
+    <h3>Propiedades</h3>
+    <div id="props"><div id="empty">Selecciona un elemento.</div></div>
+    <h3>Capas</h3>
+    <div id="layers"></div>
+  </aside>
+</main>
+<script>
+const FONTS=['Arial','Georgia','Times New Roman','Courier New','Verdana','Trebuchet MS','Impact','Comic Sans MS'];
+const PALETTE=['#ffffff','#1f2430','#6c4cf1','#18c5b4','#ff5c7a','#ffb020','#2f80ed','#27ae60'];
+let W=1080,H=1080,zoom=1;
+const cv=new fabric.Canvas('c',{backgroundColor:'#ffffff',preserveObjectStamping:true,preserveObjectStacking:true});
+const $=id=>document.getElementById(id);
+
+function fit(){
+  const s=$('stage');zoom=Math.min((s.clientWidth-48)/W,(s.clientHeight-48)/H,1);
+  cv.setDimensions({width:W*zoom,height:H*zoom});cv.setZoom(zoom);cv.renderAll();
+}
+function setSize(v){[W,H]=v.split('x').map(Number);fit();push()}
+$('size').onchange=e=>setSize(e.target.value);
+addEventListener('resize',fit);
+
+// historial
+let hist=[],hi=-1,lock=false;
+function push(){if(lock)return;hist=hist.slice(0,hi+1);hist.push(JSON.stringify({c:cv.toJSON(),W,H}));hi++;if(hist.length>60){hist.shift();hi--}}
+function restore(i){if(i<0||i>=hist.length)return;lock=true;hi=i;const s=JSON.parse(hist[i]);W=s.W;H=s.H;
+  cv.loadFromJSON(s.c,()=>{fit();lock=false;refresh()})}
+$('undo').onclick=()=>restore(hi-1);$('redo').onclick=()=>restore(hi+1);
+['object:added','object:modified','object:removed'].forEach(e=>cv.on(e,()=>{push();refresh()}));
+['selection:created','selection:updated','selection:cleared'].forEach(e=>cv.on(e,refresh));
+
+const add=o=>{o.set({left:W/2,top:H/2,originX:'center',originY:'center'});cv.add(o).setActiveObject(o);cv.requestRenderAll()};
+const txt=(t,size,w)=>add(new fabric.Textbox(t,{width:W*.6,fontSize:size,fontWeight:w,fontFamily:'Arial',fill:'#1f2430',textAlign:'center'}));
+$('aTitle').onclick=()=>txt('Tu título aquí',110,'bold');
+$('aText').onclick=()=>txt('Escribe tu texto',48,'normal');
+$('aRect').onclick=()=>add(new fabric.Rect({width:400,height:260,fill:'#6c4cf1',rx:16,ry:16}));
+$('aCircle').onclick=()=>add(new fabric.Circle({radius:150,fill:'#18c5b4'}));
+$('aTri').onclick=()=>add(new fabric.Triangle({width:320,height:280,fill:'#ffb020'}));
+$('aLine').onclick=()=>add(new fabric.Rect({width:500,height:8,fill:'#1f2430'}));
+$('aStar').onclick=()=>{const p=[];for(let i=0;i<10;i++){const r=i%2?60:150,a=Math.PI/5*i-Math.PI/2;p.push({x:r*Math.cos(a),y:r*Math.sin(a)})}add(new fabric.Polygon(p,{fill:'#ff5c7a'}))};
+$('aImg').onclick=()=>$('file').click();
+$('file').onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();
+  r.onload=()=>fabric.Image.fromURL(r.result,img=>{const k=Math.min(W*.6/img.width,H*.6/img.height,1);img.scale(k);add(img)});
+  r.readAsDataURL(f);e.target.value=''};
+
+// fondos
+const bgs=$('bgs');
+PALETTE.concat(['#fff3d6','#e8f0ff']).forEach(c=>{const d=document.createElement('div');d.className='sw';d.style.background=c;
+  d.onclick=()=>{cv.setBackgroundColor(c,()=>{cv.renderAll();push()})};bgs.appendChild(d)});
+[['#6c4cf1','#18c5b4'],['#ff5c7a','#ffb020']].forEach(([a,b])=>{const d=document.createElement('div');d.className='sw';
+  d.style.background=`linear-gradient(135deg,${a},${b})`;
+  d.onclick=()=>{cv.setBackgroundColor(new fabric.Gradient({type:'linear',coords:{x1:0,y1:0,x2:W,y2:H},colorStops:[{offset:0,color:a},{offset:1,color:b}]}),()=>{cv.renderAll();push()})};
+  bgs.appendChild(d)});
+
+// propiedades
+function refresh(){
+  const o=cv.getActiveObject(),P=$('props');
+  if(!o){P.innerHTML='<div id="empty">Selecciona un elemento.</div>'}
+  else{
+    const isT=o.type==='textbox';let h='';
+    h+=`<label>Color</label><input type="color" id="pFill" value="${typeof o.fill==='string'&&o.fill[0]==='#'&&o.fill.length==7?o.fill:'#000000'}">`;
+    h+=`<label>Opacidad</label><input type="range" id="pOp" min="0" max="1" step=".05" value="${o.opacity}">`;
+    if(isT){h+=`<label>Fuente</label><select class="f" id="pFont">${FONTS.map(f=>`<option ${f==o.fontFamily?'selected':''}>${f}</option>`).join('')}</select>
+      <label>Tamaño</label><input type="range" id="pSize" min="12" max="300" value="${o.fontSize}">
+      <div class="row" style="margin-top:8px"><button class="btn" id="pB"><b>B</b></button><button class="btn" id="pI"><i>I</i></button><button class="btn" id="pU"><u>U</u></button></div>
+      <div class="row" style="margin-top:6px"><button class="btn" data-al="left">⬅</button><button class="btn" data-al="center">↔</button><button class="btn" data-al="right">➡</button></div>`}
+    if(o.rx!==undefined)h+=`<label>Esquinas</label><input type="range" id="pRx" min="0" max="120" value="${o.rx}">`;
+    h+=`<h3>Orden</h3><div class="row"><button class="btn" id="oF">Frente</button><button class="btn" id="oB">Atrás</button></div>
+      <div class="row" style="margin-top:6px"><button class="btn" id="oD">Duplicar</button><button class="btn" id="oX">Borrar</button></div>
+      <h3>Alinear</h3><div class="row"><button class="btn" id="aH">Centro H</button><button class="btn" id="aV">Centro V</button></div>`;
+    P.innerHTML=h;
+    const g=i=>$(i),ch=()=>{cv.requestRenderAll();push()};
+    g('pFill').oninput=e=>{o.set('fill',e.target.value);cv.requestRenderAll()};g('pFill').onchange=ch;
+    g('pOp').oninput=e=>{o.set('opacity',+e.target.value);cv.requestRenderAll()};g('pOp').onchange=ch;
+    if(isT){g('pFont').onchange=e=>{o.set('fontFamily',e.target.value);ch()};
+      g('pSize').oninput=e=>{o.set('fontSize',+e.target.value);cv.requestRenderAll()};g('pSize').onchange=ch;
+      g('pB').onclick=()=>{o.set('fontWeight',o.fontWeight==='bold'?'normal':'bold');ch()};
+      g('pI').onclick=()=>{o.set('fontStyle',o.fontStyle==='italic'?'normal':'italic');ch()};
+      g('pU').onclick=()=>{o.set('underline',!o.underline);ch()};
+      P.querySelectorAll('[data-al]').forEach(b=>b.onclick=()=>{o.set('textAlign',b.dataset.al);ch()})}
+    if(g('pRx')){g('pRx').oninput=e=>{o.set({rx:+e.target.value,ry:+e.target.value});cv.requestRenderAll()};g('pRx').onchange=ch}
+    g('oF').onclick=()=>{cv.bringToFront(o);ch();refresh()};g('oB').onclick=()=>{cv.sendToBack(o);ch();refresh()};
+    g('oD').onclick=()=>dup();g('oX').onclick=()=>del();
+    g('aH').onclick=()=>{o.set('left',W/2);o.setCoords();ch()};g('aV').onclick=()=>{o.set('top',H/2);o.setCoords();ch()};
+  }
+  const L=$('layers');L.innerHTML='';
+  cv.getObjects().slice().reverse().forEach(ob=>{const d=document.createElement('div');d.className='l'+(ob===o?' on':'');
+    d.textContent=(ob.type==='textbox'?'T  '+ob.text.slice(0,16):ob.type==='image'?'🖼 Imagen':'◼ '+ob.type);
+    d.onclick=()=>{cv.setActiveObject(ob);cv.renderAll()};L.appendChild(d)});
+}
+function dup(){const o=cv.getActiveObject();if(!o)return;o.clone(c=>{c.set({left:o.left+30,top:o.top+30});cv.add(c).setActiveObject(c)})}
+function del(){const o=cv.getActiveObjects();o.forEach(x=>cv.remove(x));cv.discardActiveObject();cv.requestRenderAll()}
+addEventListener('keydown',e=>{
+  const t=cv.getActiveObject();if(t&&t.isEditing)return;
+  if(['INPUT','SELECT'].includes(document.activeElement.tagName))return;
+  if(e.key==='Delete'||e.key==='Backspace'){del();e.preventDefault()}
+  if((e.ctrlKey||e.metaKey)&&e.key==='d'){dup();e.preventDefault()}
+  if((e.ctrlKey||e.metaKey)&&e.key==='z'){restore(hi-1);e.preventDefault()}
+  if((e.ctrlKey||e.metaKey)&&e.key==='y'){restore(hi+1);e.preventDefault()}
+  if(t&&e.key.startsWith('Arrow')){const d=e.shiftKey?10:1;
+    if(e.key==='ArrowLeft')t.left-=d;if(e.key==='ArrowRight')t.left+=d;if(e.key==='ArrowUp')t.top-=d;if(e.key==='ArrowDown')t.top+=d;
+    t.setCoords();cv.requestRenderAll();e.preventDefault()}
+});
+
+// exportar / guardar
+$('png').onclick=()=>{cv.discardActiveObject();cv.renderAll();
+  const a=document.createElement('a');a.href=cv.toDataURL({format:'png',multiplier:1/zoom});a.download='diseno.png';a.click()};
+$('save').onclick=()=>{const b=new Blob([JSON.stringify({c:cv.toJSON(),W,H})],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='diseno.json';a.click()};
+$('load').onclick=()=>$('fileJson').click();
+$('fileJson').onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();
+  r.onload=()=>{const s=JSON.parse(r.result);W=s.W;H=s.H;lock=true;cv.loadFromJSON(s.c,()=>{lock=false;fit();push();refresh()})};r.readAsText(f);e.target.value=''};
+
+// plantillas
+document.querySelectorAll('[data-tpl]').forEach(b=>b.onclick=()=>{
+  cv.clear();
+  const T=(t,x,y,s,w,c)=>cv.add(new fabric.Textbox(t,{left:x,top:y,width:W*.8,originX:'center',originY:'center',fontSize:s,fontWeight:w,fill:c,fontFamily:'Georgia',textAlign:'center'}));
+  if(b.dataset.tpl==='promo'){
+    cv.setBackgroundColor(new fabric.Gradient({type:'linear',coords:{x1:0,y1:0,x2:W,y2:H},colorStops:[{offset:0,color:'#6c4cf1'},{offset:1,color:'#18c5b4'}]}),()=>{});
+    cv.add(new fabric.Circle({radius:W*.22,fill:'rgba(255,255,255,.18)',left:W*.82,top:H*.15,originX:'center',originY:'center'}));
+    T('GRAN OFERTA',W/2,H*.38,Math.round(W*.11),'bold','#fff');T('Hasta 50% de descuento',W/2,H*.55,Math.round(W*.05),'normal','#fff');
+    cv.add(new fabric.Rect({width:W*.4,height:H*.09,rx:40,ry:40,fill:'#fff',left:W/2,top:H*.72,originX:'center',originY:'center'}));
+    T('Comprar ahora',W/2,H*.72,Math.round(W*.04),'bold','#6c4cf1');
+  }else{
+    cv.setBackgroundColor('#fff3d6',()=>{});
+    cv.add(new fabric.Rect({width:W*.8,height:H*.7,rx:24,ry:24,fill:'#fff',left:W/2,top:H/2,originX:'center',originY:'center'}));
+    T('“La creatividad es inteligencia divirtiéndose.”',W/2,H*.45,Math.round(W*.06),'normal','#1f2430');T('— Tu nombre',W/2,H*.68,Math.round(W*.035),'normal','#ff5c7a');
+  }
+  cv.renderAll();push();refresh();
+});
+
+fit();push();refresh();
+</script>
+</body>
+</html>
