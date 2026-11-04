@@ -179,6 +179,7 @@ main{flex:1;display:flex;min-height:0}
     <tr><td><kbd>Ctrl</kbd>+<kbd>0</kbd>, <kbd>Ctrl</kbd>+rueda</td><td>Ajustar / zoom</td></tr>
     <tr><td>Doble clic en texto</td><td>Editar texto</td></tr>
     <tr><td><kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>C</kbd> / <kbd>V</kbd></td><td>Copiar / pegar estilo</td></tr>
+    <tr><td><kbd>Espacio</kbd> + arrastrar</td><td>Mover la vista</td></tr>
     <tr><td>Clic derecho</td><td>Menú contextual</td></tr>
     <tr><td>Arrastrar o pegar imagen</td><td>Añadir imagen</td></tr>
   </table>
@@ -199,7 +200,7 @@ const FONTS=['Poppins','Montserrat','Roboto','Raleway','Playfair Display','Merri
 const PALETTE=['#1f2430','#ffffff','#6c4cf1','#18c5b4','#ff5c7a','#ffb020','#2f80ed','#27ae60','#ff3d3d','#9b59b6','#f1c40f','#8d6e63'];
 const FILLS=['#6c4cf1','#18c5b4','#ff5c7a','#ffb020','#2f80ed','#27ae60'];
 const SIZES=[['Post Instagram',1080,1080],['Story / Reel',1080,1920],['Presentación 16:9',1920,1080],['Facebook / OG',1200,630],['Banner 16:9 grande',2560,1440],['Póster A4',1240,1754],['Tarjeta',1050,600]];
-const CUSTOM=['_crop','_round','isBg','locked','lockMovementX','lockMovementY','lockRotation','lockScalingX','lockScalingY','hasControls','selectable','evented','_g','_f','name'];
+const CUSTOM=['_arc','_crop','_round','isBg','locked','lockMovementX','lockMovementY','lockRotation','lockScalingX','lockScalingY','hasControls','selectable','evented','_g','_f','name'];
 const GRADS=[['#6c4cf1','#18c5b4'],['#ff5c7a','#ffb020'],['#2f80ed','#56ccf2'],['#11998e','#38ef7d'],['#fc466b','#3f5efb'],['#0f2027','#2c5364'],['#f6d365','#fda085'],['#a18cd1','#fbc2eb']];
 
 fabric.Object.prototype.originX=fabric.Object.prototype.originY='center';
@@ -242,6 +243,7 @@ const UI={
  upload:'M12 15V3m0 0L8 7m4-4l4 4M4 21h16',
  link:'M10 14a4 4 0 005.7 0l3-3a4 4 0 00-5.7-5.7l-1 1 M14 10a4 4 0 00-5.7 0l-3 3A4 4 0 0011 18.7l1-1',
  pagecopy:'M7 7h12v14H7z M5 17V3h12',
+ chart:'M4 20V10M10 20V4M16 20v-8M22 20H2',arc:'M3 17a9 9 0 0 1 18 0',
  play:'M7 4l13 8-13 8z',close:'M5 5l14 14M19 5L5 19',chevL:'M15 6l-6 6 6 6',chevR:'M9 6l6 6-6 6',
  distH:'M4 3v18 M20 3v18 M10 7h4v10h-4z',distV:'M3 4h18 M3 20h18 M7 10h10v4H7z',
  brush:'M18 3l3 3-9 9-3-3z M9 12c-3 0-5 2-5 5 0 2-1 3-2 4 4 1 9 0 9-5',
@@ -454,6 +456,63 @@ const TEXT_STYLES=[
 ];
 const PAIRS=[['Playfair Display','Raleway','Elegancia'],['Bebas Neue','Roboto','Impacto'],['Pacifico','Montserrat','Divertido'],['Anton','Merriweather','Noticias'],['Abril Fatface','Poppins','Moda'],['Permanent Marker','Caveat','Manual']];
 
+/* ---------- Texto en arco ---------- */
+function arcGroup(src){
+  const chars=[...src.text],ws=chars.map(c=>{const t=new fabric.Text(c,{fontFamily:src.fontFamily,fontSize:src.fontSize,fontWeight:src.fontWeight});return t.width||src.fontSize*.3});
+  const L=ws.reduce((a,b)=>a+b,0),th=Math.abs(src.curve)/100*Math.PI*1.7,items=[];let acc=0;
+  chars.forEach((c,i)=>{
+    const sMid=acc+ws[i]/2;acc+=ws[i];let x,y,ang=0;
+    if(th<.02){x=sMid-L/2;y=0}
+    else{const R=L/th,phi=sMid/R-th/2;
+      if(src.curve>0){x=R*Math.sin(phi);y=-R*Math.cos(phi)+R;ang=phi*180/Math.PI}
+      else{x=R*Math.sin(phi);y=R*Math.cos(phi)-R;ang=-phi*180/Math.PI}}
+    items.push(new fabric.Text(c,{fontFamily:src.fontFamily,fontSize:src.fontSize,fontWeight:src.fontWeight,fill:src.fill,left:x,top:y,angle:ang}));
+  });
+  const g=new fabric.Group(items);g._arc=Object.assign({},src);g.name='Texto en arco';return g;
+}
+async function addArc(){
+  await ensureFonts(['Poppins']);
+  addObj(arcGroup({text:'TEXTO EN ARCO',fontFamily:'Poppins',fontSize:Math.round(S_()*.07),fontWeight:700,fill:'#1f2430',curve:60}),'Texto en arco');
+}
+async function regenArc(o){
+  await ensureFonts([o._arc.fontFamily]);const n=arcGroup(o._arc);
+  n.set({left:o.left,top:o.top,angle:o.angle,scaleX:o.scaleX,scaleY:o.scaleY,opacity:o.opacity,shadow:o.shadow});
+  cv.discardActiveObject();batch(()=>{const i=cv.getObjects().indexOf(o);cv.remove(o);cv.insertAt(n,i)});cv.setActiveObject(n);cv.requestRenderAll();
+}
+function arcSection(o){
+  const a=o._arc,fs=h('select',{class:'sel'},FONTS.map(f=>h('option',{value:f},f)));fs.value=a.fontFamily;fs.onchange=()=>{a.fontFamily=fs.value;regenArc(o)};
+  const ti=h('input',{class:'sel',type:'text',value:a.text,style:'padding:0 8px'});ti.onchange=()=>{a.text=ti.value||' ';regenArc(o)};
+  return sec('Texto en arco',h('div',{class:'fld'},h('label',{},'Texto'),ti),h('div',{class:'fld'},fs),
+    rng('Curvatura',-100,100,1,a.curve,v=>{a.curve=v},()=>regenArc(o)),
+    rng('Tamaño',12,300,1,a.fontSize,v=>{a.fontSize=v},()=>regenArc(o)),
+    col('Color',a.fill,v=>{a.fill=v;o.getObjects().forEach(c=>c.set('fill',v))},true));
+}
+
+/* ---------- Gráficos ---------- */
+function parseData(t){return t.split('\n').map(l=>l.trim()).filter(Boolean).map(l=>{const m=l.match(/^(.*?)[:;=]\s*(-?[\d.,]+)\s*$/);return m?{n:m[1].trim(),v:parseFloat(m[2].replace(',','.'))}:null}).filter(x=>x&&isFinite(x.v)&&x.v>0).slice(0,12)}
+async function addChart(kind,data){
+  if(!data.length){toast('Escribe datos con el formato Nombre: valor');return}
+  await ensureFonts(['Poppins']);const S=S_(),br=getBrand().slice(0,4),col=i=>br[i%4],objs=[];
+  const tx=(t,o)=>new fabric.Text(t,Object.assign({fontFamily:'Poppins',fill:'#1f2430'},o));
+  if(kind==='bar'){
+    const Wc=S*.7,Hc=S*.4,n=data.length,max=Math.max(...data.map(d=>d.v)),step=Wc/n,bw=step*.62;
+    data.forEach((d,i)=>{const bh=Math.max(4,Hc*d.v/max),cx=-Wc/2+step*(i+.5);
+      objs.push(new fabric.Rect({width:bw,height:bh,rx:bw*.12,ry:bw*.12,fill:col(i),left:cx,top:Hc/2-bh/2}));
+      objs.push(tx(String(d.v),{fontWeight:700,fontSize:S*.028,left:cx,top:Hc/2-bh-S*.03}));
+      objs.push(tx(d.n,{fontSize:S*.026,fill:'#6b7280',left:cx,top:Hc/2+S*.03}));});
+    objs.push(new fabric.Rect({width:Wc,height:3,fill:'#cfd5e3',left:0,top:Hc/2}));
+  }else{
+    const R=S*.2,r=R*.58,tot=data.reduce((a,d)=>a+d.v,0);let a=-Math.PI/2;
+    const P=(rad,ang)=>`${(rad*Math.cos(ang)).toFixed(2)} ${(rad*Math.sin(ang)).toFixed(2)}`;
+    data.forEach((d,i)=>{const da=Math.min(2*Math.PI*d.v/tot,2*Math.PI-.001),a1=a+da,lg=da>Math.PI?1:0;
+      objs.push(new fabric.Path(`M ${P(R,a)} A ${R} ${R} 0 ${lg} 1 ${P(R,a1)} L ${P(r,a1)} A ${r} ${r} 0 ${lg} 0 ${P(r,a)} Z`,{fill:col(i),stroke:'#ffffff',strokeWidth:3}));
+      const ly=-R+S*.055*i;objs.push(new fabric.Rect({width:S*.028,height:S*.028,rx:4,ry:4,fill:col(i),left:R+S*.07,top:ly}));
+      objs.push(tx(`${d.n} · ${Math.round(d.v/tot*100)}%`,{fontSize:S*.028,originX:'left',left:R+S*.095,top:ly}));
+      a=a1});
+  }
+  addObj(new fabric.Group(objs),'Gráfico');
+}
+
 /* ---------- Formas ---------- */
 const reg=(n,r)=>Array.from({length:n},(_,i)=>{const a=Math.PI*2/n*i-Math.PI/2;return{x:r*Math.cos(a),y:r*Math.sin(a)}});
 const starPts=()=>Array.from({length:10},(_,i)=>{const r=i%2?55:140,a=Math.PI/5*i-Math.PI/2;return{x:r*Math.cos(a),y:r*Math.sin(a)}});
@@ -474,6 +533,7 @@ const SHAPES=[
   ['Flecha','M3 10h11V5l8 7-8 7v-5H3z',0,()=>{const p=new fabric.Polygon([{x:-150,y:-22},{x:60,y:-22},{x:60,y:-65},{x:150,y:0},{x:60,y:65},{x:60,y:22},{x:-150,y:22}],{fill:nextFill()});p.scaleToWidth(sz()*1.2);return p}],
   ['Globo','M4 4h16v12H10l-5 4v-4H4z',0,()=>pathShape('M -120 -70 H 120 Q 140 -70 140 -50 V 30 Q 140 50 120 50 H -20 L -70 100 L -60 50 H -120 Q -140 50 -140 30 V -50 Q -140 -70 -120 -70 Z')],
   ['Cruz','M9 3h6v6h6v6h-6v6H9v-6H3V9h6z',0,()=>{const p=new fabric.Polygon([{x:-25,y:-90},{x:25,y:-90},{x:25,y:-25},{x:90,y:-25},{x:90,y:25},{x:25,y:25},{x:25,y:90},{x:-25,y:90},{x:-25,y:25},{x:-90,y:25},{x:-90,y:-25},{x:-25,y:-25}],{fill:nextFill()});p.scaleToWidth(sz()*.8);return p}],
+  ['Flecha línea','M3 12h14M12 6l6 6-6 6',1,()=>{const L=S_()*.45,a=new fabric.Rect({width:L,height:8,fill:'#1f2430',left:0,top:0}),b=new fabric.Triangle({width:34,height:34,fill:'#1f2430',angle:90,left:L/2+8,top:0});return new fabric.Group([a,b])}],
   ['Línea','M3 11h18v2H3z',0,()=>new fabric.Rect({width:S_()*.5,height:8,rx:4,ry:4,fill:'#1f2430'})],
   ['Punteada','M4 12h.01M12 12h.01M20 12h.01',1,()=>new fabric.Line([0,0,S_()*.5,0],{stroke:'#1f2430',strokeWidth:8,strokeDashArray:[1,14],strokeLineCap:'round',padding:10})],
   ['Marco','M4 5h16v14H4z',1,()=>new fabric.Rect({width:sz()*1.3,height:sz()*.9,fill:'rgba(0,0,0,0)',stroke:'#1f2430',strokeWidth:8})]
@@ -513,6 +573,35 @@ const TEMPLATES=[
     setBg('#ffe14d');R(.5,.5,.86,.86,'rgba(0,0,0,0)',{stroke:'#111111',strokeWidth:10});
     T('¡NO TE LO',.5,.3,.12,{fontFamily:'Anton',fontWeight:400});T('PIERDAS!',.5,.46,.2,{fontFamily:'Anton',fontWeight:400,fill:'#ff3d3d'});
     T('Solo este fin de semana',.5,.66,.05,{fontFamily:'Montserrat'});R(.5,.8,.4,.1,'#111111',{rx:12,ry:12});T('SABER MÁS',.5,.8,.04,{fill:'#ffe14d',fontFamily:'Montserrat',width:W*.38})}}
+  ,
+  {n:'Invitación',bg:'linear-gradient(135deg,#fdf6ec,#ecd9b8)',f:['Dancing Script','Montserrat','Playfair Display'],build(){
+    setBg('#fdf6ec');R(.5,.5,.88,.88,'rgba(0,0,0,0)',{stroke:'#c9a66b',strokeWidth:6});
+    T('TE INVITAMOS A LA BODA DE',.5,.24,.032,{fontFamily:'Montserrat',fontWeight:600,charSpacing:400,fill:'#9a7b4f',width:W*.7});
+    T('Ana & Luis',.5,.45,.15,{fontFamily:'Dancing Script',fill:'#6b4e2e'});R(.5,.62,.16,.004,'#c9a66b');
+    T('24 de septiembre · 18:00 h',.5,.7,.04,{fontFamily:'Playfair Display',fontWeight:400});T('Finca Los Olivos',.5,.78,.03,{fontFamily:'Montserrat',fontWeight:400,fill:'#6b7280'})}},
+  {n:'Rebajas',bg:'linear-gradient(135deg,#ff3d3d,#ff7a45)',f:['Anton','Montserrat'],build(){
+    setBg('#ff3d3d');C(.5,.5,.42,'rgba(255,255,255,.12)');C(.5,.5,.3,'rgba(255,255,255,.12)');
+    T('REBAJAS',.5,.26,.12,{fontFamily:'Anton',fontWeight:400,fill:'#fff',charSpacing:200});T('-70%',.5,.5,.34,{fontFamily:'Anton',fontWeight:400,fill:'#fff'});
+    R(.5,.78,.5,.09,'#fff',{rx:50,ry:50});T('SOLO ONLINE',.5,.78,.036,{fontFamily:'Montserrat',fill:'#ff3d3d',width:W*.46})}},
+  {n:'Tecnología',bg:'linear-gradient(135deg,#0b1020,#27306b)',f:['Poppins'],build(){
+    setBg({g:['#0b1020','#27306b',135]});C(.85,.15,.3,'rgba(24,197,180,.2)');C(.1,.9,.28,'rgba(108,76,241,.3)');
+    T('El futuro',.5,.36,.11,{fill:'#fff',fontWeight:800});const g=T('empieza hoy',.5,.5,.11,{fontWeight:800});g._g={c1:'#18c5b4',c2:'#6c4cf1',a:0};setGrad(g);
+    T('Descubre la nueva forma de crear y compartir.',.5,.64,.036,{fill:'#aab3c7',fontWeight:400,width:W*.7});
+    R(.5,.78,.4,.09,'#18c5b4',{rx:50,ry:50});T('Empezar',.5,.78,.036,{fill:'#0b1020',width:W*.38})}},
+  {n:'Menú',bg:'linear-gradient(135deg,#1f2430,#3a4152)',f:['Bebas Neue','Playfair Display','Montserrat'],build(){
+    setBg('#1f2430');T('MENÚ DEL DÍA',.5,.17,.085,{fontFamily:'Bebas Neue',fontWeight:400,fill:'#ffb020',charSpacing:120,width:W*.92});R(.5,.26,.2,.004,'#ffb020');
+    [['Ensalada de temporada','5,50 €'],['Pasta al pesto','9,00 €'],['Pescado del día','12,50 €'],['Tarta casera','4,50 €']].forEach((it,i)=>{
+      T(it[0],.3,.38+i*.13,.04,{fontFamily:'Playfair Display',fontWeight:400,fill:'#fff',textAlign:'left',width:W*.5});
+      T(it[1],.78,.38+i*.13,.04,{fontFamily:'Montserrat',fill:'#ffb020',textAlign:'right',width:W*.25})})}},
+  {n:'Perfil',bg:'linear-gradient(180deg,#6c4cf1 40%,#ffffff 40%)',f:['Poppins'],build(){
+    setBg('#ffffff');R(.5,.2,1,.4,'#6c4cf1');C(.5,.4,.14,'#ffffff');C(.5,.4,.115,'#18c5b4');
+    T('Nombre Apellido',.5,.62,.07,{fontWeight:800});T('Diseñadora creativa',.5,.7,.038,{fontWeight:400,fill:'#6c4cf1'});
+    T('Cuéntale al mundo quién eres en una frase.',.5,.8,.032,{fontWeight:400,fill:'#6b7280',width:W*.6})}},
+  {n:'Beneficios',bg:'linear-gradient(135deg,#e8f0ff,#ffffff)',f:['Poppins'],build(){
+    setBg('#e8f0ff');T('Por qué elegirnos',.5,.14,.07,{fontWeight:800});
+    [['Rápido','Resultados en minutos','#6c4cf1'],['Seguro','Tus datos siempre protegidos','#18c5b4'],['Fácil','Sin conocimientos técnicos','#ff5c7a']].forEach((it,i)=>{
+      const y=.34+i*.22;R(.5,y,.8,.17,'#fff',{rx:24,ry:24,shadow:softShadow()});C(.2,y,.05,it[2]);
+      T(it[0],.56,y-.03,.045,{textAlign:'left',width:W*.52});T(it[1],.56,y+.04,.03,{textAlign:'left',fontWeight:400,fill:'#6b7280',width:W*.52})})}}
 ];
 async function applyTemplate(i){
   const t=TEMPLATES[i];await ensureFonts(t.f);
@@ -534,7 +623,7 @@ function makePattern(kind){
 }
 
 /* ---------- Panel izquierdo ---------- */
-const TABS=[['el','shapes','Elementos'],['tx','type','Texto'],['im','image','Imágenes'],['ic','sparkle','Iconos'],['bg','palette','Fondo'],['tp','layout','Plantillas']];
+const TABS=[['el','shapes','Elementos'],['tx','type','Texto'],['im','image','Imágenes'],['ic','sparkle','Iconos'],['ch','chart','Gráficos'],['bg','palette','Fondo'],['tp','layout','Plantillas']];
 let tab='tp';
 const PANELS={
   el(){return h('div',{},h('h3',{},'Formas y líneas'),h('div',{class:'grid'},SHAPES.map(([n,d,st,f])=>h('button',{class:'btn sh',title:n,onclick:()=>addObj(f(),n)},h('span',{class:'ic'+(st?' st':''),html:`<svg viewBox="0 0 24 24"><path d="${d}"/></svg>`})))))},
@@ -543,6 +632,7 @@ const PANELS={
       h('button',{class:'btn big wide',style:'font:800 22px Poppins;margin-bottom:6px',onclick:()=>addText('Añade un título',{fontSize:.1*S_(),fontWeight:800})},'Título'),
       h('button',{class:'btn big wide',style:'font:700 16px Montserrat;margin-bottom:6px',onclick:()=>addText('Añade un subtítulo',{fontSize:.055*S_(),fontFamily:'Montserrat'})},'Subtítulo'),
       h('button',{class:'btn big wide',style:'font:400 13px Roboto',onclick:()=>addText('Añade un párrafo de texto con más detalles.',{fontSize:.035*S_(),fontFamily:'Roboto',fontWeight:400})},'Texto de cuerpo'),
+      h('button',{class:'btn wide',style:'margin-top:6px',onclick:addArc},icl('arc','Texto en arco')),
       h('h3',{},'Estilos de texto'),
       h('div',{class:'grid g2'},TEXT_STYLES.map(([n,p,c])=>h('div',{class:'tstyle',style:`font-family:'${p.fontFamily}';color:${c};${p.fontWeight>=700?'font-weight:700':''}`,onclick:async()=>{
         const o=Object.assign({},p);const g=o._g;delete o._g;if(o.shadow)o.shadow=new fabric.Shadow(o.shadow);
@@ -563,6 +653,12 @@ const PANELS={
     const colr=h('input',{type:'color',value:'#1f2430',style:'width:100%;height:32px;border:1px solid var(--line);border-radius:8px;margin-bottom:8px'});
     return h('div',{},h('h3',{},'Iconos vectoriales'),h('div',{class:'hint',style:'margin-bottom:6px'},'Elige un color y pulsa un icono. Luego puedes cambiar color y grosor.'),colr,
       h('div',{class:'grid g4'},Object.entries(LIB).map(([n,d])=>h('button',{class:'btn libb',title:n,onclick:()=>addObj(libIcon(d,colr.value),n)},h('span',{class:'ic',html:`<svg viewBox="0 0 24 24"><path d="${d}"/></svg>`})))))},
+  ch(){
+    const ta=h('textarea',{rows:6,style:'width:100%;border:1px solid var(--line);border-radius:8px;padding:8px;background:var(--panel2);font:inherit;resize:vertical'});
+    ta.value='Ene: 30\nFeb: 55\nMar: 40\nAbr: 80';
+    return h('div',{},h('h3',{},'Datos'),h('div',{class:'hint',style:'margin-bottom:6px'},'Una fila por dato, con el formato Nombre: valor.'),ta,
+      h('h3',{},'Insertar'),h('div',{class:'grid g2'},h('button',{class:'btn big',onclick:()=>addChart('bar',parseData(ta.value))},'Barras'),h('button',{class:'btn big',onclick:()=>addChart('donut',parseData(ta.value))},'Donut')),
+      h('p',{class:'hint',style:'margin-top:10px'},'Usa los colores de tu kit de marca. Para editar un gráfico ya insertado, desagrúpalo (Ctrl+Shift+G) o bórralo y genera otro.'))},
   bg(){
     const c=h('input',{type:'color',value:'#ffffff',style:'width:100%;height:34px;border:1px solid var(--line);border-radius:8px'});
     c.oninput=()=>batch(()=>setBg(c.value));
@@ -618,7 +714,8 @@ function refreshProps(){
   const isText=o.type==='textbox',isImg=o.type==='image',lv=leaves(o),fillable=lv.filter(x=>x.type!=='image'&&!x.isBg);
   P.append(sec('Transparencia',rng('Opacidad',0,1,.01,o.opacity,v=>tg(o).forEach(x=>x.set('opacity',v)))));
   if(isText)P.append(textSection(o));
-  if(fillable.length)P.append(fillSection(fillable));
+  if(o._arc)P.append(arcSection(o));
+  if(fillable.length&&!o._arc)P.append(fillSection(fillable));
   P.append(strokeSection(lv));
   P.append(shadowSection(o));
   if(o.type==='rect')P.append(sec('Esquinas',rng('Redondeo',0,Math.min(o.width,o.height)/2,1,o.rx||0,v=>o.set({rx:v,ry:v}))));
@@ -985,6 +1082,15 @@ addEventListener('keydown',e=>{
   }
 });
 let nudgeT;
+
+/* ---------- Mover vista con Espacio ---------- */
+let space=false,pan=null;
+const typing=e=>/INPUT|TEXTAREA|SELECT/.test((e.target||{}).tagName||'')||(cv.getActiveObject()&&cv.getActiveObject().isEditing);
+addEventListener('keydown',e=>{if(e.code==='Space'&&!presImgs&&!typing(e)){space=true;stage.style.cursor='grab';e.preventDefault()}});
+addEventListener('keyup',e=>{if(e.code==='Space'){space=false;stage.style.cursor=''}});
+stage.addEventListener('mousedown',e=>{if(!space)return;e.stopPropagation();e.preventDefault();pan={x:e.clientX,y:e.clientY,l:stage.scrollLeft,t:stage.scrollTop};stage.style.cursor='grabbing'},true);
+addEventListener('mousemove',e=>{if(pan){stage.scrollLeft=pan.l-(e.clientX-pan.x);stage.scrollTop=pan.t-(e.clientY-pan.y)}});
+addEventListener('mouseup',()=>{if(pan){pan=null;stage.style.cursor=space?'grab':''}});
 
 /* ---------- Arranque ---------- */
 (async function boot(){
