@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Signa · Aprende lengua de signos</title>
+<meta name="description" content="Plataforma gratuita para aprender lengua de signos española con lecciones, tarjetas, tests y seguimiento de progreso.">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="top">
+  <a href="#/" class="brand" aria-label="Signa, inicio"><span aria-hidden="true">🤟</span> Signa</a>
+  <nav aria-label="Principal">
+    <a href="#/" data-nav="home">Lecciones</a>
+    <a href="#/practica" data-nav="practica">Practicar</a>
+    <a href="#/diccionario" data-nav="diccionario">Diccionario</a>
+  </nav>
+  <div class="stats" aria-live="polite">
+    <span title="Racha de días">🔥 <b id="streak">0</b></span>
+    <span title="Puntos de experiencia">⭐ <b id="xp">0</b></span>
+  </div>
+</header>
+<main id="app" tabindex="-1"></main>
+<footer>
+  <p>Contenido en borrador de Lengua de Signos Española. Contrástalo con el diccionario oficial de la CNSE y con personas sordas signantes.</p>
+</footer>
+<script src="data.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
