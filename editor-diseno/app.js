@@ -51,7 +51,7 @@ const UI={
  sliders:'M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0 M14 4v4M8 10v4M16 16v4',
  chart:'M4 20V10M10 20V4M16 20v-8M22 20H2',arc:'M3 17a9 9 0 0 1 18 0',
  ruler:'M3 17L17 3l4 4L7 21z M7 13l2 2 M10 10l2 2 M13 7l2 2',users:'M16 20v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2 M9 10a4 4 0 1 0 0-8 4 4 0 0 0 0 8 M22 20v-2a4 4 0 0 0-3-3.9 M16 2.1a4 4 0 0 1 0 7.8',
- cloud:'M7 18a4 4 0 0 1 0-8 5 5 0 0 1 9.6-1A4.5 4.5 0 0 1 17 18z',
+ cloud:'M7 18a4 4 0 0 1 0-8 5 5 0 0 1 9.6-1A4.5 4.5 0 0 1 17 18z',msg:'M4 5h16v11H9l-5 4z',
  list:'M9 6h12M9 12h12M9 18h12M4 6h.01M4 12h.01M4 18h.01',pencil:'M4 20l1-5L16 4l4 4L9 19z',
  play:'M7 4l13 8-13 8z',close:'M5 5l14 14M19 5L5 19',chevL:'M15 6l-6 6 6 6',chevR:'M9 6l6 6-6 6',
  distH:'M4 3v18 M20 3v18 M10 7h4v10h-4z',distV:'M3 4h18 M3 20h18 M7 10h10v4H7z',
@@ -107,7 +107,7 @@ const store={get(k){try{return localStorage.getItem(k)}catch(e){return null}},se
 let W=1080,H=1080,zoom=1,fitMode=true;
 let pages=[null],thumbs=[null],cur=0;
 let hist=[],hi=-1,lock=false,guides=[];
-let cloud={id:null};
+let cloud={id:null,viewId:null,role:null};
 let cropMode=null;
 const cv=new fabric.Canvas('c',{backgroundColor:'#ffffff',preserveObjectStacking:true,stopContextMenu:true,fireRightClick:false});
 
@@ -913,7 +913,7 @@ function refreshLayers(){
     h('button',{class:'mini',title:'Mostrar/ocultar',onclick:e=>{e.stopPropagation();ob.visible=!ob.visible;if(!ob.visible&&act.includes(ob))cv.discardActiveObject();commit()}},ic(ob.visible?'eye':'eyeoff')),
     h('button',{class:'mini',title:'Bloquear/desbloquear',onclick:e=>{e.stopPropagation();setLock(ob,!ob.locked);commit();refreshProps()}},ic(ob.locked?'lock':'unlock')))));
 }
-function refresh(){refreshProps();refreshLayers();renderPages()}
+function refresh(){refreshProps();refreshLayers();renderPages();if(typeof renderPins==='function')renderPins()}
 
 /* ---------- Páginas ---------- */
 function renderPages(){
@@ -1082,7 +1082,7 @@ $('fileJson').onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new Fi
   r.onload=async()=>{try{await loadProject(JSON.parse(r.result));toast('Proyecto abierto')}catch(err){toast('Archivo no válido')}};r.readAsText(f);e.target.value=''};
 async function loadProject(p){
   if(!p.pages&&p.c)p={pages:[p.c],W:p.W,H:p.H};
-  W=p.W||1080;H=p.H||1080;pages=p.pages;pages.forEach(pg=>(pg.objects||[]).forEach(markCors));thumbs=p.thumbs||pages.map(()=>null);cur=clamp(p.cur||0,0,pages.length-1);cloud.id=p.cloudId||null;userGuides=(Array.isArray(p.guides)?p.guides:[]).filter(g=>g&&(g.o==='h'||g.o==='v')&&isFinite(g.pos)).map(g=>({o:g.o,pos:+g.pos}));
+  W=p.W||1080;H=p.H||1080;pages=p.pages;pages.forEach(pg=>(pg.objects||[]).forEach(markCors));thumbs=p.thumbs||pages.map(()=>null);cur=clamp(p.cur||0,0,pages.length-1);cloud.id=p.cloudId||null;cloud.viewId=null;cloud.role=p.cloudId?'owner':null;userGuides=(Array.isArray(p.guides)?p.guides:[]).filter(g=>g&&(g.o==='h'||g.o==='v')&&isFinite(g.pos)).map(g=>({o:g.o,pos:+g.pos}));
   if(p.name)$('name').value=p.name;syncSize();fit();cv.discardActiveObject();
   await loadAsync(pages[cur]);await ensureFonts();ensureBg();resetHist();refresh();
 }
@@ -1367,9 +1367,16 @@ async function cloudSave({asNew=false,quiet=false}={}){
   }
   $('saved').textContent='Guardado en la nube';autosave();return id;
 }
+async function myRole(id){
+  try{const r=await sbReq('/rest/v1/rpc/design_role',{method:'POST',body:{p_design:id}});return typeof r==='string'?r:null}catch(e){return null}
+}
 async function cloudOpen(id){
-  const d=await sbReq(`/rest/v1/designs?id=eq.${id}&select=id,name,data`);if(!d||!d[0])throw new Error('No se encontró el diseño');
-  await loadProject(d[0].data);cloud.id=d[0].id;$('name').value=d[0].name;autosave();
+  const d=await sbReq(`/rest/v1/designs?id=eq.${id}&select=id,name,data,owner`);if(!d||!d[0])throw new Error('No se encontró el diseño');
+  const me=SB.sess(),role=(me&&me.user&&me.user.id===d[0].owner)?'owner':await myRole(id);
+  await loadProject(d[0].data);$('name').value=d[0].name;cloud.viewId=d[0].id;
+  if(role==='owner'||role==='editor'){cloud.id=d[0].id;cloud.role=role}
+  else{cloud.id=null;cloud.role=role;toast('Diseño abierto en modo lectura: lo que cambies es una copia local. Puedes comentar y guardar una copia en tu cuenta')}
+  autosave();if(typeof cmLoad==='function'&&$('cpanel').classList.contains('on'))cmLoad();
 }
 function fmtDate(t){try{return new Date(t).toLocaleString('es')}catch(e){return ''}}
 function openCloud(){
@@ -1432,15 +1439,30 @@ function openCloud(){
             const r=await sbReq(`/rest/v1/designs?id=eq.${d.id}&select=${hasMeta?'name,width,height,data,thumb,folder,tags':'name,width,height,data,thumb'}`);const s=r&&r[0];if(!s)throw new Error('No se encontró el diseño');
             const row={name:(s.name+' (copia)').slice(0,120),width:s.width,height:s.height,data:s.data,thumb:s.thumb};if(hasMeta){row.folder=s.folder;row.tags=s.tags}
             await sbReq('/rest/v1/designs',{method:'POST',body:row,headers:{Prefer:'return=representation'}});toast('Diseño duplicado');render()})},'Duplicar')),
+        h('div',{class:'row'},h('button',{class:'btn sm',onclick:()=>openShare(d)},'Personas…')),
         hasMeta&&h('div',{class:'row'},
           h('button',{class:'btn sm',onclick:guard(async()=>{const f=prompt('Carpeta (déjalo vacío para quitarla)',d.folder||'');if(f===null)return;await patch({folder:f.trim().slice(0,60)||null});render()})},'Carpeta'),
           h('button',{class:'btn sm',onclick:guard(async()=>{const t=prompt('Etiquetas separadas por comas',tagsOf(d).join(', '));if(t===null)return;
             const arr=[...new Set(t.split(',').map(x=>x.trim().replace(/^#/,'').slice(0,30)).filter(Boolean))].slice(0,10);await patch({tags:arr});render()})},'Etiquetas'))));
     };
+    const sharedBox=h('div',{class:'dgrid'});
+    const loadShared=async()=>{
+      sharedBox.textContent='';
+      try{
+        const rows=await sbReq(`/rest/v1/design_members?user_id=eq.${me.id}&select=role,design:designs(id,name,width,height,thumb,updated_at)`);
+        const mine=(rows||[]).filter(r=>r.design);
+        if(!mine.length){sharedBox.append(h('div',{class:'hint'},'Nadie ha compartido todavía un diseño contigo.'));return}
+        mine.forEach(r=>{const d=r.design,th=h('div',{class:'th'}),im=safeImg(d.thumb);if(im)th.style.backgroundImage=`url(${im})`;
+          sharedBox.append(h('div',{class:'dcard'},th,h('div',{class:'in'},h('div',{class:'nm',title:d.name},d.name),
+            h('div',{class:'hint'},(r.role==='editor'?'Puedes editar':'Solo ver y comentar')+` · ${fmtDate(d.updated_at)}`),
+            h('div',{class:'row'},h('button',{class:'btn sm',onclick:guard(async()=>{await cloudOpen(d.id);$('mCloud').classList.remove('on');toast('Diseño abierto')})},'Abrir')))))});
+      }catch(e){sharedBox.append(h('div',{class:'hint'},'No disponible todavía: vuelve a ejecutar supabase/schema.sql en tu proyecto.'))}
+    };
     const render=guard(async()=>{
       list.textContent='';
-      try{all=await sbReq('/rest/v1/designs?select=id,name,width,height,thumb,is_public,updated_at,folder,tags&order=updated_at.desc');hasMeta=true}
-      catch(e){all=await sbReq('/rest/v1/designs?select=id,name,width,height,thumb,is_public,updated_at&order=updated_at.desc');hasMeta=false}
+      try{all=await sbReq(`/rest/v1/designs?owner=eq.${me.id}&select=id,name,width,height,thumb,is_public,updated_at,folder,tags&order=updated_at.desc`);hasMeta=true}
+      catch(e){all=await sbReq(`/rest/v1/designs?owner=eq.${me.id}&select=id,name,width,height,thumb,is_public,updated_at&order=updated_at.desc`);hasMeta=false}
+      loadShared();
       status.textContent='';
       const folders=[...new Set(all.map(d=>d.folder).filter(Boolean))].sort();
       ff.textContent='';ff.append(h('option',{value:'*'},'Todas las carpetas'),h('option',{value:''},'Sin carpeta'),...folders.map(f=>h('option',{value:f},f)));
@@ -1459,8 +1481,8 @@ function openCloud(){
       h('div',{class:'row'},h('button',{class:'btn on',onclick:guard(async()=>{await cloudSave();toast('Guardado en la nube');status.textContent='';render()})},cloud.id?'Guardar cambios':'Guardar en la nube'),
         cloud.id&&h('button',{class:'btn',onclick:guard(async()=>{await cloudSave({asNew:true});toast('Copia guardada');status.textContent='';render()})},'Guardar como copia'),
         cloud.id&&h('button',{class:'btn',onclick:showVersions},'Versiones')),
-      cloud.id&&h('div',{class:'hint',style:'margin-top:6px'},'Los cambios se sincronizan solos unos segundos después de editar.'),vers),
-      h('div',{class:'blk'},h('h3',{},'Mis diseños'),meta,list),status,closeRow());
+      cloud.id&&h('div',{class:'hint',style:'margin-top:6px'},cloud.role==='editor'?'Estás editando un diseño compartido contigo. Los cambios se sincronizan solos unos segundos después de editar.':'Los cambios se sincronizan solos unos segundos después de editar.'),vers),
+      h('div',{class:'blk'},h('h3',{},'Mis diseños'),meta,list),h('div',{class:'blk'},h('h3',{},'Compartidos conmigo'),sharedBox),status,closeRow());
     render();
   }
   $('mCloud').classList.add('on');
@@ -1472,6 +1494,7 @@ let showRulers=store.get('lienzo-rulers')==='1',userGuides=[];
 const wrapEl=$('stagewrap');
 function niceStep(){for(const v of [10,20,50,100,200,500,1000,2000,5000])if(v*zoom>=70)return v;return 5000}
 function updateRulers(){
+  if(typeof renderPins==='function')renderPins();
   wrapEl.classList.toggle('rulers',showRulers);$('rulerBtn').classList.toggle('on',showRulers);
   const gl=$('gl');gl.textContent='';if(!showRulers)return;
   const wr=wrapEl.getBoundingClientRect(),cr=cv.upperCanvasEl.getBoundingClientRect(),dpr=window.devicePixelRatio||1,css=getComputedStyle(document.documentElement);
@@ -1517,6 +1540,111 @@ $('rulerH').onpointerdown=e=>newGuide(e,'h');$('rulerV').onpointerdown=e=>newGui
 $('rulerBtn').onclick=()=>{showRulers=!showRulers;store.set('lienzo-rulers',showRulers?'1':'0');updateRulers()};
 $('stage').addEventListener('scroll',updateRulers);addEventListener('resize',updateRulers);
 if(window.ResizeObserver)new ResizeObserver(()=>updateRulers()).observe($('stagewrap'));
+
+/* ---------- Compartir con personas ---------- */
+function openShare(d){
+  const C_=$('shareCard');C_.textContent='';C_.append(h('h2',{},'Compartir «'+d.name+'»'));
+  const list=h('div'),status=h('div',{class:'hint',style:'min-height:18px;margin-top:6px'});
+  const roleSel=()=>h('select',{class:'sel',style:'max-width:160px'},h('option',{value:'editor'},'Puede editar'),h('option',{value:'viewer'},'Solo ver y comentar'));
+  const em=h('input',{type:'email',placeholder:'correo@ejemplo.com',style:'flex:1;min-width:0;border:1px solid var(--line);border-radius:8px;padding:0 10px;height:32px;background:var(--panel2)'}),role=roleSel();
+  const load=async()=>{
+    list.textContent='';status.textContent='Cargando…';
+    try{
+      const rows=await sbReq(`/rest/v1/design_members?design_id=eq.${d.id}&select=user_id,email,role&order=created_at`);status.textContent='';
+      if(!rows.length)list.append(h('div',{class:'hint'},'Todavía no lo has compartido con nadie.'));
+      rows.forEach(m=>{const sel=roleSel();sel.value=m.role;
+        sel.onchange=async()=>{try{await sbReq(`/rest/v1/design_members?design_id=eq.${d.id}&user_id=eq.${m.user_id}`,{method:'PATCH',body:{role:sel.value}});toast('Permiso actualizado')}catch(e){toast(e.message)}};
+        list.append(h('div',{class:'vrow'},h('span',{style:'flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis'},m.email),sel,
+          h('button',{class:'btn sm',onclick:async()=>{try{await sbReq(`/rest/v1/design_members?design_id=eq.${d.id}&user_id=eq.${m.user_id}`,{method:'DELETE'});load()}catch(e){toast(e.message)}}},'Quitar')))});
+    }catch(e){status.textContent='';toast(e.message)}
+  };
+  const invite=h('button',{class:'btn on',onclick:async()=>{
+    const e=em.value.trim();if(!/^\S+@\S+\.\S+$/.test(e))return toast('Escribe un correo válido');
+    try{await sbReq('/rest/v1/rpc/share_design',{method:'POST',body:{p_design:d.id,p_email:e,p_role:role.value}});em.value='';toast('Compartido. La persona lo verá en «Compartidos conmigo»');load()}catch(err){toast(err.message)}}},'Invitar');
+  C_.append(h('div',{class:'hint',style:'margin-bottom:8px'},'La persona debe tener ya una cuenta en este editor. No se envía ningún correo: lo verá en Nube → «Compartidos conmigo». Quien solo puede ver puede comentar, pero no cambiar el original.'),
+    h('div',{class:'row'},em,role,invite),h('h3',{style:'margin:14px 0 4px;font-size:13px'},'Personas con acceso'),list,status,
+    h('div',{class:'row',style:'margin-top:14px'},h('button',{class:'btn',onclick:()=>$('mShare').classList.remove('on')},'Cerrar')));
+  $('mShare').classList.add('on');load();
+}
+
+/* ---------- Comentarios ---------- */
+const cm={items:[],place:false,pending:null,timer:null,showResolved:false,err:''};
+const cmDesign=()=>cloud.id||cloud.viewId||null;
+const cmCan=()=>!!(SB.cfg()&&SB.sess()&&cmDesign());
+const cpins=h('div',{id:'cpins'});document.body.append(cpins);
+const cmThreads=()=>cm.items.filter(c=>!c.parent).map((t,i)=>({t,n:i+1,replies:cm.items.filter(c=>c.parent===t.id)}));
+async function cmLoad(){
+  if(!cmCan()){cm.items=[];renderComments();return}
+  try{cm.items=await sbReq(`/rest/v1/design_comments?design_id=eq.${cmDesign()}&select=id,parent,author,author_email,page,x,y,body,resolved,created_at&order=created_at`);cm.err=''}
+  catch(e){cm.items=[];cm.err=e.message}
+  renderComments();
+}
+function renderPins(){
+  cpins.textContent='';const panel=$('cpanel');if(!panel||!panel.classList.contains('on'))return;
+  const r=cv.upperCanvasEl.getBoundingClientRect();
+  cmThreads().forEach(({t,n})=>{
+    if(t.page!==cur||(t.resolved&&!cm.showResolved))return;
+    const el=h('div',{class:'cpin'+(t.resolved?' done':''),title:t.body.slice(0,80),onclick:()=>focusThread(t.id)},String(n));
+    el.style.left=(r.left+t.x*zoom)+'px';el.style.top=(r.top+t.y*zoom)+'px';cpins.append(el);
+  });
+  if(cm.pending&&cm.pending.page===cur){const el=h('div',{class:'cpin new'},'+');el.style.left=(r.left+cm.pending.x*zoom)+'px';el.style.top=(r.top+cm.pending.y*zoom)+'px';cpins.append(el)}
+}
+async function focusThread(id){
+  const th=cm.items.find(c=>c.id===id);if(!th)return;
+  if(th.page!==cur&&th.page<pages.length)await goPage(th.page);
+  const el=document.querySelector(`[data-cid="${id}"]`);if(el){el.scrollIntoView({block:'nearest'});el.classList.add('hl');setTimeout(()=>el.classList.remove('hl'),1600)}
+}
+function renderComments(){
+  const P=$('cpanel'),threads=cmThreads(),open=threads.filter(x=>!x.t.resolved).length;
+  $('cmBtn').dataset.n=String(open);$('cmBtn').title=`Comentarios (${open} abiertos)`;
+  if(!P.classList.contains('on')){renderPins();return}
+  const keepScroll=P.scrollTop;P.textContent='';
+  P.append(h('div',{class:'row',style:'align-items:center'},h('h3',{style:'margin:0;flex:1;font-size:14px'},'Comentarios'),h('button',{class:'btn sm',style:'flex:none',onclick:()=>cmToggle(false)},'Cerrar')));
+  if(!cmCan()){P.append(h('div',{class:'hint',style:'margin-top:8px'},'Guarda el diseño en la nube (botón Nube) o ábrelo desde «Compartidos conmigo» para poder comentar.'));renderPins();return}
+  if(cm.err)P.append(h('div',{class:'hint',style:'margin-top:8px'},'No se pudieron cargar los comentarios: '+cm.err+'. ¿Has vuelto a ejecutar supabase/schema.sql?'));
+  const me=SB.sess().user||{},ta=h('textarea',{rows:3,placeholder:cm.pending?'Escribe tu comentario…':'Pulsa «Comentar en el lienzo» y haz clic donde quieras comentar'});
+  const post=h('button',{class:'btn on',onclick:async()=>{
+    const body=ta.value.trim();if(!cm.pending)return toast('Primero haz clic en el lienzo para elegir el sitio');if(!body)return toast('Escribe el comentario');
+    try{await sbReq('/rest/v1/design_comments',{method:'POST',body:{design_id:cmDesign(),parent:null,page:cm.pending.page,x:Math.round(cm.pending.x),y:Math.round(cm.pending.y),body:body.slice(0,2000),author_email:me.email||null}});
+      cm.pending=null;cm.place=false;await cmLoad()}catch(e){toast(e.message)}}},'Publicar');
+  P.append(h('div',{style:'margin-top:10px'},h('div',{class:'row'},h('button',{class:'btn'+(cm.place?' on':''),onclick:()=>{cm.place=!cm.place;cv.defaultCursor=cm.place?'crosshair':'default';if(cm.place)toast('Haz clic en el lienzo donde quieras comentar');renderComments()}},cm.place?'Haz clic en el lienzo…':'Comentar en el lienzo')),
+    h('div',{style:'margin-top:6px'},ta),h('div',{class:'row'},post)),
+    h('label',{class:'hint',style:'display:flex;gap:6px;align-items:center;margin-top:8px'},h('input',{type:'checkbox',...(cm.showResolved?{checked:'checked'}:{}),onchange:e=>{cm.showResolved=e.target.checked;renderComments()}}),'Mostrar resueltos'));
+  if(!threads.length)P.append(h('div',{class:'hint',style:'margin-top:10px'},'Aún no hay comentarios en este diseño.'));
+  threads.filter(x=>cm.showResolved||!x.t.resolved).forEach(({t,n,replies})=>{
+    const who=c=>(c.author_email||'alguien').split('@')[0],mineOrOwner=c=>c.author===me.id||cloud.role==='owner';
+    const rinput=h('input',{type:'text',placeholder:'Responder…'});
+    const reply=async()=>{const v=rinput.value.trim();if(!v)return;try{await sbReq('/rest/v1/design_comments',{method:'POST',body:{design_id:cmDesign(),parent:t.id,page:t.page,x:t.x,y:t.y,body:v.slice(0,2000),author_email:me.email||null}});await cmLoad()}catch(e){toast(e.message)}};
+    rinput.onkeydown=e=>{if(e.key==='Enter')reply()};
+    P.append(h('div',{class:'cth'+(t.resolved?' done':''),'data-cid':t.id},
+      h('div',{class:'hint',style:'display:flex;justify-content:space-between;cursor:pointer',onclick:()=>focusThread(t.id)},h('b',{},`#${n} · ${who(t)}`),h('span',{},`Pág. ${t.page+1} · ${fmtDate(t.created_at)}`)),
+      h('div',{style:'margin-top:4px;white-space:pre-wrap;overflow-wrap:anywhere'},t.body),
+      replies.map(r=>h('div',{class:'rp'},h('div',{class:'hint'},`${who(r)} · ${fmtDate(r.created_at)}`),h('div',{style:'white-space:pre-wrap;overflow-wrap:anywhere'},r.body),
+        mineOrOwner(r)&&h('button',{class:'btn sm',style:'margin-top:4px',onclick:async()=>{try{await sbReq(`/rest/v1/design_comments?id=eq.${r.id}`,{method:'DELETE'});await cmLoad()}catch(e){toast(e.message)}}},'Borrar'))),
+      h('div',{style:'margin-top:6px'},rinput),
+      h('div',{class:'row'},h('button',{class:'btn sm',onclick:reply},'Responder'),
+        h('button',{class:'btn sm',onclick:async()=>{try{await sbReq(`/rest/v1/design_comments?id=eq.${t.id}`,{method:'PATCH',body:{resolved:!t.resolved}});await cmLoad()}catch(e){toast(e.message)}}},t.resolved?'Reabrir':'Resolver'),
+        mineOrOwner(t)&&h('button',{class:'btn sm',onclick:async()=>{if(!confirm('¿Borrar este comentario y sus respuestas?'))return;try{await sbReq(`/rest/v1/design_comments?id=eq.${t.id}`,{method:'DELETE'});await cmLoad()}catch(e){toast(e.message)}}},'Borrar'))));
+  });
+  P.scrollTop=keepScroll;renderPins();
+}
+function cmToggle(on){
+  const P=$('cpanel');P.classList.toggle('on',on);clearInterval(cm.timer);
+  if(on){cmLoad();cm.timer=setInterval(()=>{if(!document.hidden)cmLoad()},15000)}
+  else{cm.place=false;cm.pending=null;cv.defaultCursor='default';renderPins()}
+  $('cmBtn').classList.toggle('on',on);if(on)renderComments();
+}
+$('cmBtn').onclick=()=>{
+  if(!(SB.cfg()&&SB.sess())){toast('Inicia sesión (botón Nube) para usar los comentarios');return}
+  cmToggle(!$('cpanel').classList.contains('on'));
+};
+cv.on('mouse:down',e=>{
+  if(!cm.place||!$('cpanel').classList.contains('on'))return;
+  const pt=cv.getPointer(e.e);cm.pending={x:pt.x,y:pt.y,page:cur};cm.place=false;cv.defaultCursor='default';cv.discardActiveObject();
+  renderComments();const ta=$('cpanel').querySelector('textarea');if(ta)ta.focus();
+});
+$('stage').addEventListener('scroll',()=>renderPins());
+setTimeout(()=>{if(SB.cfg()&&SB.sess()&&cmDesign())cmLoad()},2500);
 
 /* ---------- Colaboración en tiempo real (Supabase Realtime, canal broadcast) ---------- */
 const collab={on:false,joined:false,ws:null,room:null,topic:'',id:rid()+rid(),name:'',color:'#6c4cf1',peers:new Map(),last:new Map(),order:'',q:Promise.resolve(),applying:false,hb:null,flushT:null,seq:0,retry:0,lastCur:0};
@@ -1949,7 +2077,7 @@ if('serviceWorker' in navigator&&/^https?:$/.test(location.protocol)){addEventLi
   fillIcons();$('logo').append(ic('logo',22),' Lienzo');buildSizes();buildRail();showPanel();
   const shared=new URLSearchParams(location.search).get('d');
   if(shared&&SB.cfg()){
-    try{const d=await sbGetDesign(shared);await loadProject(d.data);const me=SB.sess();cloud.id=(me&&me.user&&me.user.id===d.owner)?d.id:null;
+    try{const d=await sbGetDesign(shared);await loadProject(d.data);const me=SB.sess();const role=(me&&me.user&&me.user.id===d.owner)?'owner':(me?await myRole(d.id):null);cloud.id=(role==='owner'||role==='editor')?d.id:null;cloud.role=role;cloud.viewId=me?d.id:null;
       toast(cloud.id?'Diseño abierto desde la nube':'Diseño compartido abierto como copia (guárdalo en tu cuenta para conservarlo)');return}
     catch(e){toast('No se pudo abrir el diseño compartido')}
   }

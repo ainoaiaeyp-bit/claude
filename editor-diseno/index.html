@@ -73,6 +73,19 @@ button:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-vis
 .libitem img{width:100%;height:100%;object-fit:cover;display:block}
 .libitem .x{position:absolute;top:3px;right:3px;background:rgba(0,0,0,.6);color:#fff;border:0;border-radius:50%;width:20px;height:20px;cursor:pointer;line-height:1;padding:0}
 .vrow{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 8px;border:1px solid var(--line);border-radius:8px;margin-top:6px}
+#cpanel{position:fixed;right:12px;top:64px;width:330px;max-height:calc(100vh - 80px);overflow:auto;background:var(--panel);border:1px solid var(--line);border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.3);z-index:45;display:none;padding:12px}
+#cpanel.on{display:block}
+#cpanel textarea{width:100%;border:1px solid var(--line);border-radius:8px;padding:8px;background:var(--panel2);font:inherit}
+#cpanel input[type=text]{width:100%;border:1px solid var(--line);border-radius:8px;padding:6px 8px;background:var(--panel2)}
+.cth{border:1px solid var(--line);border-radius:10px;padding:8px;margin-top:8px;background:var(--panel2)}
+.cth.hl{border-color:var(--brand);box-shadow:0 0 0 2px var(--soft)}
+.cth.done{opacity:.6}
+.cth .rp{margin:6px 0 0 10px;padding-left:8px;border-left:2px solid var(--line)}
+#cpins{position:fixed;inset:0;pointer-events:none;z-index:35}
+.cpin{position:fixed;pointer-events:auto;width:24px;height:24px;border-radius:50%;background:var(--brand);color:#fff;border:2px solid #fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;transform:translate(-12px,-12px);cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.35)}
+.cpin.done{background:#8b93a5;opacity:.7}.cpin.new{background:#ff3d6b}
+.tb[data-n]:not([data-n="0"])::after{content:attr(data-n);background:#ff3d6b;color:#fff;border-radius:9px;padding:0 5px;font-size:11px;margin-left:4px}
+@media(max-width:900px){#cpanel{left:8px;right:8px;width:auto;top:auto;bottom:70px;max-height:55vh}}
 #ctx{position:fixed;display:none;background:var(--panel);border:1px solid var(--line);border-radius:10px;box-shadow:0 10px 30px rgba(0,0,0,.3);padding:5px;z-index:70;min-width:190px}
 #ctx.on{display:block}
 #ctx button{display:flex;align-items:center;gap:8px;width:100%;border:0;background:none;text-align:left;padding:7px 10px;border-radius:7px;cursor:pointer}
@@ -156,6 +169,7 @@ main{flex:1;display:flex;min-height:0}
 .mini{border:0;background:none;cursor:pointer;padding:0 2px;font-size:13px;opacity:.8}
 .modal{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:center;justify-content:center;z-index:50}
 .modal.on{display:flex}
+#mShare{z-index:55}
 .card{background:var(--panel);border-radius:14px;padding:20px;width:min(420px,92vw);box-shadow:0 20px 60px rgba(0,0,0,.4)}
 .card h2{margin:0 0 12px;font-size:17px}
 .card table{width:100%;border-collapse:collapse}.card td{padding:4px 0}.card kbd{background:var(--panel2);border:1px solid var(--line);border-radius:5px;padding:1px 6px;font-size:12px}
@@ -204,6 +218,7 @@ main{flex:1;display:flex;min-height:0}
   <button class="tb" id="theme" data-ic="moon" title="Tema claro/oscuro"></button>
   <button class="tb" id="help" title="Atajos de teclado">?</button>
   <button class="tb" id="install" data-ic="download" style="display:none" title="Instalar como aplicación">Instalar</button>
+  <button class="tb" id="cmBtn" data-ic="msg" title="Comentarios">Comentarios</button>
   <button class="tb" id="collabBtn" data-ic="users" title="Colaborar en tiempo real">Colaborar</button>
   <button class="tb" id="cloudBtn" data-ic="cloud" title="Cuenta y nube">Nube</button>
   <button class="tb" id="ai" data-ic="sparkle" title="Asistente con IA">IA</button>
@@ -270,6 +285,7 @@ main{flex:1;display:flex;min-height:0}
 </div></div>
 
 <div class="modal" id="mCollab"><div class="card" id="collabCard" style="width:min(520px,94vw)"></div></div>
+<div class="modal" id="mShare"><div class="card" id="shareCard" style="width:min(520px,94vw);max-height:90vh;overflow:auto"></div></div>
 <div class="modal" id="mCloud"><div class="card" id="cloudCard" style="width:min(680px,94vw);max-height:90vh;overflow:auto"></div></div>
 <div class="modal" id="mAI"><div class="card" id="aiCard" style="width:min(540px,94vw);max-height:90vh;overflow:auto"></div></div>
 <input type="file" id="file" accept="image/*" hidden>
@@ -277,6 +293,7 @@ main{flex:1;display:flex;min-height:0}
 <input type="file" id="fileJson" accept=".json,application/json" hidden>
 <div id="pres"><img id="presImg" alt=""><span id="presN"></span><button class="tb" id="presX" data-ic="close" title="Salir (Esc)"></button></div>
 <button id="fab" aria-label="Propiedades" title="Propiedades y capas"></button>
+<div id="cpanel"></div>
 <div id="ctx"></div>
 <div id="toast"></div>
 
