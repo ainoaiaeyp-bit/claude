@@ -19,6 +19,47 @@ function normalize(d) {
 function load() { try { return normalize(JSON.parse(localStorage.getItem(KEY))); } catch { return normalize(); } }
 function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch { toast('No se pudo guardar: almacenamiento lleno'); } }
 
+
+// ---------- Iconos propios (trazo fino, estilo SF Symbols) ----------
+const G = {
+  home: '<path d="M4 11l8-6.5 8 6.5v8a1.5 1.5 0 0 1-1.5 1.5H15V15H9v5.5H5.5A1.5 1.5 0 0 1 4 19z"/>',
+  food: '<path d="M7 3.5v6.5a2 2 0 0 0 4 0V3.5M9 3.5V21M17 21V3.5c-2.2 1.4-3 4-3 6.5v3.5h3"/>',
+  car: '<path d="M4 15v-3l2-5a2 2 0 0 1 1.9-1.3h8.2A2 2 0 0 1 18 7l2 5v3M4 15h16v3.2H4zM7 18.2v1.8M17 18.2v1.8"/><circle cx="7.6" cy="12.6" r=".8" fill="currentColor"/><circle cx="16.4" cy="12.6" r=".8" fill="currentColor"/>',
+  film: '<rect x="3.5" y="5" width="17" height="14" rx="2.5"/><path d="M10 9.4v5.2l4.4-2.6z"/>',
+  heart: '<path d="M12 20s-7.5-4.6-7.5-10.1A4.3 4.3 0 0 1 12 7.5a4.3 4.3 0 0 1 7.5 2.4C19.5 15.4 12 20 12 20z"/>',
+  bag: '<path d="M5.5 8h13l-1 11.5h-11zM9 8V7a3 3 0 0 1 6 0v1"/>',
+  plane: '<path d="M20.5 3.5L10 14M20.5 3.5L14 20.5l-4-6.5-6.5-4z"/>',
+  case: '<rect x="3" y="7.5" width="18" height="12" rx="2.5"/><path d="M8.5 7.5V6a2 2 0 0 1 2-2h3a2 2 0 0 1 2 2v1.5M3 13h18"/>',
+  repeat: '<path d="M17 4l3 3-3 3M20 7H9a5 5 0 0 0-5 5M7 20l-3-3 3-3M4 17h11a5 5 0 0 0 5-5"/>',
+  wallet: '<rect x="3" y="6" width="18" height="13" rx="3"/><path d="M3 10h18M16 14.500h2"/>',
+  building: '<path d="M5 20V5.500A1.5 1.5 0 0 1 6.5 4h7A1.5 1.5 0 0 1 15 5.500V20M15 9h3.500A1.5 1.5 0 0 1 20 10.500V20M3 20h18M8.5 8h3M8.5 12h3M8.5 16h3"/>',
+  dots: '<circle cx="6" cy="12" r="1.3" fill="currentColor"/><circle cx="12" cy="12" r="1.3" fill="currentColor"/><circle cx="18" cy="12" r="1.3" fill="currentColor"/>',
+  calendar: '<rect x="3.5" y="5" width="17" height="15.5" rx="3"/><path d="M3.5 10h17M8 3v4M16 3v4"/>',
+  cake: '<path d="M4.5 20h15M5.5 20v-6.500A1.5 1.5 0 0 1 7 12h10a1.5 1.5 0 0 1 1.5 1.500V20M5.5 16c2 1.5 3.5 1.5 4.5 0s2.5-1.5 4 0 3 1.5 4.5 0M12 12V9M12 7c.9-.9.9-1.8 0-2.7-.9.9-.9 1.8 0 2.700z"/>',
+  checkc: '<circle cx="12" cy="12" r="8.5"/><path d="M8.2 12.300l2.6 2.6 5-5.4"/>',
+  check: '<path d="M5 12.500l4.5 4.500L19 7.5"/>',
+  bell: '<path d="M6 16.500V11a6 6 0 0 1 12 0v5.500l1.5 1.500h-15zM10 20.500a2 2 0 0 0 4 0"/>',
+  euro: '<path d="M17.5 7.200A6 6 0 0 0 7.5 9.500v5a6 6 0 0 0 10 2.300M5 10.800h8M5 13.200h8"/>',
+  coffee: '<path d="M5 9h11v5a4 4 0 0 1-4 4H9a4 4 0 0 1-4-4zM16 10h1.500a2 2 0 0 1 0 4H16M8 3.500v2M11.5 3.500v2M4.5 20.500h12"/>',
+  moon: '<path d="M19.5 14.500A8 8 0 0 1 9.5 4.500a8 8 0 1 0 10 10z"/>',
+  apple: '<path d="M12 8c-1.5-1.2-5-1-6 2.5-.8 3 1 8 3 9 1 .5 2-.3 3-.3s2 .8 3 .3c2-1 3.8-6 3-9-1-3.5-4.5-3.7-6-2.500zM12 8c0-2 .8-3.5 2.5-4"/>',
+  drop: '<path d="M12 3.500s6 6.2 6 10.500a6 6 0 0 1-12 0c0-4.3 6-10.5 6-10.500z"/>',
+  scale: '<rect x="4" y="4" width="16" height="16" rx="4"/><path d="M8.5 9.500a5 5 0 0 1 7 0M12 10.500l1.8-2"/>',
+  pulse: '<path d="M3 12h4l2.5-6 4 12 2.5-6H21"/>',
+  flame: '<path d="M12 3.500c.5 3-3.5 4.7-3.5 8.800a4.2 4.2 0 0 0 8.4.5c0-1.6-.8-2.6-1.6-3.6-.2 1.3-.9 2-1.7 2.2.5-3-.3-5.5-1.6-7.900z"/>',
+  target: '<circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="1" fill="currentColor"/>',
+  note: '<path d="M6 3.500h9l4 4v13H6zM14.5 3.500V8H19M9 12.500h6M9 16h6"/>',
+  leaf: '<path d="M5 19c0-8 4-13 14-14 0 9-4.5 14-12 13.500M5 19c3-4 6-6.5 9-8"/>',
+  sliders: '<path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/>',
+  chat: '<path d="M5 5.500h14a1.5 1.5 0 0 1 1.5 1.500v8a1.5 1.5 0 0 1-1.5 1.500h-8l-4.5 3.500v-3.500H5A1.5 1.5 0 0 1 3.5 15V7A1.5 1.5 0 0 1 5 5.500z"/>',
+  trash: '<path d="M4.5 7h15M9.5 7V4.500h5V7M6.5 7l.8 12.500h9.400L17.5 7M10 11v5M14 11v5"/>',
+  book: '<path d="M5 5.500A1.5 1.5 0 0 1 6.5 4H19v14H6.500A1.5 1.5 0 0 0 5 19.500zM5 19.500A1.5 1.5 0 0 0 6.5 21H19"/>'
+};
+const gl = n => G[n] ? `<svg class="g" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${G[n]}</svg>` : esc(n);
+const CHK = gl('check');
+const HAB_ICONS = [['flame', 'Constancia'], ['drop', 'Agua'], ['pulse', 'Ejercicio'], ['book', 'Lectura'], ['moon', 'Descanso'], ['heart', 'Salud'], ['leaf', 'Alimentación'], ['target', 'Meta']];
+const GOAL_ICONS = [['plane', 'Viaje'], ['home', 'Casa'], ['car', 'Coche'], ['bag', 'Compra'], ['target', 'Meta'], ['heart', 'Salud'], ['building', 'Negocio'], ['book', 'Estudios']];
+
 // ---------- Utilidades ----------
 const $ = s => document.querySelector(s);
 const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
@@ -52,15 +93,15 @@ const monthlyOf = s => s.amount * ({ mensual: 1, anual: 1 / 12, trimestral: 1 / 
 function toast(msg) { const t = $('#toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove('show'), 3500); }
 
 const CATS = {
-  'Hogar': ['🏠', '#ff9f0a'], 'Comida': ['🍽️', '#ff453a'], 'Transporte': ['🚗', '#0a84ff'], 'Ocio': ['🎬', '#bf5af2'], 'Salud': ['❤️', '#ff375f'],
-  'Compras': ['🛍️', '#64d2ff'], 'Viajes': ['✈️', '#30d158'], 'Trabajo': ['💼', '#5e5ce6'], 'Suscripciones': ['🔁', '#8e8e93'],
-  'Nómina': ['💶', '#30d158'], 'Negocio': ['🏢', '#5e5ce6'], 'Otros': ['•••', '#8e8e93']
+  'Hogar': ['home', '#ff9f0a'], 'Comida': ['food', '#ff453a'], 'Transporte': ['car', '#0a84ff'], 'Ocio': ['film', '#bf5af2'], 'Salud': ['heart', '#ff375f'],
+  'Compras': ['bag', '#64d2ff'], 'Viajes': ['plane', '#30d158'], 'Trabajo': ['case', '#5e5ce6'], 'Suscripciones': ['repeat', '#8e8e93'],
+  'Nómina': ['wallet', '#30d158'], 'Negocio': ['building', '#5e5ce6'], 'Otros': ['dots', '#8e8e93']
 };
 const catI = c => CATS[c] || CATS.Otros;
-const CAT_OPTS = Object.keys(CATS).map(c => [c, `${CATS[c][0]} ${c}`]);
+const CAT_OPTS = Object.keys(CATS).map(c => [c, c]);
 const OUT_CATS = Object.keys(CATS).filter(c => !['Nómina', 'Negocio'].includes(c));
 const REPEAT_OPTS = [['no', 'Nunca'], ['diario', 'Cada día'], ['semanal', 'Cada semana'], ['mensual', 'Cada mes'], ['anual', 'Cada año']];
-const MEALS = { desayuno: ['🥐', 'Desayuno'], comida: ['🍝', 'Comida'], cena: ['🌙', 'Cena'], snack: ['🍎', 'Snack'] };
+const MEALS = { desayuno: ['coffee', 'Desayuno'], comida: ['food', 'Comida'], cena: ['moon', 'Cena'], snack: ['apple', 'Snack'] };
 const SPORTS = ['Caminar', 'Correr', 'Gimnasio', 'Ciclismo', 'Natación', 'Yoga', 'Fútbol', 'Otro'];
 
 const ui = { tab: 'hoy', prev: 'hoy', sub: null, money: 'mov', scope: 'todo', month: monthKey(new Date()), busy: false, calMonth: monthKey(new Date()), calSel: today(), hseg: 'nut', hday: today() };
@@ -99,10 +140,10 @@ async function notify(title, body, tag) {
 }
 async function checkDue() {
   const now = new Date(), nowS = isoTime(now), t = today(), hm = nowS.slice(11); let dirty = false;
-  for (const r of S.rem) if (!r.done && !r.notified && r.due && r.due <= nowS) { r.notified = true; dirty = true; notify('⏰ Recordatorio', r.title, r.id); }
+  for (const r of S.rem) if (!r.done && !r.notified && r.due && r.due <= nowS) { r.notified = true; dirty = true; notify('Recordatorio', r.title, r.id); }
   for (const e of S.events) {
     if (e.lastN === t || !occurs(e, t) || hm < (e.time || '09:00')) continue;
-    e.lastN = t; dirty = true; notify(e.type === 'cumple' ? '🎂 Cumpleaños' : '📅 Evento', eventTitle(e, t), e.id);
+    e.lastN = t; dirty = true; notify(e.type === 'cumple' ? 'Cumpleaños' : 'Evento', eventTitle(e, t), e.id);
   }
   if (dirty) { save(); if (!document.querySelector('#sheet-root .sheet')) render(); }
 }
@@ -126,8 +167,8 @@ function eventTitle(e, ds) {
   return age > 0 && age < 120 ? `${e.title} cumple ${age}` : e.title;
 }
 const KIND = {
-  evento: ['📅', 'var(--blue)'], cumple: ['🎂', 'var(--pink)'], tarea: ['☑︎', 'var(--orange)'], rem: ['⏰', 'var(--purple)'],
-  sub: ['🔁', '#8e8e93'], cobro: ['€', 'var(--green)']
+  evento: ['calendar', 'var(--blue)'], cumple: ['cake', 'var(--pink)'], tarea: ['checkc', 'var(--orange)'], rem: ['bell', 'var(--purple)'],
+  sub: ['repeat', '#8e8e93'], cobro: ['euro', 'var(--green)']
 };
 function itemsOn(ds) {
   const out = [];
@@ -183,20 +224,21 @@ const TABS = [['hoy', 'Hoy'], ['cal', 'Calendario'], ['money', 'Dinero'], ['biz'
 
 // ---------- Componentes ----------
 function head(title, subtitle, actions = '', back = '') {
+  if (!back && ui.tab !== 'ia' && ui.tab !== 'more') actions = `<button class="icon-btn" data-act="ai" aria-label="Asistente">${gl('chat')}</button>${actions}`;
   return `${back ? `<button class="back" data-act="back">‹ ${back}</button>` : ''}<div class="head"><div><h1 class="large">${title}</h1>${subtitle ? `<div class="sub">${subtitle}</div>` : ''}</div><div style="display:flex;gap:10px">${actions}</div></div>`;
 }
 const plusBtn = act => `<button class="icon-btn plus" data-act="${act}" aria-label="Añadir">+</button>`;
 const row = ({ ico, color, title, sub, right, act, id, cls = '', style = '', rightSub = '' }) =>
-  `<div class="row ${ico === undefined ? 'noicon' : ''} ${cls}" ${act ? `data-act="${act}" data-id="${id}"` : ''} style="${style}">${ico !== undefined ? `<div class="ico" style="background:${color}">${ico}</div>` : ''}<div class="grow"><div class="t">${esc(title)}</div>${sub ? `<div class="s">${esc(sub)}</div>` : ''}</div>${right !== undefined ? `<div style="text-align:right"><div class="amt">${right}</div>${rightSub}</div>` : ''}</div>`;
+  `<div class="row ${ico === undefined ? 'noicon' : ''} ${cls}" ${act ? `data-act="${act}" data-id="${id}"` : ''} style="${style}">${ico !== undefined ? `<div class="ico" style="background:${color}">${gl(ico)}</div>` : ''}<div class="grow"><div class="t">${esc(title)}</div>${sub ? `<div class="s">${esc(sub)}</div>` : ''}</div>${right !== undefined ? `<div style="text-align:right"><div class="amt">${right}</div>${rightSub}</div>` : ''}</div>`;
 const group = (rows, empty) => `<div class="group">${rows || `<div class="empty">${empty}</div>`}</div>`;
 function itemRow(it, withDate) {
   const [ico, color] = KIND[it.k];
   const check = it.k === 'tarea' ? `<button class="check" data-act="toggle-task" data-id="${it.id}" aria-label="Completar"></button>` : '';
-  return `<div class="row" data-act="${it.act}" data-id="${it.id}">${check || `<div class="ico" style="background:${color}">${ico}</div>`}<div class="grow"><div class="t">${esc(it.title)}</div><div class="s">${withDate ? rel(withDate) + ' · ' : ''}${esc(it.sub)}${it.time ? ' · ' + it.time : ''}</div></div>${it.right ? `<div class="amt">${it.right}</div>` : ''}</div>`;
+  return `<div class="row" data-act="${it.act}" data-id="${it.id}">${check || `<div class="ico" style="background:${color}">${gl(ico)}</div>`}<div class="grow"><div class="t">${esc(it.title)}</div><div class="s">${withDate ? rel(withDate) + ' · ' : ''}${esc(it.sub)}${it.time ? ' · ' + it.time : ''}</div></div>${it.right ? `<div class="amt">${it.right}</div>` : ''}</div>`;
 }
 const waterRow = ds => {
   const n = S.water[ds] || 0, goal = S.health.water;
-  return `<div class="row" style="gap:10px"><div class="ico" style="background:var(--teal)">💧</div><div class="grow"><div class="t">Agua</div><div class="s">${n} de ${goal} vasos · ${num(n * 0.25, 2)} L</div></div><button class="icon-btn" data-act="water" data-id="${ds}:-1" aria-label="Quitar vaso">−</button><button class="icon-btn plus" data-act="water" data-id="${ds}:1" aria-label="Añadir vaso">+</button></div>`;
+  return `<div class="row" style="gap:10px"><div class="ico" style="background:var(--teal)">${gl('drop')}</div><div class="grow"><div class="t">Agua</div><div class="s">${n} de ${goal} vasos · ${num(n * 0.25, 2)} L</div></div><button class="icon-btn" data-act="water" data-id="${ds}:-1" aria-label="Quitar vaso">−</button><button class="icon-btn plus" data-act="water" data-id="${ds}:1" aria-label="Añadir vaso">+</button></div>`;
 };
 
 // ---------- Vista: Hoy ----------
@@ -209,19 +251,19 @@ function viewHoy() {
   const hoy = [...overdue, ...itemsOn(t), ...noDate];
   const prox = [];
   for (let i = 1; i <= 7; i++) { const d = addDays(t, i); for (const it of itemsOn(d)) prox.push([d, it]); }
-  const habits = S.habits.length ? `<div class="card"><div class="t" style="margin-bottom:10px">Hábitos de hoy</div><div class="hchips">${S.habits.map(x => `<button class="${x.log[t] ? 'on' : ''}" data-act="habit" data-id="${x.id}">${esc(x.emoji || '•')} ${esc(x.name)}</button>`).join('')}</div></div>` : '';
+  const habits = S.habits.length ? `<div class="card"><div class="t" style="margin-bottom:10px">Hábitos de hoy</div><div class="hchips">${S.habits.map(x => `<button class="${x.log[t] ? 'on' : ''}" data-act="habit" data-id="${x.id}">${esc(x.name)}</button>`).join('')}</div></div>` : '';
   const nu = nutrition(t), pct = Math.min(100, nu.kcal / (S.health.kcal || 1) * 100);
-  const health = `<div class="section-title">Salud</div><div class="group"><div class="row" data-act="health-open"><div class="ico" style="background:var(--green)">🥗</div><div class="grow"><div style="display:flex;justify-content:space-between"><div class="t">Nutrición</div><div class="amt">${num(nu.kcal)} / ${num(S.health.kcal)} kcal</div></div><div class="prog"><i style="width:${pct}%;${nu.kcal > S.health.kcal ? 'background:var(--orange)' : ''}"></i></div></div></div>${waterRow(t)}</div>`;
-  return `${head(greet, fdateL(t), `<button class="icon-btn" data-act="settings" aria-label="Ajustes">⚙︎</button>`)}
+  const health = `<div class="section-title">Salud</div><div class="group"><div class="row" data-act="health-open"><div class="ico" style="background:var(--green)">${gl('leaf')}</div><div class="grow"><div style="display:flex;justify-content:space-between"><div class="t">Nutrición</div><div class="amt">${num(nu.kcal)} / ${num(S.health.kcal)} kcal</div></div><div class="prog"><i style="width:${pct}%;${nu.kcal > S.health.kcal ? 'background:var(--orange)' : ''}"></i></div></div></div>${waterRow(t)}</div>`;
+  return `${head(greet, fdateL(t), `<button class="icon-btn" data-act="settings" aria-label="Ajustes">${gl('sliders')}</button>`)}
   <div class="hero"><div class="lbl">Balance de ${fmonth(mk)}</div><div class="big">${eur(m.in - m.out)}</div>
     <div class="two"><div class="pill"><span class="lbl">Ingresos</span><b>${eur(m.in, 0)}</b></div><div class="pill"><span class="lbl">Gastos</span><b>${eur(m.out, 0)}</b></div></div></div>
   <div class="grid2">
     <div class="card kpi" data-act="goto" data-id="money:subs"><div class="n">${eur(subsMonthly(), 0)}</div><div class="l">Suscripciones / mes</div></div>
     <div class="card kpi" data-act="goto" data-id="biz"><div class="n">${eur(bizPending(), 0)}</div><div class="l">Pendiente de cobro</div></div>
   </div>
-  <div class="section-title">Hoy</div>${group(hoy.map(i => itemRow(i)).join(''), 'Nada para hoy. ¡Día libre! 🎉')}
+  <div class="section-title">Hoy</div>${group(hoy.map(i => itemRow(i)).join(''), 'Nada para hoy. Día libre.')}
   ${habits}${health}
-  <div class="section-title">Próximos 7 días</div>${group(prox.slice(0, 10).map(([d, i]) => itemRow(i, d)).join(''), 'Semana tranquila ✨')}`;
+  <div class="section-title">Próximos 7 días</div>${group(prox.slice(0, 10).map(([d, i]) => itemRow(i, d)).join(''), 'Semana tranquila.')}`;
 }
 
 // ---------- Vista: Calendario ----------
@@ -269,14 +311,14 @@ function bodySum() {
   const cats = keys.map(c => [c, sm.cats[c] || 0]).sort((a, b) => b[1] - a[1]);
   const cat = cats.map(([c, v]) => {
     const b = S.budgets[c], over = b && v > b, w = b ? Math.min(100, v / b * 100) : (sm.out ? v / sm.out * 100 : 0);
-    return `<div style="margin-bottom:14px"><div style="display:flex;justify-content:space-between"><span>${catI(c)[0]} ${esc(c)}</span><b ${over ? 'style="color:var(--red)"' : ''}>${eur(v, 0)}${b ? ` / ${eur(b, 0)}` : ''}</b></div><div class="catbar"><i style="width:${w}%;background:${over ? 'var(--red)' : catI(c)[1]}"></i></div></div>`;
+    return `<div style="margin-bottom:14px"><div style="display:flex;justify-content:space-between"><span style="display:inline-flex;align-items:center;gap:8px"><span class="mini" style="background:${catI(c)[1]}">${gl(catI(c)[0])}</span>${esc(c)}</span><b ${over ? 'style="color:var(--red)"' : ''}>${eur(v, 0)}${b ? ` / ${eur(b, 0)}` : ''}</b></div><div class="catbar"><i style="width:${w}%;background:${over ? 'var(--red)' : catI(c)[1]}"></i></div></div>`;
   }).join('');
   return `<div class="card"><div class="t">Últimos 6 meses</div><div class="s"><span class="pos">●</span> Ingresos &nbsp; <span style="color:var(--red)">●</span> Gastos</div><div class="bars">${bars}</div></div>
   <div class="card"><div style="display:flex;justify-content:space-between;margin-bottom:12px"><div class="t">Gastos por categoría</div><button class="small-btn" data-act="budgets">Presupuestos</button></div>${cat || '<div class="empty">Sin gastos este mes</div>'}</div>`;
 }
 function bodySubs() {
   const subs = [...S.subs].sort((a, b) => a.next.localeCompare(b.next));
-  const rows = subs.map(s => row({ ico: '🔁', color: s.scope === 'negocio' ? 'var(--blue)' : 'var(--purple)', title: s.name, sub: `${s.active === false ? 'Pausada' : `Próximo cargo ${fdate(s.next)} · ${s.cycle}`}${s.scope === 'negocio' ? ' · Negocio' : ''}`, right: eur(s.amount), act: 'edit-sub', id: s.id, style: s.active === false ? 'opacity:.5' : '' })).join('');
+  const rows = subs.map(s => row({ ico: 'repeat', color: s.scope === 'negocio' ? 'var(--blue)' : 'var(--purple)', title: s.name, sub: `${s.active === false ? 'Pausada' : `Próximo cargo ${fdate(s.next)} · ${s.cycle}`}${s.scope === 'negocio' ? ' · Negocio' : ''}`, right: eur(s.amount), act: 'edit-sub', id: s.id, style: s.active === false ? 'opacity:.5' : '' })).join('');
   const tot = subsMonthly();
   return `<div class="grid2"><div class="card kpi"><div class="n">${eur(tot)}</div><div class="l">Al mes</div></div><div class="card kpi"><div class="n">${eur(tot * 12, 0)}</div><div class="l">Al año</div></div></div>
   ${group(rows, 'Añade tus suscripciones (Netflix, hosting, software…) y te aviso antes de cada cargo.')}`;
@@ -289,9 +331,9 @@ function viewBiz() {
   const open = S.biz.filter(b => b.status === 'presupuesto').reduce((a, b) => a + b.amount, 0);
   const order = { pendiente: 0, presupuesto: 1, cobrado: 2 };
   const list = [...S.biz].sort((a, b) => order[a.status] - order[b.status] || (b.date || '').localeCompare(a.date || ''));
-  const rows = list.map(b => row({ ico: b.status === 'cobrado' ? '✓' : '€', color: STATUS[b.status][1], title: b.client, sub: `${b.concept || '—'}${b.due ? ` · vence ${fdate(b.due)}` : ''}`, right: eur(b.amount), rightSub: `<span class="badge" style="background:${STATUS[b.status][1]}">${STATUS[b.status][0]}</span>`, act: 'edit-biz', id: b.id })).join('');
+  const rows = list.map(b => row({ ico: b.status === 'cobrado' ? 'check' : 'euro', color: STATUS[b.status][1], title: b.client, sub: `${b.concept || '—'}${b.due ? ` · vence ${fdate(b.due)}` : ''}`, right: eur(b.amount), rightSub: `<span class="badge" style="background:${STATUS[b.status][1]}">${STATUS[b.status][0]}</span>`, act: 'edit-biz', id: b.id })).join('');
   return `${head('Negocio', fmonth(mk), plusBtn('add-biz'))}
-  <div class="hero" style="background:linear-gradient(135deg,#0a84ff,#5e5ce6)"><div class="lbl">Resultado del mes</div><div class="big">${eur(m.in - m.out)}</div>
+  <div class="hero" style="background:linear-gradient(145deg,#1c8f86,#0b5c63)"><div class="lbl">Resultado del mes</div><div class="big">${eur(m.in - m.out)}</div>
     <div class="two"><div class="pill"><span class="lbl">Facturado</span><b>${eur(m.in, 0)}</b></div><div class="pill"><span class="lbl">Gastos</span><b>${eur(m.out, 0)}</b></div></div></div>
   <div class="grid2"><div class="card kpi"><div class="n">${eur(bizPending(), 0)}</div><div class="l">Por cobrar</div></div><div class="card kpi"><div class="n">${eur(open, 0)}</div><div class="l">En presupuesto</div></div></div>
   <div class="section-title">Clientes y trabajos</div>
@@ -301,58 +343,59 @@ function viewBiz() {
 // ---------- Vista: Más (hub) y subpantallas ----------
 function viewMore() {
   if (ui.sub) return { tasks: viewTasks, rem: viewRec, bday: viewBday, habits: viewHabits, notes: viewNotes, goals: viewGoals, health: viewHealth }[ui.sub]();
-  const nT = S.tasks.filter(t => !t.done).length, nR = S.rem.filter(r => !r.done).length;
+  const nT = S.tasks.filter(t => !t.done).length, nR = S.rem.filter(r => !r.done).length, nB = S.events.filter(e => e.type === 'cumple').length;
+  const pl = (n, one, many) => `${n} ${n === 1 ? one : many}`;
   const item = (k, ico, color, title, sub) => row({ ico, color, title, sub, right: '<span class="chev">›</span>', act: 'sub', id: k });
   return `${head('Más', 'Todo lo demás de tu vida')}
   <div class="group">
-    ${item('health', '🥗', 'var(--green)', 'Salud y nutrición', `${num(nutrition(today()).kcal)} kcal hoy`)}
-    ${item('tasks', '☑︎', 'var(--orange)', 'Tareas', `${nT} pendientes`)}
-    ${item('rem', '⏰', 'var(--purple)', 'Recordatorios', `${nR} pendientes`)}
-    ${item('bday', '🎂', 'var(--pink)', 'Cumpleaños', `${S.events.filter(e => e.type === 'cumple').length} guardados`)}
-    ${item('habits', '🔥', 'var(--red)', 'Hábitos', `${S.habits.length} activos`)}
-    ${item('goals', '🎯', 'var(--teal)', 'Objetivos de ahorro', `${S.goals.length} objetivos`)}
-    ${item('notes', '📝', '#ffcc00', 'Notas', `${S.notes.length} notas`)}
+    ${item('health', 'leaf', 'var(--green)', 'Salud y nutrición', `${num(nutrition(today()).kcal)} kcal hoy`)}
+    ${item('tasks', 'checkc', 'var(--orange)', 'Tareas', pl(nT, 'pendiente', 'pendientes'))}
+    ${item('rem', 'bell', 'var(--purple)', 'Recordatorios', pl(nR, 'pendiente', 'pendientes'))}
+    ${item('bday', 'cake', 'var(--pink)', 'Cumpleaños', pl(nB, 'guardado', 'guardados'))}
+    ${item('habits', 'flame', 'var(--red)', 'Hábitos', pl(S.habits.length, 'activo', 'activos'))}
+    ${item('goals', 'target', 'var(--teal)', 'Objetivos de ahorro', pl(S.goals.length, 'objetivo', 'objetivos'))}
+    ${item('notes', 'note', '#ffcc00', 'Notas', pl(S.notes.length, 'nota', 'notas'))}
   </div>
-  <div class="group">${row({ ico: '✨', color: 'linear-gradient(135deg,#5e5ce6,#bf5af2)', title: 'Asistente IA', sub: 'Pregunta o pídele que cree cosas', right: '<span class="chev">›</span>', act: 'ai', id: '' })}
-  ${row({ ico: '⚙︎', color: '#8e8e93', title: 'Ajustes', sub: 'Apariencia, IA, copia de seguridad', right: '<span class="chev">›</span>', act: 'settings', id: '' })}</div>`;
+  <div class="group">${row({ ico: 'chat', color: 'var(--blue)', title: 'Asistente IA', sub: 'Pregunta o pídele que cree cosas', right: '<span class="chev">›</span>', act: 'ai', id: '' })}
+  ${row({ ico: 'sliders', color: '#8e8e93', title: 'Ajustes', sub: 'Apariencia, IA, copia de seguridad', right: '<span class="chev">›</span>', act: 'settings', id: '' })}</div>`;
 }
 function viewTasks() {
   const t = today();
   const P = { alta: 0, media: 1, baja: 2 };
   const pend = S.tasks.filter(x => !x.done).sort((a, b) => (a.due || '9').localeCompare(b.due || '9') || P[a.prio] - P[b.prio]);
   const done = S.tasks.filter(x => x.done).slice(-15).reverse();
-  const r = x => `<div class="row noicon ${x.done ? 'done' : ''}"><button class="check ${x.done ? 'on' : ''}" data-act="toggle-task" data-id="${x.id}" aria-label="Completar">${x.done ? '✓' : ''}</button><div class="grow" data-act="edit-task" data-id="${x.id}"><div class="t">${x.prio === 'alta' ? '<span style="color:var(--red)">!</span> ' : ''}${esc(x.title)}</div><div class="s" style="${!x.done && x.due && x.due < t ? 'color:var(--red)' : ''}">${x.due ? `${fdate(x.due)} · ${rel(x.due)}` : 'Sin fecha'}</div></div></div>`;
-  return `${head('Tareas', '', plusBtn('add-task'), 'Más')}${group(pend.map(r).join(''), 'Sin tareas pendientes ✨')}${done.length ? `<div class="section-title">Completadas</div><div class="group">${done.map(r).join('')}</div>` : ''}`;
+  const r = x => `<div class="row noicon ${x.done ? 'done' : ''}"><button class="check ${x.done ? 'on' : ''}" data-act="toggle-task" data-id="${x.id}" aria-label="Completar">${x.done ? CHK : ''}</button><div class="grow" data-act="edit-task" data-id="${x.id}"><div class="t">${x.prio === 'alta' ? '<span style="color:var(--red)">!</span> ' : ''}${esc(x.title)}</div><div class="s" style="${!x.done && x.due && x.due < t ? 'color:var(--red)' : ''}">${x.due ? `${fdate(x.due)} · ${rel(x.due)}` : 'Sin fecha'}</div></div></div>`;
+  return `${head('Tareas', '', plusBtn('add-task'), 'Más')}${group(pend.map(r).join(''), 'Sin tareas pendientes.')}${done.length ? `<div class="section-title">Completadas</div><div class="group">${done.map(r).join('')}</div>` : ''}`;
 }
 function viewRec() {
   const pend = S.rem.filter(r => !r.done).sort((a, b) => (a.due || '9').localeCompare(b.due || '9'));
   const done = S.rem.filter(r => r.done).sort((a, b) => (b.due || '').localeCompare(a.due || '')).slice(0, 15);
   const r = x => {
     const late = !x.done && x.due && x.due < isoTime(new Date());
-    return `<div class="row noicon ${x.done ? 'done' : ''}"><button class="check ${x.done ? 'on' : ''}" data-act="toggle-rem" data-id="${x.id}" aria-label="Completar">${x.done ? '✓' : ''}</button><div class="grow" data-act="edit-rem" data-id="${x.id}"><div class="t">${esc(x.title)}</div><div class="s" style="${late ? 'color:var(--red)' : ''}">${x.due ? `${fdate(x.due)} · ${x.due.slice(11, 16)}` : 'Sin fecha'}${x.repeat && x.repeat !== 'no' ? ` · ${x.repeat}` : ''}</div></div></div>`;
+    return `<div class="row noicon ${x.done ? 'done' : ''}"><button class="check ${x.done ? 'on' : ''}" data-act="toggle-rem" data-id="${x.id}" aria-label="Completar">${x.done ? CHK : ''}</button><div class="grow" data-act="edit-rem" data-id="${x.id}"><div class="t">${esc(x.title)}</div><div class="s" style="${late ? 'color:var(--red)' : ''}">${x.due ? `${fdate(x.due)} · ${x.due.slice(11, 16)}` : 'Sin fecha'}${x.repeat && x.repeat !== 'no' ? ` · ${x.repeat}` : ''}</div></div></div>`;
   };
-  const perm = 'Notification' in window && Notification.permission !== 'granted' ? `<div class="card" data-act="notif" style="display:flex;gap:12px;align-items:center"><div class="ico" style="background:var(--red)">🔔</div><div class="grow"><div class="t">Activar avisos</div><div class="s">Recibe una notificación a su hora</div></div><span class="chev">›</span></div>` : '';
-  return `${head('Recordatorios', '', plusBtn('add-rem'), 'Más')}${perm}${group(pend.map(r).join(''), 'Sin recordatorios pendientes ✨')}${done.length ? `<div class="section-title">Completados</div><div class="group">${done.map(r).join('')}</div>` : ''}`;
+  const perm = 'Notification' in window && Notification.permission !== 'granted' ? `<div class="card" data-act="notif" style="display:flex;gap:12px;align-items:center"><div class="ico" style="background:var(--red)">${gl('bell')}</div><div class="grow"><div class="t">Activar avisos</div><div class="s">Recibe una notificación a su hora</div></div><span class="chev">›</span></div>` : '';
+  return `${head('Recordatorios', '', plusBtn('add-rem'), 'Más')}${perm}${group(pend.map(r).join(''), 'Sin recordatorios pendientes.')}${done.length ? `<div class="section-title">Completados</div><div class="group">${done.map(r).join('')}</div>` : ''}`;
 }
 function viewBday() {
   const list = S.events.filter(e => e.type === 'cumple').map(e => ({ e, next: nextBirthday(e) })).sort((a, b) => a.next.localeCompare(b.next));
   const rows = list.map(({ e, next }) => {
     const age = parseD(next).getFullYear() - parseD(e.date).getFullYear();
-    return row({ ico: '🎂', color: 'var(--pink)', title: e.title, sub: `${fdate(e.date)}${age > 0 && age < 120 ? ` · cumplirá ${age}` : ''}`, right: rel(next), act: 'edit-ev', id: e.id });
+    return row({ ico: 'cake', color: 'var(--pink)', title: e.title, sub: `${fdate(e.date)}${age > 0 && age < 120 ? ` · cumplirá ${age}` : ''}`, right: rel(next), act: 'edit-ev', id: e.id });
   }).join('');
-  return `${head('Cumpleaños', '', plusBtn('add-bday'), 'Más')}${group(rows, 'Guarda los cumpleaños y te aviso el mismo día 🎉')}`;
+  return `${head('Cumpleaños', '', plusBtn('add-bday'), 'Más')}${group(rows, 'Guarda los cumpleaños y te aviso el mismo día.')}`;
 }
 function viewHabits() {
   const t = today(), days = Array.from({ length: 7 }, (_, i) => addDays(t, i - 6));
-  const rows = S.habits.map(h => `<div class="row"><button class="check ${h.log[t] ? 'on' : ''}" data-act="habit" data-id="${h.id}" aria-label="Marcar hoy">${h.log[t] ? '✓' : ''}</button><div class="grow" data-act="edit-habit" data-id="${h.id}"><div class="t">${esc(h.emoji || '•')} ${esc(h.name)}</div><div class="hab">${days.map(d => `<i class="${h.log[d] ? 'on' : ''}"></i>`).join('')}</div></div><div class="amt">🔥 ${streak(h)}</div></div>`).join('');
+  const rows = S.habits.map(h => `<div class="row"><button class="check ${h.log[t] ? 'on' : ''}" data-act="habit" data-id="${h.id}" aria-label="Marcar hoy">${h.log[t] ? CHK : ''}</button><div class="ico" style="background:var(--red);margin-right:-2px">${gl(G[h.icon] ? h.icon : 'flame')}</div><div class="grow" data-act="edit-habit" data-id="${h.id}"><div class="t">${esc(h.name)}</div><div class="hab">${days.map(d => `<i class="${h.log[d] ? 'on' : ''}"></i>`).join('')}</div></div><div class="amt">${streak(h)} d</div></div>`).join('');
   return `${head('Hábitos', 'Racha de días seguidos', plusBtn('add-habit'), 'Más')}${group(rows, 'Crea un hábito (leer, meditar, deporte…) y márcalo cada día.')}`;
 }
 function viewGoals() {
-  const rows = S.goals.map(g => { const p = g.target ? Math.min(100, g.saved / g.target * 100) : 0; return `<div class="row" data-act="edit-goal" data-id="${g.id}"><div class="ico" style="background:var(--green)">${esc(g.emoji || '🎯')}</div><div class="grow"><div style="display:flex;justify-content:space-between"><div class="t">${esc(g.name)}</div><div class="amt">${eur(g.saved, 0)} / ${eur(g.target, 0)}</div></div><div class="prog"><i style="width:${p}%"></i></div><div class="s">${Math.round(p)}%${g.deadline ? ` · meta ${fdate(g.deadline)}` : ''}</div></div></div>`; }).join('');
+  const rows = S.goals.map(g => { const p = g.target ? Math.min(100, g.saved / g.target * 100) : 0; return `<div class="row" data-act="edit-goal" data-id="${g.id}"><div class="ico" style="background:var(--green)">${esc(g.emoji || 'target')}</div><div class="grow"><div style="display:flex;justify-content:space-between"><div class="t">${esc(g.name)}</div><div class="amt">${eur(g.saved, 0)} / ${eur(g.target, 0)}</div></div><div class="prog"><i style="width:${p}%"></i></div><div class="s">${Math.round(p)}%${g.deadline ? ` · meta ${fdate(g.deadline)}` : ''}</div></div></div>`; }).join('');
   return `${head('Objetivos', 'Ahorro con meta', plusBtn('add-goal'), 'Más')}${group(rows, 'Define una meta (viaje, coche, fondo de emergencia) y ve aportando.')}`;
 }
 function viewNotes() {
-  const rows = [...S.notes].sort((a, b) => b.date.localeCompare(a.date)).map(n => row({ ico: '📝', color: '#ffcc00', title: n.title || 'Sin título', sub: (n.text || '').replace(/\s+/g, ' ').slice(0, 80), act: 'edit-note', id: n.id })).join('');
+  const rows = [...S.notes].sort((a, b) => b.date.localeCompare(a.date)).map(n => row({ ico: 'note', color: '#ffcc00', title: n.title || 'Sin título', sub: (n.text || '').replace(/\s+/g, ' ').slice(0, 80), act: 'edit-note', id: n.id })).join('');
   return `${head('Notas', '', plusBtn('add-note'), 'Más')}${group(rows, 'Ideas, listas, claves del wifi… lo que quieras apuntar.')}`;
 }
 
@@ -361,7 +404,7 @@ function viewHealth() {
   const seg = `<div class="seg">${[['nut', 'Nutrición'], ['peso', 'Peso'], ['ej', 'Ejercicio']].map(([k, l]) => `<button class="${ui.hseg === k ? 'on' : ''}" data-act="hseg" data-id="${k}">${l}</button>`).join('')}</div>`;
   const add = { nut: 'add-meal', peso: 'add-weight', ej: 'add-workout' }[ui.hseg];
   const body = { nut: bodyNut, peso: bodyPeso, ej: bodyEj }[ui.hseg]();
-  return head('Salud', 'Nutrición, peso y ejercicio', `<button class="icon-btn" data-act="health-goals" aria-label="Objetivos">🎯</button>${plusBtn(add)}`, 'Más') + seg + body;
+  return head('Salud', 'Nutrición, peso y ejercicio', `<button class="icon-btn" data-act="health-goals" aria-label="Objetivos">${gl('target')}</button>${plusBtn(add)}`, 'Más') + seg + body;
 }
 function bodyNut() {
   const ds = ui.hday, n = nutrition(ds), goal = S.health.kcal || 1, pct = Math.min(100, n.kcal / goal * 100), over = n.kcal > goal;
@@ -371,7 +414,7 @@ function bodyNut() {
   const groups = Object.entries(MEALS).map(([k, [ico, label]]) => {
     const list = S.meals.filter(m => m.date === ds && m.meal === k);
     const kc = list.reduce((a, m) => a + (m.kcal || 0), 0);
-    return `<div class="section-title" style="display:flex;justify-content:space-between"><span>${ico} ${label}</span><span>${num(kc)} kcal</span></div>
+    return `<div class="section-title" style="display:flex;justify-content:space-between"><span class="mealh"><span class="mini">${gl(ico)}</span>${label}</span><span>${num(kc)} kcal</span></div>
     <div class="group">${list.map(m => row({ ico: ico, color: 'var(--green)', title: m.name, sub: `P ${num(m.p)} · C ${num(m.c)} · G ${num(m.f)}`, right: `${num(m.kcal)} kcal`, act: 'edit-meal', id: m.id })).join('')}<div class="row noicon" data-act="add-meal" data-id="${k}"><div class="grow t" style="color:var(--blue)">+ Añadir ${label.toLowerCase()}</div></div></div>`;
   }).join('');
   return `${dayBar}<div class="card"><div style="display:flex;justify-content:space-between;align-items:baseline"><div><span style="font-size:32px;font-weight:700">${num(n.kcal)}</span> <span class="s">/ ${num(goal)} kcal</span></div><div class="s">${over ? `+${num(n.kcal - goal)} sobre el objetivo` : `${num(goal - n.kcal)} restantes`}</div></div>
@@ -388,7 +431,7 @@ function bodyPeso() {
   const line = pts.map((p, i) => `${X(i)},${Y(p.kg)}`).join(' ');
   const goalLine = goal ? `<line x1="10" x2="310" y1="${Y(goal)}" y2="${Y(goal)}" stroke="var(--green)" stroke-dasharray="4 4" stroke-width="1.5"/>` : '';
   const chart = `<svg viewBox="0 0 320 100" width="100%" height="110" role="img" aria-label="Evolución del peso">${goalLine}<polyline points="${line}" fill="none" stroke="var(--blue)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>${pts.map((p, i) => `<circle cx="${X(i)}" cy="${Y(p.kg)}" r="3.5" fill="var(--blue)"/>`).join('')}</svg>`;
-  const rows = [...w].reverse().slice(0, 30).map(x => row({ ico: '⚖️', color: 'var(--blue)', title: `${num(x.kg, 1)} kg`, sub: fdate(x.date), act: 'edit-weight', id: x.id })).join('');
+  const rows = [...w].reverse().slice(0, 30).map(x => row({ ico: 'scale', color: 'var(--blue)', title: `${num(x.kg, 1)} kg`, sub: fdate(x.date), act: 'edit-weight', id: x.id })).join('');
   return `<div class="grid2"><div class="card kpi"><div class="n">${num(last.kg, 1)} kg</div><div class="l">Actual</div></div><div class="card kpi"><div class="n" style="color:${diff <= 0 ? 'var(--green)' : 'var(--orange)'}">${diff > 0 ? '+' : ''}${num(diff, 1)} kg</div><div class="l">Desde el inicio${goal ? ` · meta ${num(goal, 1)}` : ''}</div></div></div>
   <div class="card">${chart}</div><div class="group">${rows}</div>`;
 }
@@ -396,7 +439,7 @@ function bodyEj() {
   const t = today(), from = addDays(t, -6);
   const week = S.workouts.filter(x => x.date >= from && x.date <= t);
   const min = week.reduce((a, x) => a + x.min, 0), kc = week.reduce((a, x) => a + (x.kcal || 0), 0);
-  const rows = [...S.workouts].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 40).map(x => row({ ico: '🏃', color: 'var(--red)', title: x.type, sub: `${fdate(x.date)}${x.note ? ' · ' + x.note : ''}`, right: `${x.min} min`, rightSub: x.kcal ? `<div class="s">${num(x.kcal)} kcal</div>` : '', act: 'edit-workout', id: x.id })).join('');
+  const rows = [...S.workouts].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 40).map(x => row({ ico: 'pulse', color: 'var(--red)', title: x.type, sub: `${fdate(x.date)}${x.note ? ' · ' + x.note : ''}`, right: `${x.min} min`, rightSub: x.kcal ? `<div class="s">${num(x.kcal)} kcal</div>` : '', act: 'edit-workout', id: x.id })).join('');
   return `<div class="grid2"><div class="card kpi"><div class="n">${num(min)} min</div><div class="l">Últimos 7 días</div></div><div class="card kpi"><div class="n">${num(kc)} kcal</div><div class="l">Quemadas (7 d)</div></div></div>${group(rows, 'Apunta tus entrenos y caminatas.<br>Pulsa + para añadir el primero.')}`;
 }
 
@@ -404,9 +447,9 @@ function bodyEj() {
 const SUGGEST = ['¿Cuánto he gastado este mes?', '¿Qué tengo esta semana?', 'Hoy he comido una tortilla de 3 huevos y una ensalada', '¿Qué suscripciones podría cancelar?', 'Apúntame mañana a las 10 llamar al gestor', 'Hazme un resumen de mis finanzas'];
 function viewIA() {
   const msgs = S.chat.map(m => `<div class="msg ${m.role === 'user' ? 'me' : 'ai'}">${esc(m.content)}</div>`).join('');
-  const intro = !S.chat.length ? `<div class="card" style="text-align:center"><div style="font-size:40px">✨</div><div class="t" style="margin:6px 0">Tu asistente de Vida</div><div class="s">Conoce tus gastos, negocio, calendario, tareas y nutrición. Pregúntale o pídele que apunte cosas por ti.</div></div><div class="chips">${SUGGEST.map(s => `<button data-act="ask">${esc(s)}</button>`).join('')}</div>` : '';
+  const intro = !S.chat.length ? `<div class="card" style="text-align:center"><div class="ico" style="background:var(--blue);width:52px;height:52px;border-radius:14px;margin:0 auto 4px">${gl('chat')}</div><div class="t" style="margin:6px 0">Tu asistente de Vida</div><div class="s">Conoce tus gastos, negocio, calendario, tareas y nutrición. Pregúntale o pídele que apunte cosas por ti.</div></div><div class="chips">${SUGGEST.map(s => `<button data-act="ask">${esc(s)}</button>`).join('')}</div>` : '';
   const key = S.settings.apiKey ? '' : `<div class="card" data-act="settings" style="border:1px solid var(--orange)"><div class="t">Falta la clave de la IA</div><div class="s">Toca aquí y pega tu API key de Anthropic en Ajustes.</div></div>`;
-  return `${head('Asistente', '', S.chat.length ? '<button class="icon-btn" data-act="clear-chat" aria-label="Borrar">🗑</button>' : '', 'Volver')}${key}${intro}
+  return `${head('Asistente', '', S.chat.length ? `<button class="icon-btn" data-act="clear-chat" aria-label="Borrar">${gl('trash')}</button>` : '', 'Volver')}${key}${intro}
   <div class="chat">${msgs}${ui.busy ? '<div class="msg ai"><span class="dots"><span></span><span></span><span></span></span></div>' : ''}</div>
   <div style="height:70px"></div>
   <div class="composer"><input id="q" placeholder="Pregunta o pide algo…" autocomplete="off" enterkeyhint="send"><button data-act="send" aria-label="Enviar">↑</button></div>`;
@@ -418,7 +461,6 @@ function render() {
   $('#view').innerHTML = { hoy: viewHoy, cal: viewCal, money: viewMoney, biz: viewBiz, more: viewMore, ia: viewIA }[ui.tab]();
   $('#tabbar').innerHTML = TABS.map(([k, l]) => `<button class="${ui.tab === k ? 'on' : ''}" data-act="tab" data-id="${k}">${ICONS[k]}<span>${l}</span></button>`).join('');
   $('#tabbar').style.display = ui.tab === 'ia' ? 'none' : '';
-  const fab = $('#fab'); if (fab) fab.style.display = ui.tab === 'ia' ? 'none' : '';
   if (ui.tab === 'ia') window.scrollTo(0, document.body.scrollHeight); else window.scrollTo(0, y);
 }
 
@@ -551,9 +593,9 @@ function taskSheet(t) {
 }
 function habitSheet(h) {
   const isNew = !h;
-  h = h || { name: '', emoji: '', log: {} };
+  h = h || { name: '', icon: 'flame', log: {} };
   sheet(isNew ? 'Nuevo hábito' : 'Editar hábito', [
-    { k: 'emoji', label: 'Emoji', value: h.emoji, placeholder: '📖' },
+    { k: 'icon', label: 'Icono', type: 'select', value: h.icon || 'flame', options: HAB_ICONS },
     { k: 'name', label: 'Hábito', value: h.name, placeholder: 'Leer 20 minutos' }
   ], {
     onSave: v => { if (!need(v.name, 'Pon un nombre')) return false; if (isNew) S.habits.push({ id: uid(), ...v, log: {} }); else Object.assign(h, v); save(); render(); },
@@ -562,9 +604,9 @@ function habitSheet(h) {
 }
 function goalSheet(g) {
   const isNew = !g;
-  g = g || { name: '', emoji: '', target: 0, saved: 0, deadline: '' };
+  g = g || { name: '', icon: 'target', target: 0, saved: 0, deadline: '' };
   sheet(isNew ? 'Nuevo objetivo' : 'Editar objetivo', [
-    { k: 'emoji', label: 'Emoji', value: g.emoji, placeholder: '✈️' },
+    { k: 'icon', label: 'Icono', type: 'select', value: g.icon || 'target', options: GOAL_ICONS },
     { k: 'name', label: 'Objetivo', value: g.name, placeholder: 'Viaje a Japón' },
     { k: 'target', label: 'Meta', type: 'number', value: g.target || '', placeholder: '0,00' },
     { k: 'saved', label: 'Ahorrado', type: 'number', value: g.saved || '', placeholder: '0,00' },
@@ -587,7 +629,7 @@ function noteSheet(n) {
   });
 }
 function budgetSheet() {
-  sheet('Presupuestos mensuales', OUT_CATS.map(c => ({ k: c, label: `${catI(c)[0]} ${c}`, type: 'number', value: S.budgets[c] || '', placeholder: 'Sin límite' })), {
+  sheet('Presupuestos mensuales', OUT_CATS.map(c => ({ k: c, label: c, type: 'number', value: S.budgets[c] || '', placeholder: 'Sin límite' })), {
     extra: '<div class="s" style="margin:-4px 16px 6px">Límite de gasto al mes por categoría. Déjalo vacío para no limitar.</div>',
     onSave: v => { S.budgets = {}; for (const c of OUT_CATS) if (v[c] > 0) S.budgets[c] = v[c]; save(); render(); }
   });
@@ -610,7 +652,7 @@ function mealSheet(m, meal = 'comida') {
   const isNew = !m;
   m = m || { meal, name: '', kcal: 0, p: 0, c: 0, f: 0, date: ui.hday };
   sheet(isNew ? 'Añadir comida' : 'Editar comida', [
-    { k: 'meal', label: 'Momento', type: 'select', value: m.meal, options: Object.entries(MEALS).map(([k, v]) => [k, `${v[0]} ${v[1]}`]) },
+    { k: 'meal', label: 'Momento', type: 'select', value: m.meal, options: Object.entries(MEALS).map(([k, v]) => [k, v[1]]) },
     { k: 'name', label: 'Qué has comido', value: m.name, placeholder: '2 huevos y tostada' },
     { k: 'kcal', label: 'Calorías', type: 'number', value: m.kcal || '', placeholder: 'kcal' },
     { k: 'p', label: 'Proteína (g)', type: 'number', value: m.p || '', placeholder: '0' },
@@ -618,7 +660,7 @@ function mealSheet(m, meal = 'comida') {
     { k: 'f', label: 'Grasas (g)', type: 'number', value: m.f || '', placeholder: '0' },
     { k: 'date', label: 'Fecha', type: 'date', value: m.date }
   ], {
-    extra: '<button class="btn alt" type="button" data-x="estimate" style="margin-top:0">✨ Estimar calorías con IA</button>',
+    extra: '<button class="btn alt" type="button" data-x="estimate" style="margin-top:0">Estimar calorías con IA</button>',
     onExtra: async (x, close, read, form) => {
       if (x !== 'estimate') return;
       const name = form.elements.name.value.trim();
@@ -629,7 +671,7 @@ function mealSheet(m, meal = 'comida') {
         for (const k of ['kcal', 'p', 'c', 'f']) form.elements[k].value = Math.round(r[k] || 0);
         toast('Estimación aproximada: revisa las cifras');
       } catch (e) { toast(e.message); }
-      btn.textContent = '✨ Estimar calorías con IA';
+      btn.textContent = 'Estimar calorías con IA';
     },
     onSave: v => { if (!need(v.name, 'Pon qué has comido')) return false; if (isNew) S.meals.push({ id: uid(), ...v }); else Object.assign(m, v); save(); render(); },
     onDelete: isNew ? null : () => { remove(S.meals, m); save(); render(); }
@@ -772,8 +814,8 @@ async function ask(text) {
       }
       reply += texts; break;
     }
-  } catch (e) { reply = `⚠️ No he podido responder: ${e.message}`; }
-  S.chat.push({ role: 'assistant', content: reply.trim() || 'Hecho ✅' });
+  } catch (e) { reply = `No he podido responder: ${e.message}`; }
+  S.chat.push({ role: 'assistant', content: reply.trim() || 'Hecho.' });
   ui.busy = false; save(); render();
 }
 
@@ -831,7 +873,6 @@ document.addEventListener('click', e => {
 document.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.id === 'q') { e.preventDefault(); $('[data-act=send]').click(); } });
 
 // ---------- Arranque ----------
-document.body.insertAdjacentHTML('beforeend', '<button id="fab" class="fab" data-act="ai" aria-label="Asistente IA">✨</button>');
 applyTheme();
 rollSubs();
 render();
