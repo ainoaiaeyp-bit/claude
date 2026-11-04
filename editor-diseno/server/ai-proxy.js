@@ -12,7 +12,8 @@
  *   SUPABASE_ANON_KEY   clave anon de Supabase
  *   ALLOW_ANON=1        permite usar la IA sin sesión (NO recomendado en público)
  *   AI_RATE_PER_HOUR    peticiones por usuario y hora (por defecto 30)
- *   AI_MAX_TOKENS       tope de tokens de salida (por defecto 3000)
+ *   AI_MAX_TOKENS       tope de tokens de salida (por defecto 4500; el agente de IA pide hasta 4000: ajústalo si quieres limitar el gasto)
+ *   AI_MAX_BODY_MB      tamaño máximo de la petición en MB (por defecto 12, por las imágenes)
  *   AI_MODELS           modelos permitidos, separados por comas
  *   ALLOWED_ORIGIN      origen CORS permitido (solo si el editor está en otro dominio)
  *   PORT                puerto (por defecto 8787)
@@ -27,7 +28,7 @@ const SB_URL = (env.SUPABASE_URL || '').replace(/\/+$/, '');
 const SB_KEY = env.SUPABASE_ANON_KEY || '';
 const ALLOW_ANON = env.ALLOW_ANON === '1';
 const LIMIT = +env.AI_RATE_PER_HOUR || 30;
-const MAX_TOKENS = +env.AI_MAX_TOKENS || 3000;
+const MAX_TOKENS = +env.AI_MAX_TOKENS || 4500;
 const MODELS = (env.AI_MODELS || 'claude-sonnet-5-5,claude-haiku-5-5,claude-opus-5-5').split(',').map(s => s.trim()).filter(Boolean);
 const ORIGIN = env.ALLOWED_ORIGIN || '';
 const UPSTREAM = env.ANTHROPIC_URL || 'https://api.anthropic.com/v1/messages';
@@ -72,7 +73,8 @@ function send(res, status, body, extra = {}) {
   res.end(JSON.stringify(body));
 }
 
-function readBody(req, max = 200_000) {
+const MAX_BODY = (+env.AI_MAX_BODY_MB || 12) * 1_000_000;
+function readBody(req, max = MAX_BODY) {
   return new Promise((resolve, reject) => {
     let size = 0; const chunks = [];
     req.on('data', c => { size += c.length; if (size > max) { reject(Object.assign(new Error('Petición demasiado grande'), { status: 413 })); req.destroy(); } else chunks.push(c); });
@@ -102,6 +104,15 @@ const server = http.createServer(async (req, res) => {
     const system = typeof b.system === 'string' ? b.system.slice(0, 20_000) : '';
     const user = typeof b.user === 'string' ? b.user.slice(0, 20_000) : '';
     if (!user) return send(res, 400, { error: 'Falta el texto de la petición' });
+    // Imágenes opcionales (vista previa de la página, OCR): máx. 3, solo png/jpeg/webp, base64 válido y de tamaño razonable.
+    const images = [];
+    if (Array.isArray(b.images)) {
+      for (const im of b.images.slice(0, 3)) {
+        if (!im || !['image/png', 'image/jpeg', 'image/webp'].includes(im.media_type) || typeof im.data !== 'string') continue;
+        if (im.data.length > 5_000_000 || !/^[A-Za-z0-9+/=]+$/.test(im.data)) return send(res, 400, { error: 'Imagen no válida o demasiado grande' });
+        images.push({ type: 'image', source: { type: 'base64', media_type: im.media_type, data: im.data } });
+      }
+    }
     const model = MODELS.includes(b.model) ? b.model : MODELS[0];
     const max_tokens = Math.max(16, Math.min(MAX_TOKENS, Math.floor(+b.max_tokens) || 1000));
 
@@ -112,7 +123,7 @@ const server = http.createServer(async (req, res) => {
       r = await fetch(UPSTREAM, {
         method: 'POST', signal: ctrl.signal,
         headers: { 'content-type': 'application/json', 'x-api-key': API_KEY, 'anthropic-version': '2023-06-01' },
-        body: JSON.stringify({ model, max_tokens, system, messages: [{ role: 'user', content: user }] })
+        body: JSON.stringify({ model, max_tokens, system, messages: [{ role: 'user', content: images.length ? [...images, { type: 'text', text: user }] : user }] })
       });
     } finally { clearTimeout(timer); }
     const j = await r.json().catch(() => ({}));

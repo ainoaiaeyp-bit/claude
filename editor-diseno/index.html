@@ -178,10 +178,26 @@ main{flex:1;display:flex;min-height:0}
 .modal{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:center;justify-content:center;z-index:50}
 .modal.on{display:flex}
 #mShare{z-index:55}
+#mImport{z-index:56}
+#aibar{position:absolute;left:50%;bottom:12px;transform:translateX(-50%);width:min(700px,calc(100% - 40px));z-index:7;display:flex;flex-direction:column;align-items:stretch;gap:6px;pointer-events:none}
+#aibar>*{pointer-events:auto}
+.aibox{display:flex;align-items:center;gap:8px;background:var(--panel);border:1.5px solid var(--brand);border-radius:28px;padding:6px 8px 6px 14px;box-shadow:0 8px 30px rgba(0,0,0,.28)}
+.aibox .ic svg{width:20px;height:20px;color:var(--brand)}
+#aiq{flex:1;border:0;background:none;outline:none;font-size:14px;min-width:0;color:var(--ink)}
+#aiq::placeholder{color:var(--muted)}
+#aistat{display:none;align-items:center;gap:10px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:8px 12px;box-shadow:0 8px 24px rgba(0,0,0,.25);font-size:13px}
+#aistat.on{display:flex}#aistat.err{border-color:#ff3d3d}
+#aichips{display:none;flex-wrap:wrap;gap:6px;justify-content:center}
+#aibar.focus #aichips{display:flex}
+.aichip{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:4px 10px;font-size:12px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.15)}
+.aichip:hover{border-color:var(--brand);color:var(--brand)}
+.aispin{flex:none;width:14px;height:14px;border:2px solid var(--line);border-top-color:var(--brand);border-radius:50%;animation:aisp .8s linear infinite}
+@keyframes aisp{to{transform:rotate(360deg)}}
+@media(max-width:900px){#aibar{bottom:6px;width:calc(100% - 16px)}#aiq::placeholder{font-size:12px}}
 .card{background:var(--panel);border-radius:14px;padding:20px;width:min(420px,92vw);box-shadow:0 20px 60px rgba(0,0,0,.4)}
 .card h2{margin:0 0 12px;font-size:17px}
 .card table{width:100%;border-collapse:collapse}.card td{padding:4px 0}.card kbd{background:var(--panel2);border:1px solid var(--line);border-radius:5px;padding:1px 6px;font-size:12px}
-#toast{position:fixed;left:50%;bottom:120px;transform:translate(-50%,20px);background:#1f2430;color:#fff;padding:9px 16px;border-radius:20px;opacity:0;pointer-events:none;transition:.25s;z-index:60}
+#toast{position:fixed;left:50%;bottom:178px;transform:translate(-50%,20px);background:#1f2430;color:#fff;padding:9px 16px;border-radius:20px;opacity:0;pointer-events:none;transition:.25s;z-index:60}
 #toast.on{opacity:1;transform:translate(-50%,0)}
 @media(max-width:1000px){#right{width:220px}#panel{width:210px}}
 #fab{display:none}
@@ -202,7 +218,7 @@ main{flex:1;display:flex;min-height:0}
   body.sp #panel{display:block}body.sr #right{display:flex}
   #fab{display:flex;position:fixed;right:14px;bottom:130px;width:48px;height:48px;border-radius:50%;border:0;color:#fff;background:linear-gradient(135deg,var(--brand),var(--brand2));box-shadow:0 6px 20px rgba(0,0,0,.35);z-index:45;align-items:center;justify-content:center}
   #fab .ic svg{width:24px;height:24px}
-  #toast{bottom:140px}
+  #toast{bottom:200px}
   .grid.g4{grid-template-columns:repeat(5,1fr)}
 }
 @media(max-width:480px){.grid{grid-template-columns:repeat(4,1fr)}.grid.g2{grid-template-columns:repeat(3,1fr)}}
@@ -239,7 +255,7 @@ main{flex:1;display:flex;min-height:0}
   <nav id="rail"></nav>
   <section id="panel"></section>
   <div id="mid">
-    <div id="stagewrap"><div id="stage"><canvas id="c"></canvas></div><canvas id="rulerH"></canvas><canvas id="rulerV"></canvas><div id="rcorner"></div><div id="gl"></div></div>
+    <div id="stagewrap"><div id="stage"><canvas id="c"></canvas></div><canvas id="rulerH"></canvas><canvas id="rulerV"></canvas><div id="rcorner"></div><div id="gl"></div><div id="aibar"></div></div>
     <div id="pages"></div>
   </div>
   <aside id="right">
@@ -282,6 +298,7 @@ main{flex:1;display:flex;min-height:0}
     <tr><td>Flechas (+<kbd>Shift</kbd>)</td><td>Mover 1px (10px)</td></tr>
     <tr><td><kbd>[</kbd> / <kbd>]</kbd></td><td>Enviar atrás / traer adelante</td></tr>
     <tr><td><kbd>Ctrl</kbd>+<kbd>0</kbd>, <kbd>Ctrl</kbd>+rueda</td><td>Ajustar / zoom</td></tr>
+    <tr><td><kbd>Ctrl</kbd>+<kbd>K</kbd></td><td>Pedirle algo a la IA («cambia el fondo de todo…»)</td></tr>
     <tr><td>Doble clic en texto</td><td>Editar texto</td></tr>
     <tr><td>Doble clic en imagen</td><td>Recortar (Enter aplica, Esc cancela)</td></tr>
     <tr><td><kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>C</kbd> / <kbd>V</kbd></td><td>Copiar / pegar estilo</td></tr>
@@ -294,12 +311,14 @@ main{flex:1;display:flex;min-height:0}
 </div></div>
 
 <div class="modal" id="mCollab"><div class="card" id="collabCard" style="width:min(520px,94vw)"></div></div>
+<div class="modal" id="mImport"><div class="card" id="importCard" style="width:min(520px,94vw);max-height:90vh;overflow:auto"></div></div>
 <div class="modal" id="mShare"><div class="card" id="shareCard" style="width:min(520px,94vw);max-height:90vh;overflow:auto"></div></div>
 <div class="modal" id="mCloud"><div class="card" id="cloudCard" style="width:min(680px,94vw);max-height:90vh;overflow:auto"></div></div>
 <div class="modal" id="mAI"><div class="card" id="aiCard" style="width:min(540px,94vw);max-height:90vh;overflow:auto"></div></div>
-<input type="file" id="file" accept="image/*" hidden>
+<input type="file" id="file" accept="image/*,.svg,.pdf,.txt,.md,.csv,application/pdf" hidden>
 <input type="file" id="fileBg" accept="image/*" hidden>
-<input type="file" id="fileJson" accept=".json,application/json" hidden>
+<input type="file" id="fileJson" accept=".json,application/json,.pdf,application/pdf" hidden>
+<input type="file" id="filePdf" accept=".pdf,application/pdf" hidden>
 <div id="pres"><img id="presImg" alt=""><span id="presN"></span><button class="tb" id="presX" data-ic="close" title="Salir (Esc)"></button></div>
 <button id="fab" aria-label="Propiedades" title="Propiedades y capas"></button>
 <div id="cpanel"></div>
@@ -308,5 +327,7 @@ main{flex:1;display:flex;min-height:0}
 <div id="toast"></div>
 
 <script src="app.js"></script>
+<script src="import.js"></script>
+<script src="agent.js"></script>
 </body>
 </html>

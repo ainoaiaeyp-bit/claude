@@ -1,6 +1,6 @@
 # Ejemplo para nginx "a pelo" en el VPS (sin Docker).
 # 1) Copia la carpeta del editor a /var/www/lienzo (solo index.html, config.js, sw.js, manifest.webmanifest,
-#    app.js, fonts.css, vendor/, fonts/ e icons/).
+#    app.js, import.js, agent.js, fonts.css, vendor/, fonts/ e icons/).
 # 2) Guarda esto en /etc/nginx/sites-available/lienzo, enlázalo en sites-enabled y recarga nginx.
 # 3) Certificado HTTPS:  sudo certbot --nginx -d lienzo.midominio.com
 server {
@@ -22,7 +22,7 @@ server {
     # Si usas Supabase autoalojado, añade su dominio a connect-src (https y wss).
 
     # Siempre revalidar (cambios y configuración)
-    location ~ ^/(index\.html|app\.js|config\.js|sw\.js|manifest\.webmanifest)$ {
+    location ~ ^/(index\.html|app\.js|import\.js|agent\.js|config\.js|sw\.js|manifest\.webmanifest)$ {
         add_header Cache-Control "no-cache";
         add_header X-Content-Type-Options nosniff always;
     }

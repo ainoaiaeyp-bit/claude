@@ -27,6 +27,7 @@ const check = (name, ok, extra = '') => { console.log((ok ? 'OK  ' : 'FALLO ') +
   const violations = [], external = [], errors = [];
   page.on('console', m => { if (/Content Security Policy|Refused to/i.test(m.text())) violations.push(m.text().slice(0, 160)); });
   page.on('pageerror', e => errors.push(e.message));
+  page.on('dialog', d => d.accept());
   page.on('request', r => { const u = new URL(r.url()); if (!['127.0.0.1', ''].includes(u.hostname) && u.protocol.startsWith('http')) external.push(r.url()); });
   await page.goto(base); await page.waitForTimeout(3500);
 
@@ -50,6 +51,14 @@ const check = (name, ok, extra = '') => { console.log((ok ? 'OK  ' : 'FALLO ') +
   check('exporta PNG', png.startsWith('data:image/png') && png.length > 5000);
   const [dl] = await Promise.all([page.waitForEvent('download', { timeout: 30000 }), page.evaluate(() => exportPDF(1))]);
   check('exporta PDF', dl.suggestedFilename().endsWith('.pdf'));
+  // Importar un PDF: el texto debe quedar editable (y la CSP no debe bloquear el lector de PDF)
+  const pdf64 = await page.evaluate(() => { const { jsPDF } = window.jspdf; const d = new jsPDF({ unit: 'pt', format: 'a4' }); d.setFontSize(24); d.text('Hola PDF', 40, 80); const u = new Uint8Array(d.output('arraybuffer')); let s = ''; for (let i = 0; i < u.length; i += 8192) s += String.fromCharCode(...u.subarray(i, i + 8192)); return btoa(s); });
+  await page.evaluate(async b => { const bin = atob(b), u = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i); await handleFiles([new File([u], 'smoke.pdf', { type: 'application/pdf' })]); }, pdf64);
+  await page.waitForSelector('#mImport.on', { timeout: 20000 });
+  await page.selectOption('#importCard select >> nth=1', 'replace');
+  await page.click('#importCard button:text-is("Importar")');
+  await page.waitForFunction(() => !document.getElementById('mImport').classList.contains('on'), null, { timeout: 60000 });
+  check('importa un PDF y deja el texto editable', await page.evaluate(() => cv.getObjects().some(o => o.text === 'Hola PDF') && cv.getObjects().some(o => o.name === 'Contenido del PDF')));
   check('QR disponible', await page.evaluate(() => typeof qrcode === 'function'));
 
   check('sin violaciones de CSP', violations.length === 0, violations[0] || '');

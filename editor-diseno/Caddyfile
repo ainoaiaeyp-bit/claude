@@ -15,7 +15,7 @@
 	}
 
 	# Estos archivos deben revalidarse siempre (cambios y configuración).
-	@fresh path / /index.html /app.js /config.js /sw.js /manifest.webmanifest
+	@fresh path / /index.html /app.js /import.js /agent.js /config.js /sw.js /manifest.webmanifest
 	header @fresh Cache-Control "no-cache"
 
 	# Recursos estáticos que casi nunca cambian.

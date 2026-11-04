@@ -278,12 +278,13 @@ async function addImageFile(file,asBg,frame){
     });
   }catch(e){toast('No se pudo leer la imagen')}
 }
-$('file').onchange=e=>{const a=cv.getActiveObject(),fr=a&&a._frame?a:null;[...e.target.files].forEach((f,i)=>addImageFile(f,false,i===0?fr:null));e.target.value=''};
+$('file').onchange=e=>{const a=cv.getActiveObject(),fr=a&&a._frame?a:null;handleFiles(e.target.files,{frame:fr});e.target.value=''};
+$('filePdf').onchange=e=>{handleFiles(e.target.files);e.target.value=''};
 $('fileBg').onchange=e=>{if(e.target.files[0])addImageFile(e.target.files[0],true);e.target.value=''};
 const stage=$('stage');
 stage.addEventListener('dragover',e=>{e.preventDefault();stage.classList.add('drag')});
 stage.addEventListener('dragleave',()=>stage.classList.remove('drag'));
-stage.addEventListener('drop',e=>{e.preventDefault();stage.classList.remove('drag');const pt=cv.getPointer(e),fr=frameAt(pt);[...e.dataTransfer.files].filter(f=>f.type.startsWith('image/')).forEach((f,i)=>addImageFile(f,false,i===0?fr:null))});
+stage.addEventListener('drop',e=>{e.preventDefault();stage.classList.remove('drag');const pt=cv.getPointer(e),fr=frameAt(pt);handleFiles(e.dataTransfer.files,{frame:fr})});
 document.addEventListener('paste',e=>{
   if(/INPUT|TEXTAREA|SELECT/.test((e.target||{}).tagName||''))return;
   const imgs=[...(e.clipboardData&&e.clipboardData.files||[])].filter(f=>f.type.startsWith('image/'));
@@ -543,7 +544,8 @@ const PANELS={
   },
   im(){return h('div',{},h('h3',{},'Tus imágenes'),
     h('button',{class:'btn big wide on',onclick:()=>$('file').click()},icl('upload','Subir imagen')),
-    h('p',{class:'hint'},'También puedes arrastrar imágenes al lienzo o pegarlas con Ctrl+V.'),
+    h('button',{class:'btn wide',style:'margin-top:6px',onclick:()=>$('filePdf').click()},icl('upload','Importar PDF editable')),
+    h('p',{class:'hint'},'También puedes arrastrar al lienzo imágenes, PDF, SVG o texto, o pegar imágenes con Ctrl+V.'),
     libSection(),
     h('h3',{},'Fondo de página'),h('button',{class:'btn wide',onclick:()=>$('fileBg').click()},'Usar imagen como fondo'),
     h('p',{class:'hint'},'Selecciona una imagen y usa los ajustes de la derecha: filtros, brillo, bordes redondeados, sombra…'))},
@@ -846,6 +848,7 @@ function imageSection(o){
       rng('Tolerancia del fondo',5,120,1,tol,v=>{tol=v},()=>{}),
       ibtn('sparkle',0,()=>{const r=removeBgColor(o,tol);if(r.ratio>.97)return toast('Tolerancia demasiado alta');if(r.ratio<.003)return toast('No se detectó un fondo liso en los bordes');replaceImage(o,r.url);toast('Fondo eliminado')},'Quitar fondo liso','Quitar fondo liso'),
       h('div',{class:'hint'},'Funciona mejor con fondos de un solo color.'),
+      ibtn('type',0,()=>runOcrUI(o),'Extraer el texto de la imagen con IA (OCR)','Texto editable con IA (OCR)'),
       ibtn('palette',0,()=>{colors=extractPalette(o);showPal()},'Extraer paleta','Extraer paleta de colores'),pal,
       ibtn('palette',0,()=>{if(!colors.length)colors=extractPalette(o);const b=colors.concat(BRAND_DEF).slice(0,6);store.set('lienzo-brand',JSON.stringify(b));toast('Kit de marca actualizado');if(tab==='bg')showPanel()},'Usar como kit de marca','Usar como kit de marca')),
     h('div',{class:'row',style:'margin-top:8px'},tbtn('Restablecer',0,()=>{o._f={};o._crop={l:0,r:0,t:0,b:0};o._round=0;o._mask='none';applyFilters(o);applyClip(o);commit();refreshProps()}),
@@ -1110,7 +1113,7 @@ $('xc').onclick=()=>$('mExport').classList.remove('on');$('xd').onclick=doExport
 $('help').onclick=()=>$('mHelp').classList.add('on');$('hc').onclick=()=>$('mHelp').classList.remove('on');
 document.querySelectorAll('.modal').forEach(m=>m.addEventListener('mousedown',e=>{if(e.target===m)m.classList.remove('on')}));
 $('open').onclick=()=>$('fileJson').click();
-$('fileJson').onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();
+$('fileJson').onchange=e=>{const f=e.target.files[0];if(!f)return;if(fileKind(f)==='pdf'){handleFiles([f]);e.target.value='';return}const r=new FileReader();
   r.onload=async()=>{try{await loadProject(JSON.parse(r.result));toast('Proyecto abierto')}catch(err){toast('Archivo no válido')}};r.readAsText(f);e.target.value=''};
 async function loadProject(p){
   if(!p.pages&&p.c)p={pages:[p.c],W:p.W,H:p.H};
@@ -1144,6 +1147,7 @@ addEventListener('keydown',e=>{
   if(e.key==='Escape'){if(drawing)setDrawing(false);cv.discardActiveObject();cv.requestRenderAll();document.querySelectorAll('.modal.on').forEach(m=>m.classList.remove('on'));return}
   if(e.key==='Delete'||e.key==='Backspace'){del();e.preventDefault();return}
   if(mod&&k==='s'){e.preventDefault();saveNow();return}
+  if(mod&&k==='k'){e.preventDefault();const q=$('aiq');if(q)q.focus();return}
   if(mod&&k==='z'){restore(e.shiftKey?hi+1:hi-1);e.preventDefault();return}
   if(mod&&k==='y'){restore(hi+1);e.preventDefault();return}
   if(mod&&k==='d'){dup();e.preventDefault();return}
@@ -2151,12 +2155,12 @@ async function aiRestyle(desc){
 /* ---------- Asistente con IA (clave propia de Anthropic) ---------- */
 const AIcfg={get(){try{return JSON.parse(store.get('lienzo-ai'))||{}}catch(e){return{}}},set(v){store.set('lienzo-ai',JSON.stringify(v))}};
 const AI_PROXY=()=>String(window.LIENZO_AI_PROXY||'').trim();
-async function askClaude(system,user,max=2500){
+async function askClaude(system,user,max=2500,images=[]){
   const cfg=AIcfg.get();
   if(AI_PROXY()){
     const s=SB.cfg()?await SB.fresh():null;
     const r=await fetch(AI_PROXY(),{method:'POST',headers:Object.assign({'content-type':'application/json'},s?{Authorization:'Bearer '+s.access_token}:{}),
-      body:JSON.stringify({system,user,max_tokens:max,model:cfg.model})});
+      body:JSON.stringify({system,user,max_tokens:max,model:cfg.model,images})});
     const j=await r.json().catch(()=>({}));
     if(r.status===401){openCloud();throw new Error('Inicia sesión (botón Nube) para usar la IA')}
     if(!r.ok)throw new Error(j.error||('Error '+r.status));
@@ -2165,7 +2169,7 @@ async function askClaude(system,user,max=2500){
   if(!cfg.key){openAI();throw new Error('Añade primero tu clave de API')}
   const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',
     headers:{'content-type':'application/json','x-api-key':cfg.key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
-    body:JSON.stringify({model:cfg.model||'claude-sonnet-5-5',max_tokens:max,system,messages:[{role:'user',content:user}]})});
+    body:JSON.stringify({model:cfg.model||'claude-sonnet-5-5',max_tokens:max,system,messages:[{role:'user',content:images.length?[...images.map(im=>({type:'image',source:{type:'base64',media_type:im.media_type,data:im.data}})),{type:'text',text:user}]:user}]})});
   const j=await r.json().catch(()=>({}));
   if(!r.ok)throw new Error((j.error&&j.error.message)||('Error '+r.status));
   return(j.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('');

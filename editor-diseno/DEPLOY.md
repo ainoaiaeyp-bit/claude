@@ -21,7 +21,7 @@ Para actualizar tras cambiar archivos: `docker compose up -d --build`.
 
 ## Opción B · nginx sin Docker
 
-1. Copia al VPS **solo** estos archivos a `/var/www/lienzo`: `index.html`, `app.js`, `config.js`, `sw.js`, `manifest.webmanifest`, `fonts.css`, y las carpetas `vendor/`, `fonts/` e `icons/`.
+1. Copia al VPS **solo** estos archivos a `/var/www/lienzo`: `index.html`, `app.js`, `import.js`, `agent.js`, `config.js`, `sw.js`, `manifest.webmanifest`, `fonts.css`, y las carpetas `vendor/`, `fonts/` e `icons/`.
 2. Usa `deploy/nginx.conf.example` como sitio de nginx (cambia `server_name`).
 3. `sudo certbot --nginx -d lienzo.midominio.com` para el HTTPS.
 
@@ -45,6 +45,8 @@ docker compose --profile ai up -d --build
 curl https://lienzo.midominio.com/api/health     # -> {"ok":true}
 ```
 Sin Docker: copia `server/ai-proxy.js` a `/opt/lienzo/`, crea `/etc/lienzo-ai.env` y activa `deploy/lienzo-ai.service` (instrucciones dentro del archivo). El ejemplo de nginx ya reenvía `/api/` a `127.0.0.1:8787`.
+
+El agente de IA y el OCR envían también imágenes: el proxy admite hasta 3 por petición (PNG, JPEG o WebP, 5 MB cada una) y la petición completa hasta `AI_MAX_BODY_MB` (12 MB por defecto). El agente pide hasta 4000 tokens de salida, por eso `AI_MAX_TOKENS` vale 4500 por defecto; cada orden cuenta como una petición en el límite por hora (`AI_RATE_PER_HOUR`, súbelo si usarás mucho el agente).
 
 Controles del proxy: verifica el token de sesión con Supabase, límite por usuario (`AI_RATE_PER_HOUR`), tope de tokens (`AI_MAX_TOKENS`), lista de modelos permitidos (`AI_MODELS`) y entradas limitadas a 20 000 caracteres. **Pon un límite de gasto en tu cuenta de Anthropic** igualmente.
 
