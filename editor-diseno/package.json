@@ -5,7 +5,8 @@
   "description": "Editor de diseño Lienzo (sitio estático).",
   "scripts": {
     "start": "python3 -m http.server 8080",
-    "test": "node tests/smoke.js"
+    "test": "node tests/smoke.js",
+    "test:sql": "bash tests/sql/run.sh"
   },
   "devDependencies": {
     "playwright": "^1.48.0"

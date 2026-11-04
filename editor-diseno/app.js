@@ -51,7 +51,7 @@ const UI={
  sliders:'M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0 M14 4v4M8 10v4M16 16v4',
  chart:'M4 20V10M10 20V4M16 20v-8M22 20H2',arc:'M3 17a9 9 0 0 1 18 0',
  ruler:'M3 17L17 3l4 4L7 21z M7 13l2 2 M10 10l2 2 M13 7l2 2',users:'M16 20v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2 M9 10a4 4 0 1 0 0-8 4 4 0 0 0 0 8 M22 20v-2a4 4 0 0 0-3-3.9 M16 2.1a4 4 0 0 1 0 7.8',
- cloud:'M7 18a4 4 0 0 1 0-8 5 5 0 0 1 9.6-1A4.5 4.5 0 0 1 17 18z',msg:'M4 5h16v11H9l-5 4z',
+ cloud:'M7 18a4 4 0 0 1 0-8 5 5 0 0 1 9.6-1A4.5 4.5 0 0 1 17 18z',msg:'M4 5h16v11H9l-5 4z',bell:'M6 17v-6a6 6 0 0 1 12 0v6l2 2H4z M10 21a2 2 0 0 0 4 0',
  list:'M9 6h12M9 12h12M9 18h12M4 6h.01M4 12h.01M4 18h.01',pencil:'M4 20l1-5L16 4l4 4L9 19z',
  play:'M7 4l13 8-13 8z',close:'M5 5l14 14M19 5L5 19',chevL:'M15 6l-6 6 6 6',chevR:'M9 6l6 6-6 6',
  distH:'M4 3v18 M20 3v18 M10 7h4v10h-4z',distV:'M3 4h18 M3 20h18 M7 10h10v4H7z',
@@ -1647,6 +1647,82 @@ function openShare(d){
   $('mShare').classList.add('on');load();
 }
 
+/* ---------- Menciones (@) ---------- */
+const partCache=new Map();
+async function participants(){
+  const id=cmDesign();if(!id)return[];
+  const c=partCache.get(id);if(c&&Date.now()-c.t<60000)return c.v;
+  try{const v=await sbReq('/rest/v1/rpc/design_participants',{method:'POST',body:{p_design:id}});partCache.set(id,{v:v||[],t:Date.now()});return v||[]}catch(e){return[]}
+}
+const handleOf=e=>String(e||'').split('@')[0].replace(/[^A-Za-z0-9._-]/g,'');
+function mentionNodes(text){
+  const out=[],re=/@([A-Za-z0-9._-]+)/g;let last=0,m;
+  while((m=re.exec(text))){if(m.index>last)out.push(text.slice(last,m.index));out.push(h('span',{class:'mention'},m[0]));last=m.index+m[0].length}
+  if(last<text.length)out.push(text.slice(last));return out;
+}
+function mentionBox(el){
+  const box=h('div',{class:'mbox'}),close=()=>{box.textContent='';box.style.display='none'};
+  el.addEventListener('input',async()=>{
+    const pos=el.selectionStart||0,m=/(^|\s)@([\w.-]*)$/.exec(el.value.slice(0,pos));if(!m){close();return}
+    const q=m[2].toLowerCase(),me=(SB.sess()&&SB.sess().user&&SB.sess().user.email)||'';
+    const list=(await participants()).filter(p=>p.email&&p.email!==me&&handleOf(p.email).toLowerCase().startsWith(q)).slice(0,6);
+    if(!list.length){close();return}
+    box.textContent='';box.style.display='block';
+    list.forEach(p=>box.append(h('button',{type:'button',class:'mopt',onmousedown:ev=>{
+      ev.preventDefault();const hd=handleOf(p.email),start=pos-q.length-1;
+      el.value=el.value.slice(0,start)+'@'+hd+' '+el.value.slice(pos);const np=start+hd.length+2;el.setSelectionRange(np,np);close();el.focus();
+    }},`@${handleOf(p.email)} · ${p.email}`)));
+  });
+  el.addEventListener('blur',()=>setTimeout(close,150));
+  return box;
+}
+
+/* ---------- Notificaciones ---------- */
+const nf={items:[],open:false,err:'',seen:null};
+const nfCan=()=>!!(SB.cfg()&&SB.sess());
+const nfText=n=>{const who=(n.from_email||'Alguien').split('@')[0],d='«'+(n.design_name||'un diseño')+'»';
+  return({shared:`${who} compartió ${d} contigo`,comment:`${who} comentó en ${d}`,reply:`${who} respondió en ${d}`,mention:`${who} te mencionó en ${d}`})[n.type]||'Novedad'};
+function nfBadge(){const n=nf.items.filter(x=>!x.read).length;$('bellBtn').dataset.n=String(n);$('bellBtn').title=`Notificaciones (${n} sin leer)`}
+async function nfLoad(){
+  if(!nfCan()){nf.items=[];nfBadge();if(nf.open)renderNotifs();return}
+  try{
+    const rows=await sbReq('/rest/v1/notifications?select=id,type,design_id,design_name,comment_id,from_email,body,read,created_at&order=created_at.desc&limit=40');nf.err='';
+    if(nf.seen){rows.filter(r=>!r.read&&!nf.seen.has(r.id)).slice(0,2).forEach(r=>toast(nfText(r)))}
+    nf.seen=new Set(rows.map(r=>r.id));nf.items=rows;
+  }catch(e){nf.items=[];nf.err=e.message}
+  nfBadge();if(nf.open)renderNotifs();
+}
+function renderNotifs(){
+  const P=$('npanel');P.textContent='';
+  P.append(h('div',{class:'row',style:'align-items:center'},h('h3',{style:'margin:0;flex:1;font-size:14px'},'Notificaciones'),h('button',{class:'btn sm',style:'flex:none',onclick:()=>nfToggle(false)},'Cerrar')));
+  if(!nfCan()){P.append(h('div',{class:'hint',style:'margin-top:8px'},'Inicia sesión (botón Nube) para recibir avisos.'));return}
+  if(nf.err)P.append(h('div',{class:'hint',style:'margin-top:8px'},'No disponible: '+nf.err+'. ¿Has vuelto a ejecutar supabase/schema.sql?'));
+  if(nf.items.some(x=>!x.read))P.append(h('div',{class:'row',style:'margin-top:8px'},h('button',{class:'btn sm',onclick:async()=>{
+    try{await sbReq(`/rest/v1/notifications?read=eq.false&user_id=eq.${myUid()}`,{method:'PATCH',body:{read:true}});await nfLoad()}catch(e){toast(e.message)}}},'Marcar todas como leídas')));
+  if(!nf.items.length&&!nf.err)P.append(h('div',{class:'hint',style:'margin-top:10px'},'No tienes avisos.'));
+  nf.items.forEach(n=>P.append(h('div',{class:'cth'+(n.read?' done':''),style:'cursor:pointer',onclick:()=>nfOpen(n)},
+    h('div',{style:'font-weight:'+(n.read?'400':'700')},nfText(n)),
+    n.body?h('div',{class:'hint',style:'margin-top:2px;overflow-wrap:anywhere'},n.type==='shared'?n.body:mentionNodes(n.body)):null,
+    h('div',{class:'hint',style:'margin-top:2px'},fmtDate(n.created_at)))));
+}
+async function nfOpen(n){
+  try{
+    if(!n.read)await sbReq(`/rest/v1/notifications?id=eq.${n.id}`,{method:'PATCH',body:{read:true}});
+    if(n.design_id){
+      await cloudOpen(n.design_id);nfToggle(false);
+      if(n.type!=='shared'){cmToggle(true);await cmLoad();if(n.comment_id)setTimeout(()=>focusThread(n.comment_id),300)}
+    }
+    nfLoad();
+  }catch(e){toast(e.message)}
+}
+function nfToggle(on){
+  nf.open=on;$('npanel').classList.toggle('on',on);$('bellBtn').classList.toggle('on',on);
+  if(on){$('cpanel').classList.contains('on')&&cmToggle(false);renderNotifs();nfLoad()}
+}
+$('bellBtn').onclick=()=>{if(!nfCan()){toast('Inicia sesión (botón Nube) para recibir avisos');return}nfToggle(!nf.open)};
+setInterval(()=>{if(!document.hidden&&nfCan())nfLoad()},45000);
+setTimeout(()=>{if(nfCan())nfLoad()},3000);
+
 /* ---------- Comentarios ---------- */
 const cm={items:[],place:false,pending:null,timer:null,showResolved:false,err:''};
 const cmDesign=()=>cloud.id||cloud.viewId||null;
@@ -1670,7 +1746,8 @@ function renderPins(){
   if(cm.pending&&cm.pending.page===cur){const el=h('div',{class:'cpin new'},'+');el.style.left=(r.left+cm.pending.x*zoom)+'px';el.style.top=(r.top+cm.pending.y*zoom)+'px';cpins.append(el)}
 }
 async function focusThread(id){
-  const th=cm.items.find(c=>c.id===id);if(!th)return;
+  const th0=cm.items.find(c=>c.id===id);if(!th0)return;
+  const th=th0.parent?(cm.items.find(c=>c.id===th0.parent)||th0):th0;id=th.id;
   if(th.page!==cur&&th.page<pages.length)await goPage(th.page);
   const el=document.querySelector(`[data-cid="${id}"]`);if(el){el.scrollIntoView({block:'nearest'});el.classList.add('hl');setTimeout(()=>el.classList.remove('hl'),1600)}
 }
@@ -1688,7 +1765,7 @@ function renderComments(){
     try{await sbReq('/rest/v1/design_comments',{method:'POST',body:{design_id:cmDesign(),parent:null,page:cm.pending.page,x:Math.round(cm.pending.x),y:Math.round(cm.pending.y),body:body.slice(0,2000),author_email:me.email||null}});
       cm.pending=null;cm.place=false;await cmLoad()}catch(e){toast(e.message)}}},'Publicar');
   P.append(h('div',{style:'margin-top:10px'},h('div',{class:'row'},h('button',{class:'btn'+(cm.place?' on':''),onclick:()=>{cm.place=!cm.place;cv.defaultCursor=cm.place?'crosshair':'default';if(cm.place)toast('Haz clic en el lienzo donde quieras comentar');renderComments()}},cm.place?'Haz clic en el lienzo…':'Comentar en el lienzo')),
-    h('div',{style:'margin-top:6px'},ta),h('div',{class:'row'},post)),
+    h('div',{style:'margin-top:6px'},ta,mentionBox(ta)),h('div',{class:'row'},post)),
     h('label',{class:'hint',style:'display:flex;gap:6px;align-items:center;margin-top:8px'},h('input',{type:'checkbox',...(cm.showResolved?{checked:'checked'}:{}),onchange:e=>{cm.showResolved=e.target.checked;renderComments()}}),'Mostrar resueltos'));
   if(!threads.length)P.append(h('div',{class:'hint',style:'margin-top:10px'},'Aún no hay comentarios en este diseño.'));
   threads.filter(x=>cm.showResolved||!x.t.resolved).forEach(({t,n,replies})=>{
@@ -1698,10 +1775,10 @@ function renderComments(){
     rinput.onkeydown=e=>{if(e.key==='Enter')reply()};
     P.append(h('div',{class:'cth'+(t.resolved?' done':''),'data-cid':t.id},
       h('div',{class:'hint',style:'display:flex;justify-content:space-between;cursor:pointer',onclick:()=>focusThread(t.id)},h('b',{},`#${n} · ${who(t)}`),h('span',{},`Pág. ${t.page+1} · ${fmtDate(t.created_at)}`)),
-      h('div',{style:'margin-top:4px;white-space:pre-wrap;overflow-wrap:anywhere'},t.body),
-      replies.map(r=>h('div',{class:'rp'},h('div',{class:'hint'},`${who(r)} · ${fmtDate(r.created_at)}`),h('div',{style:'white-space:pre-wrap;overflow-wrap:anywhere'},r.body),
+      h('div',{style:'margin-top:4px;white-space:pre-wrap;overflow-wrap:anywhere'},mentionNodes(t.body)),
+      replies.map(r=>h('div',{class:'rp'},h('div',{class:'hint'},`${who(r)} · ${fmtDate(r.created_at)}`),h('div',{style:'white-space:pre-wrap;overflow-wrap:anywhere'},mentionNodes(r.body)),
         mineOrOwner(r)&&h('button',{class:'btn sm',style:'margin-top:4px',onclick:async()=>{try{await sbReq(`/rest/v1/design_comments?id=eq.${r.id}`,{method:'DELETE'});await cmLoad()}catch(e){toast(e.message)}}},'Borrar'))),
-      h('div',{style:'margin-top:6px'},rinput),
+      h('div',{style:'margin-top:6px'},rinput,mentionBox(rinput)),
       h('div',{class:'row'},h('button',{class:'btn sm',onclick:reply},'Responder'),
         h('button',{class:'btn sm',onclick:async()=>{try{await sbReq(`/rest/v1/design_comments?id=eq.${t.id}`,{method:'PATCH',body:{resolved:!t.resolved}});await cmLoad()}catch(e){toast(e.message)}}},t.resolved?'Reabrir':'Resolver'),
         mineOrOwner(t)&&h('button',{class:'btn sm',onclick:async()=>{if(!confirm('¿Borrar este comentario y sus respuestas?'))return;try{await sbReq(`/rest/v1/design_comments?id=eq.${t.id}`,{method:'DELETE'});await cmLoad()}catch(e){toast(e.message)}}},'Borrar'))));
@@ -2025,6 +2102,52 @@ function libSection(){
   load();return wrap;
 }
 
+/* ---------- IA: probar otro estilo (colores y fuentes) ---------- */
+function recolorAll(map){
+  const rec=c=>{const al=new fabric.Color(c).getAlpha(),nh=map[hexOf(c)];return al<1?new fabric.Color(nh).setAlpha(al).toRgba():nh};
+  const has=c=>typeof c==='string'&&!!map[hexOf(c)];
+  const walk=o=>{
+    if(o._g){['c1','c2'].forEach(k=>{const x=hexOf(o._g[k]);if(x&&map[x])o._g[k]=map[x]});setGrad(o)}
+    else if(has(o.fill))o.set('fill',rec(o.fill));
+    if(has(o.stroke))o.set('stroke',rec(o.stroke));
+    if(has(o.textBackgroundColor))o.set('textBackgroundColor',map[hexOf(o.textBackgroundColor)]);
+    if(o.shadow&&has(o.shadow.color))o.shadow.color=rec(o.shadow.color);
+    if(o._arc&&has(o._arc.fill))o._arc.fill=map[hexOf(o._arc.fill)];
+    o.dirty=true;(o._objects||[]).forEach(walk);
+  };
+  cv.getObjects().forEach(walk);
+}
+function refontAll(map){
+  const walk=o=>{
+    if(o.fontFamily&&map[o.fontFamily])o.set('fontFamily',map[o.fontFamily]);
+    if(o._arc&&map[o._arc.fontFamily])o._arc.fontFamily=map[o._arc.fontFamily];
+    o.dirty=true;(o._objects||[]).forEach(walk);
+  };
+  cv.getObjects().forEach(walk);
+}
+function autoContrast(){
+  let fixed=0;
+  cv.getObjects().forEach(o=>{
+    if(o.type!=='textbox'||o.isBg)return;const ci=contrastInfo(o);if(!ci)return;
+    const need=o.fontSize>=Math.max(24,.035*Math.min(W,H))?3:4.5;
+    if(ci.ratio<need){o.set('fill',ratioOf([255,255,255],ci.bg)>ratioOf([0,0,0],ci.bg)?'#ffffff':'#000000');o._solid=o.fill;fixed++}
+  });
+  return fixed;
+}
+async function aiRestyle(desc){
+  endCrop(true);cv.discardActiveObject();
+  const colors=allDocColors(),fonts=[...new Set(cv.getObjects().flatMap(o=>{const s=new Set();collectFonts(o,s);return[...s]}))];
+  const txt=await askClaude(`Eres un director de arte. Recibes los colores (#rrggbb) y las fuentes de un diseño gráfico y una petición de estilo. Devuelve SOLO un objeto JSON con esta forma: {"colors":{"#viejo":"#nuevo"},"fonts":{"Fuente actual":"Fuente nueva"}}. Reglas: da un color nuevo a cada color existente, coherente con el estilo pedido y con buena armonía; mantén contraste suficiente entre colores de texto y de fondo; usa SOLO estas fuentes: ${FONTS.join(', ')}. Si una fuente no necesita cambiar, no la incluyas.`,
+    JSON.stringify({estilo:desc,colors,fonts}),1200);
+  const spec=parseJSON(txt),cmap={},fmap={};
+  Object.entries(spec.colors||{}).forEach(([o,n])=>{const a=hexc(String(o).toLowerCase(),null),b=hexc(String(n),null);if(a&&b&&colors.includes(a))cmap[a]=b.toLowerCase()});
+  Object.entries(spec.fonts||{}).forEach(([o,n])=>{if(fonts.includes(o)&&FONTS.includes(n))fmap[o]=n});
+  if(!Object.keys(cmap).length&&!Object.keys(fmap).length)throw new Error('La IA no propuso cambios válidos');
+  recolorAll(cmap);refontAll(fmap);await ensureFonts([...new Set(Object.values(fmap))]);cv.getObjects().forEach(reinitText);
+  const fixed=autoContrast();cv.requestRenderAll();push();refresh();
+  return{colors:Object.keys(cmap).length,fonts:Object.keys(fmap).length,fixed};
+}
+
 /* ---------- Asistente con IA (clave propia de Anthropic) ---------- */
 const AIcfg={get(){try{return JSON.parse(store.get('lienzo-ai'))||{}}catch(e){return{}}},set(v){store.set('lienzo-ai',JSON.stringify(v))}};
 const AI_PROXY=()=>String(window.LIENZO_AI_PROXY||'').trim();
@@ -2110,12 +2233,20 @@ function openAI(o){
     const cols=arr.filter(c=>hexc(c,null)).slice(0,6);if(cols.length<6)throw new Error('La paleta no es válida');
     store.set('lienzo-brand',JSON.stringify(cols));if(tab==='bg')showPanel();refreshProps();toast('Kit de marca actualizado');$('mAI').classList.remove('on');
   });
+  const sdesc=h('input',{type:'text',placeholder:'Ej.: más elegante y minimalista, tonos pastel'});
+  const st4=h('span',{class:'hint'}),b4=h('button',{class:'btn wide'},'Probar otro estilo');
+  b4.onclick=()=>run(b4,st4,async()=>{
+    if(!sdesc.value.trim())throw new Error('Describe el estilo que quieres');
+    const r=await aiRestyle(sdesc.value.trim());$('mAI').classList.remove('on');
+    toast(`Estilo aplicado (${r.colors} colores, ${r.fonts} fuentes${r.fixed?`, contraste ajustado en ${r.fixed} textos`:''}). Ctrl+Z para deshacer`);
+  });
   C_.append(h('h2',{},'Asistente con IA'),
     AI_PROXY()?h('div',{class:'hint'},'La IA funciona a través del servidor de este editor. Necesitas haber iniciado sesión (botón Nube) y hay un límite de peticiones por hora.')
       :h('div',{class:'hint'},'Usa tu propia clave de API de Anthropic. Se guarda solo en este navegador y se envía únicamente a api.anthropic.com. Recomendado: una clave con límite de gasto.'),
     !AI_PROXY()&&h('div',{class:'fld'},h('label',{},'Clave de API'),key),h('div',{class:'fld'},h('label',{},'Modelo'),model),
     h('div',{class:'blk'},h('h3',{},'Diseño desde una descripción'),prompt_,h('div',{class:'hint'},'Reemplaza el contenido de la página actual. Se puede deshacer.'),b1,st1),
     h('div',{class:'blk'},h('h3',{},'Redactar con IA'),mode,h('div',{style:'height:6px'}),b2,st2),
+    h('div',{class:'blk'},h('h3',{},'Probar otro estilo'),h('div',{class:'hint'},'Cambia los colores y las fuentes del diseño actual y ajusta el contraste del texto; la estructura no se toca.'),sdesc,h('div',{style:'height:6px'}),b4,st4),
     h('div',{class:'blk'},h('h3',{},'Paleta de marca'),pdesc,h('div',{style:'height:6px'}),b3,st3),
     h('div',{class:'row',style:'margin-top:14px'},h('button',{class:'btn',onclick:()=>$('mAI').classList.remove('on')},'Cerrar')));
   $('mAI').classList.add('on');

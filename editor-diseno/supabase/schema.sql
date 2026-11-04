@@ -255,3 +255,107 @@ create policy "user_templates_owner_all" on public.user_templates
   for all to authenticated
   using (owner = auth.uid())
   with check (owner = auth.uid());
+
+-- ============ Notificaciones y menciones ============
+-- Las crean únicamente triggers de la base de datos (el navegador no puede insertar ni falsificar avisos).
+create table if not exists public.notifications (
+  id           uuid primary key default gen_random_uuid(),
+  user_id      uuid not null references auth.users(id) on delete cascade,
+  type         text not null check (type in ('shared','comment','reply','mention')),
+  design_id    uuid references public.designs(id) on delete cascade,
+  design_name  text,
+  comment_id   uuid references public.design_comments(id) on delete cascade,
+  from_email   text,
+  body         text,
+  read         boolean not null default false,
+  created_at   timestamptz not null default now()
+);
+create index if not exists notifications_user_idx on public.notifications (user_id, read, created_at desc);
+alter table public.notifications enable row level security;
+
+drop policy if exists "notifications_select_own" on public.notifications;
+create policy "notifications_select_own" on public.notifications
+  for select to authenticated using (user_id = auth.uid());
+
+drop policy if exists "notifications_update_own" on public.notifications;
+create policy "notifications_update_own" on public.notifications
+  for update to authenticated using (user_id = auth.uid()) with check (user_id = auth.uid());
+
+drop policy if exists "notifications_delete_own" on public.notifications;
+create policy "notifications_delete_own" on public.notifications
+  for delete to authenticated using (user_id = auth.uid());
+
+-- Solo se puede cambiar el campo "read"; nadie puede insertar desde el navegador.
+revoke insert, update on public.notifications from anon, authenticated;
+grant update (read) on public.notifications to authenticated;
+
+-- Personas con acceso a un diseño (para sugerir menciones con @).
+create or replace function public.design_participants(p_design uuid)
+returns table (user_id uuid, email text, role text)
+language sql stable security definer set search_path = public, auth as $$
+  select d.owner, u.email::text, 'owner'::text
+    from public.designs d join auth.users u on u.id = d.owner
+   where d.id = p_design and public.design_role(p_design) is not null
+  union all
+  select m.user_id, m.email, m.role
+    from public.design_members m
+   where m.design_id = p_design and public.design_role(p_design) is not null
+$$;
+grant execute on function public.design_participants(uuid) to authenticated;
+
+-- Aviso al compartir un diseño con alguien.
+create or replace function public.notify_member_added()
+returns trigger language plpgsql security definer set search_path = public, auth as $$
+declare v_from text; v_name text;
+begin
+  select email into v_from from auth.users where id = auth.uid();
+  select name into v_name from public.designs where id = new.design_id;
+  if new.user_id is distinct from auth.uid() then
+    insert into public.notifications (user_id, type, design_id, design_name, from_email, body)
+    values (new.user_id, 'shared', new.design_id, v_name, v_from,
+            case new.role when 'editor' then 'Puedes editar' else 'Solo ver y comentar' end);
+  end if;
+  return new;
+end $$;
+drop trigger if exists design_members_notify on public.design_members;
+create trigger design_members_notify after insert on public.design_members
+  for each row execute function public.notify_member_added();
+
+-- Aviso por comentarios nuevos, respuestas y menciones (@usuario = parte del correo antes de la @).
+create or replace function public.notify_comment()
+returns trigger language plpgsql security definer set search_path = public, auth as $$
+declare v_name text; v_snip text; v_from text; r record; v_handles text[]; v_type text;
+begin
+  select name into v_name from public.designs where id = new.design_id;
+  v_snip := left(new.body, 140);
+  v_from := coalesce(new.author_email, (select email from auth.users where id = new.author));
+  select coalesce(array_agg(lower(m[1])), '{}') into v_handles
+    from regexp_matches(new.body, '@([A-Za-z0-9._-]+)', 'g') as m;
+  for r in
+    select p.user_id, p.email from (
+      select d.owner as user_id, u.email::text as email
+        from public.designs d join auth.users u on u.id = d.owner where d.id = new.design_id
+      union
+      select m.user_id, m.email from public.design_members m where m.design_id = new.design_id
+    ) p
+    where p.user_id <> new.author
+  loop
+    v_type := null;
+    if lower(split_part(r.email, '@', 1)) = any (v_handles) then
+      v_type := 'mention';
+    elsif new.parent is null then
+      v_type := 'comment';
+    elsif exists (select 1 from public.design_comments c
+                   where (c.id = new.parent or c.parent = new.parent) and c.author = r.user_id) then
+      v_type := 'reply';
+    end if;
+    if v_type is not null then
+      insert into public.notifications (user_id, type, design_id, design_name, comment_id, from_email, body)
+      values (r.user_id, v_type, new.design_id, v_name, new.id, v_from, v_snip);
+    end if;
+  end loop;
+  return new;
+end $$;
+drop trigger if exists design_comments_notify on public.design_comments;
+create trigger design_comments_notify after insert on public.design_comments
+  for each row execute function public.notify_comment();
