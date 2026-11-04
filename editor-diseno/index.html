@@ -46,6 +46,13 @@ button,input,select{font:inherit;color:inherit}
 #presX{position:fixed;top:14px;right:14px}
 .brand{display:grid;grid-template-columns:repeat(6,1fr);gap:6px}
 .brand input{width:100%;height:32px;padding:0;border:1px solid var(--line);border-radius:8px;background:none;cursor:pointer}
+#aiCard textarea,#aiCard input[type=text],#aiCard input[type=password]{width:100%;border:1px solid var(--line);border-radius:8px;padding:8px;background:var(--panel2);font:inherit}
+#aiCard .hint{margin:4px 0 8px}
+#aiCard .blk{border-top:1px solid var(--line);padding-top:12px;margin-top:12px}
+#aiCard h3{margin:0 0 6px;font-size:13px}
+.sw.big{width:30px;height:30px}
+.pal{display:flex;gap:4px;flex-wrap:wrap;margin:6px 0}
+.pal i{width:28px;height:28px;border-radius:8px;border:1px solid var(--line);cursor:pointer}
 #ctx{position:fixed;display:none;background:var(--panel);border:1px solid var(--line);border-radius:10px;box-shadow:0 10px 30px rgba(0,0,0,.3);padding:5px;z-index:70;min-width:190px}
 #ctx.on{display:block}
 #ctx button{display:flex;align-items:center;gap:8px;width:100%;border:0;background:none;text-align:left;padding:7px 10px;border-radius:7px;cursor:pointer}
@@ -158,6 +165,7 @@ main{flex:1;display:flex;min-height:0}
   <button class="tb" id="grid" data-ic="grid" title="Mostrar cuadrícula"></button>
   <button class="tb" id="theme" data-ic="moon" title="Tema claro/oscuro"></button>
   <button class="tb" id="help" title="Atajos de teclado">?</button>
+  <button class="tb" id="ai" data-ic="sparkle" title="Asistente con IA">IA</button>
   <button class="tb" id="present" data-ic="play" title="Modo presentación">Presentar</button>
   <button class="tb" id="open" data-ic="folder" title="Abrir proyecto (.json)">Abrir</button>
   <button class="tb primary" id="export" data-ic="download">Exportar</button>
@@ -207,6 +215,7 @@ main{flex:1;display:flex;min-height:0}
   <div class="row" style="margin-top:14px"><button class="btn on" id="hc">Cerrar</button></div>
 </div></div>
 
+<div class="modal" id="mAI"><div class="card" id="aiCard" style="width:min(540px,94vw);max-height:90vh;overflow:auto"></div></div>
 <input type="file" id="file" accept="image/*" hidden>
 <input type="file" id="fileBg" accept="image/*" hidden>
 <input type="file" id="fileJson" accept=".json,application/json" hidden>
@@ -746,6 +755,7 @@ function refreshProps(){
   if(o._arc)P.append(arcSection(o));
   if(fillable.length&&!o._arc)P.append(fillSection(fillable));
   P.append(strokeSection(lv));
+  P.append(effectsSection(o));
   P.append(shadowSection(o));
   if(o.type==='rect')P.append(sec('Esquinas',rng('Redondeo',0,Math.min(o.width,o.height)/2,1,o.rx||0,v=>o.set({rx:v,ry:v}))));
   if(isImg)P.append(imageSection(o));
@@ -773,6 +783,7 @@ function textSection(o){
     h('div',{class:'row'},tbtn('AA',0,()=>conv(t=>t.toUpperCase()),'Mayúsculas'),tbtn('aa',0,()=>conv(t=>t.toLowerCase()),'Minúsculas'),tbtn('Aa',0,()=>conv(t=>t.replace(/\b\p{L}/gu,c=>c.toUpperCase())),'Capitalizar')),
     rng('Interlineado',.6,3,.05,o.lineHeight,v=>o.set('lineHeight',v)),
     rng('Espaciado de letras',-100,800,10,o.charSpacing||0,v=>o.set('charSpacing',v)),
+    h('div',{class:'row'},ibtn('sparkle',0,()=>openAI(o),'Reescribir con IA','Reescribir con IA')),
     h('div',{class:'row'},tbtn('Resaltado',!!o.textBackgroundColor,()=>upd('textBackgroundColor',o.textBackgroundColor?'':'#ffe066'))),
     o.textBackgroundColor&&col('Color de resaltado',o.textBackgroundColor,v=>o.set('textBackgroundColor',v)));
 }
@@ -802,6 +813,25 @@ function strokeSection(lv){
     h('div',{class:'fld'},dash));
 }
 
+const FX=[['none','Ninguno'],['soft','Suave'],['lift','Elevado'],['hard','Dura'],['glow','Resplandor'],['neon','Neón'],['outline','Contorno'],['hollow','Hueco'],['emboss','Relieve'],['glitch','Glitch']];
+function fxApply(o,name){
+  const T_=tg(o),lv=leaves(o).filter(l=>l.type!=='image'&&!l.isBg);
+  const accent=t=>{if(!t)return '#6c4cf1';const f=typeof t.fill==='string'&&t.fill&&!/rgba\(0,0,0,0\)|transparent/.test(t.fill)?t.fill:(t.stroke||'#6c4cf1');try{return '#'+new fabric.Color(f).toHex()}catch(e){return '#6c4cf1'}};
+  let ac=accent(lv[0]);if(/^#(fff|ffffff)$/i.test(ac))ac='#ff2bd6';
+  const sh=(c,b,x,y)=>T_.forEach(t=>t.set('shadow',new fabric.Shadow({color:c,blur:b,offsetX:x,offsetY:y})));
+  if(name==='none'){T_.forEach(t=>t.set('shadow',null))}
+  if(name==='soft')sh('rgba(0,0,0,.35)',20,0,10);
+  if(name==='lift')sh('rgba(0,0,0,.45)',40,0,24);
+  if(name==='hard')sh('#1f2430',0,8,8);
+  if(name==='glow')sh(ac,32,0,0);
+  if(name==='emboss')sh('rgba(0,0,0,.5)',2,3,3);
+  if(name==='glitch')sh('#18c5b4',0,-6,0);
+  if(name==='neon'){lv.forEach(l=>{if(l.type==='textbox'){l._g=null;l.set('fill','#ffffff')}else l.set({stroke:'#ffffff',strokeWidth:Math.max(l.strokeWidth||0,4)})});sh(ac,28,0,0)}
+  if(name==='outline')lv.forEach(l=>{l.set({stroke:l.stroke||'#1f2430',strokeWidth:Math.max(l.strokeWidth||0,3)});if(l.type==='textbox')l.set('paintFirst','stroke')});
+  if(name==='hollow')lv.forEach(l=>{const c=accent(l);l._g=null;l.set({stroke:c,strokeWidth:Math.max(l.strokeWidth||0,3),fill:'rgba(0,0,0,0)'})});
+  T_.concat(lv).forEach(t=>t.dirty=true);commit();refreshProps();
+}
+function effectsSection(o){return sec('Efectos rápidos',h('div',{class:'grid'},FX.map(([k,n])=>tbtn(n,0,()=>fxApply(o,k)))))}
 function shadowSection(o){
   const targets=tg(o),sh=targets[0].shadow;
   const st={on:!!sh,hex:'#000000',a:.35,blur:20,x:0,y:8};
@@ -815,14 +845,57 @@ function shadowSection(o){
 
 function applyFilters(img){
   const f=img._f||{},F=fabric.Image.filters,a=[];
+  if(f.mat)a.push(new F.ColorMatrix({matrix:f.mat}));
   if(f.br)a.push(new F.Brightness({brightness:f.br}));
   if(f.ct)a.push(new F.Contrast({contrast:f.ct}));
   if(f.sat)a.push(new F.Saturation({saturation:f.sat}));
-  if(f.blur)a.push(new F.Blur({blur:f.blur}));
+  if(f.vib)a.push(new F.Vibrance({vibrance:f.vib}));
+  if(f.hue)a.push(new F.HueRotation({rotation:f.hue}));
   if(f.gray)a.push(new F.Grayscale());
   if(f.sepia)a.push(new F.Sepia());
+  if(f.tint)a.push(new F.BlendColor({color:f.tint.c,mode:'tint',alpha:f.tint.a}));
+  if(f.blur)a.push(new F.Blur({blur:f.blur}));
+  if(f.noise)a.push(new F.Noise({noise:f.noise}));
+  if(f.pix>1)a.push(new F.Pixelate({blocksize:Math.round(f.pix)}));
   if(f.inv)a.push(new F.Invert());
   img.filters=a;img.applyFilters();cv.requestRenderAll();
+}
+const IMG_PRESETS=[['Original',{}],['Vívido',{sat:.35,ct:.12,vib:.4}],['Dramático',{ct:.3,br:-.08,sat:-.2}],
+  ['Vintage',{mat:[.9,.5,.1,0,0,.3,.8,.1,0,0,.2,.3,.5,0,0,0,0,0,1,0],ct:-.05}],['Frío',{tint:{c:'#2f80ed',a:.22},sat:.1}],['Cálido',{tint:{c:'#ffb020',a:.25},br:.05}],
+  ['Noir',{gray:true,ct:.35}],['Mate',{ct:-.2,br:.05,sat:-.15}],['Duotono',{gray:true,tint:{c:'#6c4cf1',a:.55}}],['Pixel',{pix:8}]];
+
+/* Herramientas inteligentes sin conexión */
+function removeBgColor(o,tol){
+  const el=o.getElement(),w=el.naturalWidth||el.width,hh=el.naturalHeight||el.height;
+  const c=document.createElement('canvas');c.width=w;c.height=hh;const x=c.getContext('2d',{willReadFrequently:true});x.drawImage(el,0,0,w,hh);
+  const id=x.getImageData(0,0,w,hh),d=id.data,N=w*hh;
+  const px=i=>[d[i*4],d[i*4+1],d[i*4+2]],corners=[0,w-1,(hh-1)*w,N-1].map(px);
+  const ref=[0,1,2].map(k=>{const v=corners.map(q=>q[k]).sort((p,q)=>p-q);return(v[1]+v[2])/2});
+  const t2=tol*tol,seen=new Uint8Array(N),q=new Uint32Array(N);let qh=0,qt=0;
+  const ok=i=>{const dr=d[i*4]-ref[0],dg=d[i*4+1]-ref[1],db=d[i*4+2]-ref[2];return dr*dr+dg*dg+db*db<=t2};
+  const add=i=>{if(!seen[i]&&ok(i)){seen[i]=1;q[qt++]=i}};
+  for(let i=0;i<w;i++){add(i);add((hh-1)*w+i)}for(let j=0;j<hh;j++){add(j*w);add(j*w+w-1)}
+  while(qh<qt){const i=q[qh++],xx=i%w,yy=(i/w)|0;if(xx>0)add(i-1);if(xx<w-1)add(i+1);if(yy>0)add(i-w);if(yy<hh-1)add(i+w)}
+  const edge=[];
+  for(let i=0;i<N;i++){if(seen[i])continue;const xx=i%w,yy=(i/w)|0;if((xx>0&&seen[i-1])||(xx<w-1&&seen[i+1])||(yy>0&&seen[i-w])||(yy<hh-1&&seen[i+w]))edge.push(i)}
+  let n=0;for(let i=0;i<N;i++)if(seen[i]){d[i*4+3]=0;n++}
+  edge.forEach(i=>{d[i*4+3]=Math.min(d[i*4+3],170)});
+  x.putImageData(id,0,0);return{url:c.toDataURL('image/png'),ratio:n/N};
+}
+function replaceImage(o,url){
+  fabric.Image.fromURL(url,n=>{
+    n.set({left:o.left,top:o.top,scaleX:o.scaleX,scaleY:o.scaleY,angle:o.angle,flipX:o.flipX,flipY:o.flipY,opacity:o.opacity,shadow:o.shadow,name:o.name});
+    n._f=o._f;n._crop=o._crop;n._round=o._round;const i=cv.getObjects().indexOf(o);cv.discardActiveObject();
+    batch(()=>{cv.remove(o);cv.insertAt(n,i)});if(n._f)applyFilters(n);if(n._crop)applyClip(n);cv.setActiveObject(n);cv.requestRenderAll();
+  });
+}
+function extractPalette(o,k=6){
+  const el=o.getElement(),c=document.createElement('canvas'),S=64;c.width=c.height=S;const x=c.getContext('2d',{willReadFrequently:true});x.drawImage(el,0,0,S,S);
+  const d=x.getImageData(0,0,S,S).data,bins=new Map();
+  for(let i=0;i<d.length;i+=4){if(d[i+3]<128)continue;const key=((d[i]>>4)<<8)|((d[i+1]>>4)<<4)|(d[i+2]>>4);const b=bins.get(key)||{n:0,r:0,g:0,b:0};b.n++;b.r+=d[i];b.g+=d[i+1];b.b+=d[i+2];bins.set(key,b)}
+  const list=[...bins.values()].sort((a,b)=>b.n-a.n).map(b=>[b.r/b.n,b.g/b.n,b.b/b.n]),out=[];
+  for(const q of list){if(out.every(z=>Math.hypot(z[0]-q[0],z[1]-q[1],z[2]-q[2])>70))out.push(q);if(out.length>=k)break}
+  return out.map(q=>'#'+[0,1,2].map(i=>Math.round(q[i]).toString(16).padStart(2,'0')).join(''));
 }
 function applyClip(o){
   const c=o._crop||{l:0,r:0,t:0,b:0},rd=o._round||0;
@@ -835,12 +908,22 @@ function imageSection(o){
   const fr=(label,k,min,max,step)=>rng(label,min,max,step,F[k]||0,v=>{F[k]=v;applyFilters(o)});
   const tog=(label,k)=>tbtn(label,F[k],()=>{F[k]=!F[k];applyFilters(o);commit();refreshProps()});
   const cr=(label,k,opp)=>rng(label,0,.9,.01,C[k],v=>{C[k]=Math.min(v,.95-C[opp]);applyClip(o)});
-  return sec('Imagen',fr('Brillo','br',-.5,.5,.01),fr('Contraste','ct',-.5,.5,.01),fr('Saturación','sat',-1,1,.01),fr('Desenfoque','blur',0,.5,.01),
-    h('div',{class:'row'},tog('B/N','gray'),tog('Sepia','sepia'),tog('Invertir','inv')),
-    h('div',{class:'hint',style:'margin-top:8px'},'Recorte'),
-    cr('Izquierda','l','r'),cr('Derecha','r','l'),cr('Arriba','t','b'),cr('Abajo','b','t'),
-    rng('Bordes redondeados',0,1,.01,o._round||0,v=>{o._round=v;applyClip(o)}),
-    h('div',{class:'row'},tbtn('Restablecer',0,()=>{o._f={};o._crop={l:0,r:0,t:0,b:0};o._round=0;applyFilters(o);applyClip(o);commit();refreshProps()}),
+  let tol=40;const pal=h('div',{class:'pal'});let colors=[];
+  const showPal=()=>{pal.textContent='';colors.forEach(c=>pal.append(h('i',{style:`background:${c}`,title:c,onclick:()=>{store.set('lienzo-last-color',c);toast('Color '+c)}})))};
+  return h('div',{},
+    sec('Filtros',h('div',{class:'grid g2'},IMG_PRESETS.map(([n,pr])=>tbtn(n,0,()=>{o._f=JSON.parse(JSON.stringify(pr));applyFilters(o);commit();refreshProps()})))),
+    sec('Ajustes de imagen',fr('Brillo','br',-.5,.5,.01),fr('Contraste','ct',-.5,.5,.01),fr('Saturación','sat',-1,1,.01),fr('Intensidad','vib',-1,1,.01),fr('Matiz','hue',-1,1,.01),
+      fr('Desenfoque','blur',0,.5,.01),fr('Grano','noise',0,400,5),fr('Pixelar','pix',0,40,1),
+      h('div',{class:'row'},tog('B/N','gray'),tog('Sepia','sepia'),tog('Invertir','inv'))),
+    sec('Recorte',cr('Izquierda','l','r'),cr('Derecha','r','l'),cr('Arriba','t','b'),cr('Abajo','b','t'),
+      rng('Bordes redondeados',0,1,.01,o._round||0,v=>{o._round=v;applyClip(o)})),
+    sec('Herramientas inteligentes',
+      rng('Tolerancia del fondo',5,120,1,tol,v=>{tol=v},()=>{}),
+      ibtn('sparkle',0,()=>{const r=removeBgColor(o,tol);if(r.ratio>.97)return toast('Tolerancia demasiado alta');if(r.ratio<.003)return toast('No se detectó un fondo liso en los bordes');replaceImage(o,r.url);toast('Fondo eliminado')},'Quitar fondo liso','Quitar fondo liso'),
+      h('div',{class:'hint'},'Funciona mejor con fondos de un solo color.'),
+      ibtn('palette',0,()=>{colors=extractPalette(o);showPal()},'Extraer paleta','Extraer paleta de colores'),pal,
+      ibtn('palette',0,()=>{if(!colors.length)colors=extractPalette(o);const b=colors.concat(BRAND_DEF).slice(0,6);store.set('lienzo-brand',JSON.stringify(b));toast('Kit de marca actualizado');if(tab==='bg')showPanel()},'Usar como kit de marca','Usar como kit de marca')),
+    h('div',{class:'row',style:'margin-top:8px'},tbtn('Restablecer',0,()=>{o._f={};o._crop={l:0,r:0,t:0,b:0};o._round=0;applyFilters(o);applyClip(o);commit();refreshProps()}),
       tbtn('Usar de fondo',0,()=>{cv.discardActiveObject();batch(()=>{cv.getObjects().filter(x=>x.isBg&&x!==o).forEach(x=>cv.remove(x));o.clipPath=null;cover(o,W,H);o.set({isBg:true,selectable:false,evented:false,hoverCursor:'default'});cv.sendToBack(o)})})));
 }
 
@@ -1111,6 +1194,92 @@ addEventListener('keydown',e=>{
   }
 });
 let nudgeT;
+
+/* ---------- Asistente con IA (clave propia de Anthropic) ---------- */
+const AIcfg={get(){try{return JSON.parse(store.get('lienzo-ai'))||{}}catch(e){return{}}},set(v){store.set('lienzo-ai',JSON.stringify(v))}};
+async function askClaude(system,user,max=2500){
+  const cfg=AIcfg.get();
+  if(!cfg.key){openAI();throw new Error('Añade primero tu clave de API')}
+  const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',
+    headers:{'content-type':'application/json','x-api-key':cfg.key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+    body:JSON.stringify({model:cfg.model||'claude-sonnet-5-5',max_tokens:max,system,messages:[{role:'user',content:user}]})});
+  const j=await r.json().catch(()=>({}));
+  if(!r.ok)throw new Error((j.error&&j.error.message)||('Error '+r.status));
+  return(j.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('');
+}
+function parseJSON(t){const a=t.search(/[\[{]/),b=Math.max(t.lastIndexOf('}'),t.lastIndexOf(']'));if(a<0||b<a)throw new Error('La IA no devolvió un resultado válido');return JSON.parse(t.slice(a,b+1))}
+const hexc=(c,d)=>/^#[0-9a-f]{6}$/i.test(c||'')?c:d;
+const numc=(v,a,b,d)=>{v=+v;return isFinite(v)?clamp(v,a,b):d};
+function renderAIDesign(spec){
+  cv.discardActiveObject();
+  batch(()=>{
+    cv.getObjects().slice().forEach(o=>cv.remove(o));
+    const bg=spec.background||{};
+    if(Array.isArray(bg.gradient)&&bg.gradient.length>=2)setBg({g:[hexc(bg.gradient[0],'#6c4cf1'),hexc(bg.gradient[1],'#18c5b4'),numc(bg.gradient[2],0,360,135)]});
+    else setBg(hexc(bg.color,'#ffffff'));
+    (Array.isArray(spec.elements)?spec.elements:[]).slice(0,18).forEach(e=>{
+      if(!e||typeof e!=='object')return;
+      const x=numc(e.x,0,1,.5),y=numc(e.y,0,1,.5);
+      if(e.type==='text'&&e.text){
+        T(String(e.text).slice(0,220),x,y,numc(e.size,.015,.3,.05),{fontFamily:FONTS.includes(e.font)?e.font:'Poppins',fontWeight:numc(e.weight,300,900,700),fill:hexc(e.color,'#1f2430'),
+          textAlign:['left','center','right'].includes(e.align)?e.align:'center',width:W*numc(e.width,.1,1,.8),charSpacing:numc(e.spacing,0,800,0)});
+      }else if(e.type==='rect'){
+        const w=numc(e.w,.005,1,.3),hh=numc(e.h,.003,1,.2),r=numc(e.radius,0,1,0)*Math.min(w*W,hh*H)/2;
+        R(x,y,w,hh,hexc(e.fill,'#6c4cf1'),{rx:r,ry:r});
+      }else if(e.type==='circle'){C(x,y,numc(e.r,.004,.6,.1),hexc(e.fill,'#6c4cf1'))}
+      else if(e.type==='icon'&&LIB[e.name]){
+        const pth=libIcon(LIB[e.name],hexc(e.color,'#1f2430')),size=S_()*numc(e.size,.03,.5,.12);pth.scaleToWidth(size);pth.set({strokeWidth:size/17,left:x*W,top:y*H,name:e.name});cv.add(pth);
+      }
+    });
+  });
+  ensureFonts();
+}
+const AI_DESIGN_SYS=()=>`Eres un diseñador gráfico experto. Devuelve SOLO un objeto JSON válido, sin markdown ni explicaciones, con este esquema:
+{"background":{"color":"#rrggbb"} o {"gradient":["#rrggbb","#rrggbb",angulo_en_grados]},
+"elements":[ {"type":"text","text":"...","x":0.5,"y":0.3,"size":0.08,"font":"Poppins","weight":700,"color":"#rrggbb","align":"center","width":0.8,"spacing":0},
+{"type":"rect","x":0.5,"y":0.8,"w":0.4,"h":0.1,"fill":"#rrggbb","radius":0.5},
+{"type":"circle","x":0.8,"y":0.2,"r":0.2,"fill":"#rrggbb"},
+{"type":"icon","name":"Corazón","x":0.5,"y":0.5,"size":0.15,"color":"#rrggbb"} ]}
+Reglas: x e y son el CENTRO del elemento como fracción 0-1 del lienzo; w, h y width son fracciones del ancho/alto; size y r son fracciones del lado menor (texto entre 0.02 y 0.2). Los elementos se dibujan en orden (los primeros quedan al fondo). Máximo 14 elementos. Jerarquía clara, buen contraste, márgenes amplios, textos cortos. Idioma de los textos: el de la descripción. Fuentes permitidas: ${FONTS.join(', ')}. Iconos permitidos: ${Object.keys(LIB).join(', ')}.`;
+function openAI(o){
+  const cfg=AIcfg.get(),C_=$('aiCard');C_.textContent='';
+  const key=h('input',{type:'password',placeholder:'sk-ant-…',value:cfg.key||''});
+  const model=h('select',{class:'sel'},[['claude-sonnet-5-5','Sonnet 5.5 (equilibrado)'],['claude-haiku-5-5','Haiku 5.5 (rápido)'],['claude-opus-5-5','Opus 5.5 (máxima calidad)']].map(([v,l])=>h('option',{value:v},l)));model.value=cfg.model||'claude-sonnet-5-5';
+  const save=()=>{AIcfg.set({key:key.value.trim(),model:model.value})};key.onchange=save;model.onchange=save;
+  const run=async(btn,status,fn)=>{save();btn.disabled=true;status.textContent='Trabajando…';try{await fn();status.textContent='Listo';}catch(e){status.textContent='';toast(e.message||'Error')}btn.disabled=false};
+  const prompt_=h('textarea',{rows:3,placeholder:'Ej.: Cartel para una cafetería, tonos cálidos, título "Café de especialidad" y "2x1 los lunes"'});
+  const st1=h('span',{class:'hint'}),b1=h('button',{class:'btn on wide'},'Generar diseño');
+  b1.onclick=()=>run(b1,st1,async()=>{
+    if(!prompt_.value.trim())throw new Error('Describe el diseño que quieres');
+    const txt=await askClaude(AI_DESIGN_SYS(),`Formato del lienzo: ${W}x${H} px.\nDescripción: ${prompt_.value.trim()}`,3000);
+    renderAIDesign(parseJSON(txt));$('mAI').classList.remove('on');toast('Diseño generado. Puedes editarlo o deshacer con Ctrl+Z');
+  });
+  const modes=[['Mejorar la redacción','Mejora la redacción manteniendo el significado y la longitud aproximada.'],['Hacerlo más corto','Reescríbelo mucho más corto y directo, ideal para un diseño gráfico.'],['Más persuasivo','Reescríbelo de forma más persuasiva y atractiva, con un llamado a la acción si encaja.'],['Traducir al inglés','Traduce al inglés.'],['Traducir al español','Traduce al español.'],['Corregir ortografía','Corrige la ortografía y la gramática sin cambiar el estilo.']];
+  const mode=h('select',{class:'sel'},modes.map(([n],i)=>h('option',{value:i},n)));
+  const st2=h('span',{class:'hint'}),b2=h('button',{class:'btn wide'},'Reescribir el texto seleccionado');
+  b2.onclick=()=>run(b2,st2,async()=>{
+    const t=cv.getActiveObject();if(!t||t.type!=='textbox')throw new Error('Selecciona primero un cuadro de texto');
+    const out=await askClaude('Eres un redactor publicitario. Devuelve únicamente el texto resultante, sin comillas, sin explicaciones y conservando los saltos de línea.',`${modes[mode.value][1]}\n\nTexto:\n${t.text}`,800);
+    t.set('text',out.trim());t.initDimensions();commit();refreshProps();$('mAI').classList.remove('on');
+  });
+  const pdesc=h('input',{type:'text',placeholder:'Ej.: marca de café artesanal, cálida y natural'});
+  const st3=h('span',{class:'hint'}),b3=h('button',{class:'btn wide'},'Crear paleta de marca');
+  b3.onclick=()=>run(b3,st3,async()=>{
+    if(!pdesc.value.trim())throw new Error('Describe el estilo de la marca');
+    const arr=parseJSON(await askClaude('Eres un director de arte. Devuelve SOLO un array JSON con 6 colores hexadecimales (#rrggbb) armoniosos y con buen contraste entre sí: 4 de acento, 1 oscuro para texto y 1 claro.',pdesc.value.trim(),300));
+    const cols=arr.filter(c=>hexc(c,null)).slice(0,6);if(cols.length<6)throw new Error('La paleta no es válida');
+    store.set('lienzo-brand',JSON.stringify(cols));if(tab==='bg')showPanel();refreshProps();toast('Kit de marca actualizado');$('mAI').classList.remove('on');
+  });
+  C_.append(h('h2',{},'Asistente con IA'),
+    h('div',{class:'hint'},'Usa tu propia clave de API de Anthropic. Se guarda solo en este navegador y se envía únicamente a api.anthropic.com. Recomendado: una clave con límite de gasto.'),
+    h('div',{class:'fld'},h('label',{},'Clave de API'),key),h('div',{class:'fld'},h('label',{},'Modelo'),model),
+    h('div',{class:'blk'},h('h3',{},'Diseño desde una descripción'),prompt_,h('div',{class:'hint'},'Reemplaza el contenido de la página actual. Se puede deshacer.'),b1,st1),
+    h('div',{class:'blk'},h('h3',{},'Redactar con IA'),mode,h('div',{style:'height:6px'}),b2,st2),
+    h('div',{class:'blk'},h('h3',{},'Paleta de marca'),pdesc,h('div',{style:'height:6px'}),b3,st3),
+    h('div',{class:'row',style:'margin-top:14px'},h('button',{class:'btn',onclick:()=>$('mAI').classList.remove('on')},'Cerrar')));
+  $('mAI').classList.add('on');
+}
+$('ai').onclick=()=>openAI();
 
 /* ---------- Móvil / táctil ---------- */
 $('fab').append(ic('sliders'));
