@@ -57,6 +57,18 @@ El editor se sirve con una *Content-Security-Policy* estricta (ya incluida en `C
 Con HTTPS el navegador ofrece «Instalar» (aparece un botón en la cabecera) y el editor funciona sin conexión gracias a `sw.js`.
 Cuando cambies archivos estáticos, sube el número de `CACHE` en `sw.js` (por ejemplo `lienzo-v2`) para que los usuarios reciban la versión nueva.
 
+## Copias de seguridad
+- **Base de datos** (diseños, versiones, comentarios, plantillas): activa las copias automáticas de Supabase (planes de pago) o haz tu propia con `pg_dump` desde el VPS, usando la cadena de conexión de *Project Settings → Database*:
+  ```bash
+  pg_dump "postgresql://postgres:TU_CLAVE@db.TU_PROYECTO.supabase.co:5432/postgres" --schema=public -Fc -f lienzo-$(date +%F).dump
+  ```
+  Prográmalo con `cron` (por ejemplo cada noche) y copia el archivo fuera del servidor.
+- **Imágenes** (Storage): el bucket `design-images` es compatible con S3. Puedes copiarlo con `rclone` apuntando al endpoint S3 de Supabase (*Project Settings → Storage → S3 connection*).
+- **Este servidor**: no guarda datos de usuarios. Solo conserva `config.js` y `.env`; guárdalos en tu gestor de contraseñas o repositorio privado.
+
+## Pruebas automáticas en CI (opcional)
+Hay un ejemplo de flujo de GitHub Actions en `deploy/github-actions-test.yml.example`. Cópialo a `.github/workflows/test.yml` en tu repositorio para ejecutar la prueba de humo en cada cambio.
+
 ## Lista de comprobación
 - [ ] `https://tu-dominio` carga y las fuentes se ven bien (pestaña Red del navegador: sin peticiones a dominios externos, salvo Supabase/Anthropic).
 - [ ] Botón **Nube**: puedes registrarte, guardar y abrir un diseño.

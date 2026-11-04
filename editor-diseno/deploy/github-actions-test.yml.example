@@ -1,0 +1,20 @@
+# Copia este archivo a .github/workflows/test.yml (en la raíz de tu repositorio).
+# Ajusta "working-directory" si la carpeta del editor no se llama editor-diseno.
+name: Lienzo - prueba de humo
+on:
+  push:
+  pull_request:
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: editor-diseno
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install
+      - run: npx playwright install --with-deps chromium
+      - run: npm test

@@ -235,3 +235,23 @@ drop policy if exists "comments_delete" on public.design_comments;
 create policy "comments_delete" on public.design_comments
   for delete to authenticated
   using (author = auth.uid() or public.design_role(design_id) = 'owner');
+
+-- ============ Mis plantillas ============
+create table if not exists public.user_templates (
+  id         uuid primary key default gen_random_uuid(),
+  owner      uuid not null default auth.uid() references auth.users(id) on delete cascade,
+  name       text not null check (char_length(name) between 1 and 60),
+  width      int  not null,
+  height     int  not null,
+  data       jsonb not null,
+  thumb      text,
+  created_at timestamptz not null default now()
+);
+create index if not exists user_templates_owner_idx on public.user_templates (owner, created_at desc);
+alter table public.user_templates enable row level security;
+
+drop policy if exists "user_templates_owner_all" on public.user_templates;
+create policy "user_templates_owner_all" on public.user_templates
+  for all to authenticated
+  using (owner = auth.uid())
+  with check (owner = auth.uid());

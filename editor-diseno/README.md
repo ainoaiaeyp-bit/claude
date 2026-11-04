@@ -63,3 +63,8 @@ Botón **Reglas**: arrastra desde la regla superior o izquierda para crear guía
 - **Comentarios**: botón *Comentarios* → «Comentar en el lienzo», clic donde quieras anclarlo, escribe y publica. Cada comentario es un pin numerado en el lienzo, con respuestas, **Resolver/Reabrir** y borrado (el autor y el propietario). Se actualizan cada 15 s mientras el panel está abierto. Requiere que el diseño esté en la nube.
 - **Privacidad**: la función de invitar por correo permite al propietario comprobar si un correo tiene cuenta (porque informa de si existe). Si eso te preocupa, quita `share_design` o cámbiala por invitaciones pendientes.
 - Hay que **volver a ejecutar `supabase/schema.sql`** para activar todo esto (crea las tablas `design_members` y `design_comments`, la función `design_role` y las políticas).
+
+## Mis plantillas, contraste y accesibilidad
+- **Mis plantillas** (pestaña *Plantillas*): «Guardar esta página como plantilla» guarda la página actual (con su tamaño). Con sesión iniciada se guarda en tu cuenta (tabla `user_templates`; las imágenes van a Storage) y, si no, en este navegador (máximo 8). Un clic la aplica, reemplazando la página actual; la cruz la elimina. Hay que volver a ejecutar `supabase/schema.sql`.
+- **Contraste del texto**: al seleccionar un texto, el panel muestra la relación de contraste (WCAG) entre su color y el fondo que tiene detrás (se mide sobre lo que realmente hay dibujado debajo). Si no llega al mínimo (4,5:1 en texto normal, 3:1 en texto grande) aparece **Mejorar contraste**, que elige blanco o negro. No mide texto con degradado.
+- **Accesibilidad**: los botones con solo icono tienen etiqueta (`aria-label`), el foco con teclado es visible y los diálogos se cierran con `Esc`.
