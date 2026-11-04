@@ -166,3 +166,16 @@ button { border: 0; background: none; cursor: pointer; padding: 0; }
 .mini .g { width: 13px; height: 13px; }
 .mealh { display: inline-flex; align-items: center; }
 .mealh .mini { margin-right: 8px; }
+
+/* ---- ideas / notas ---- */
+.quick { display: flex; gap: 8px; margin-bottom: 14px; }
+.quick input { flex: 1; min-width: 0; background: var(--card); border: 0; border-radius: 14px; padding: 13px 16px; outline: 0; }
+.quick button { width: 48px; border-radius: 14px; background: #ffcc00; color: #000; display: grid; place-items: center; }
+.quick button .g { width: 22px; height: 22px; }
+.search { width: 100%; background: var(--card2); border: 0; border-radius: 10px; padding: 9px 14px; margin-bottom: 12px; outline: 0; }
+.chips button.on { background: var(--blue); color: #fff; }
+.star { width: 28px; height: 28px; display: grid; place-items: center; color: var(--muted); flex: none; margin-left: -4px; }
+.star .g { width: 22px; height: 22px; }
+.star.on { color: #ffcc00; }
+.star.on .g { fill: #ffcc00; }
+.row[hidden] { display: none; }

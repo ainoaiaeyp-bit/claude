@@ -8,7 +8,7 @@ App personal todo-en-uno (PWA instalable, sin dependencias ni build). Tema autom
 | **Calendario** | Vista mensual con eventos, cumpleaños, tareas, recordatorios, cargos de suscripciones y cobros |
 | **Dinero** | Movimientos (personal/negocio), suscripciones con renovación automática, resumen, presupuestos por categoría |
 | **Negocio** | Presupuestos / por cobrar / cobrado (al cobrar se registra el ingreso) |
-| **Más** | Salud y nutrición (comidas, kcal y macros, agua, peso, ejercicio), tareas, recordatorios, cumpleaños, hábitos con rachas, objetivos de ahorro, notas, ajustes |
+| **Más** | Ideas (captura rápida desde Hoy, etiquetas, estados, favoritas, convertir en tarea), notas con búsqueda y fijadas, salud y nutrición, tareas, recordatorios, cumpleaños, hábitos, objetivos de ahorro, ajustes |
 | **Asistente** (botón de chat en la cabecera) | Chat con IA que conoce tus datos y puede **crear** tareas, eventos, recordatorios, gastos, comidas (estimando kcal), peso y ejercicio |
 
 ## Probar en local
@@ -28,3 +28,6 @@ Las estimaciones nutricionales son aproximadas y no sustituyen a un profesional.
 ## Datos
 Todo en `localStorage` del dispositivo. Ajustes permite exportar/importar JSON (copia de seguridad)
 y exportar los movimientos en CSV (para la gestoría).
+
+## Versión de un solo archivo
+`python3 tools/build-single.py` genera `vida.html` (todo inline, con datos de ejemplo) para abrirlo directamente.

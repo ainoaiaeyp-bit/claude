@@ -182,6 +182,19 @@ button { border: 0; background: none; cursor: pointer; padding: 0; }
 .mealh { display: inline-flex; align-items: center; }
 .mealh .mini { margin-right: 8px; }
 
+/* ---- ideas / notas ---- */
+.quick { display: flex; gap: 8px; margin-bottom: 14px; }
+.quick input { flex: 1; min-width: 0; background: var(--card); border: 0; border-radius: 14px; padding: 13px 16px; outline: 0; }
+.quick button { width: 48px; border-radius: 14px; background: #ffcc00; color: #000; display: grid; place-items: center; }
+.quick button .g { width: 22px; height: 22px; }
+.search { width: 100%; background: var(--card2); border: 0; border-radius: 10px; padding: 9px 14px; margin-bottom: 12px; outline: 0; }
+.chips button.on { background: var(--blue); color: #fff; }
+.star { width: 28px; height: 28px; display: grid; place-items: center; color: var(--muted); flex: none; margin-left: -4px; }
+.star .g { width: 22px; height: 22px; }
+.star.on { color: #ffcc00; }
+.star.on .g { fill: #ffcc00; }
+.row[hidden] { display: none; }
+
 </style>
 </head>
 <body>
@@ -199,7 +212,7 @@ button { border: 0; background: none; cursor: pointer; padding: 0; }
   const p=n=>String(n).padStart(2,'0'), I=d=>`${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`;
   const off=n=>{const d=new Date();d.setDate(d.getDate()+n);return I(d);};
   const id=()=>Math.random().toString(36).slice(2,10);
-  const now=new Date(), mk=I(now).slice(0,8);
+  const now=new Date();
   const tx=[
     ['in',1850,'Nómina','Nómina','personal',-3],['out',620,'Hogar','Alquiler','personal',-3],['out',64.3,'Comida','Mercadona','personal',-1],
     ['out',38.5,'Transporte','Gasolina','personal',-2],['out',27,'Ocio','Cine y cena','personal',-4],['out',49,'Salud','Gimnasio','personal',-5],
@@ -230,7 +243,13 @@ button { border: 0; background: none; cursor: pointer; padding: 0; }
            {id:id(),title:'Renovar seguro del coche',due:off(15),prio:'baja',note:'',done:false}],
     habits:[{id:id(),name:'Leer 20 minutos',icon:'book',log:{[off(0)]:true,[off(-1)]:true,[off(-2)]:true,[off(-4)]:true}},
             {id:id(),name:'Caminar 8.000 pasos',icon:'pulse',log:{[off(-1)]:true,[off(-2)]:true,[off(-3)]:true}}],
-    notes:[{id:id(),title:'Ideas web',text:'Calculadora de ahorro energético\nGuía de subvenciones 2026',date:off(-2)}],
+    notes:[{id:id(),title:'Claves y contactos útiles',text:'Wifi casa: ...\nGestor: 600 000 000',pin:true,date:off(-5)},
+           {id:id(),title:'Lista de la compra',text:'Aceite, huevos, fruta, yogures',pin:false,date:off(-1)}],
+    ideas:[{id:id(),text:'Calculadora de ahorro energético para comunidades de vecinos',tag:'Negocio',status:'desarrollo',star:true,date:off(-6)},
+           {id:id(),text:'Newsletter mensual sobre subvenciones y ayudas',tag:'Contenido',status:'nueva',star:true,date:off(-3)},
+           {id:id(),text:'Regalo para Marta: libro de fotografía',tag:'Regalo',status:'nueva',star:false,date:off(-2)},
+           {id:id(),text:'Vídeo corto explicando cómo leer la factura de la luz',tag:'Contenido',status:'nueva',star:false,date:off(-1)},
+           {id:id(),text:'Escapada de fin de semana a la sierra',tag:'Personal',status:'hecha',star:false,date:off(-20)}],
     goals:[{id:id(),name:'Viaje a Japón',icon:'plane',target:3500,saved:1280,deadline:off(220)},
            {id:id(),name:'Fondo de emergencia',icon:'target',target:6000,saved:2900,deadline:''}],
     budgets:{Comida:350,Ocio:120},
@@ -251,7 +270,7 @@ button { border: 0; background: none; cursor: pointer; padding: 0; }
 const KEY = 'vida.v1';
 const DEFAULTS = {
   profile: { name: '' }, tx: [], subs: [], rem: [], biz: [], chat: [],
-  events: [], tasks: [], habits: [], notes: [], goals: [], budgets: {},
+  events: [], tasks: [], habits: [], notes: [], ideas: [], goals: [], budgets: {},
   meals: [], water: {}, weights: [], workouts: [], health: { kcal: 2000, water: 8, weight: 0 },
   settings: { apiKey: '', model: 'claude-sonnet-5-5', theme: 'auto' }
 };
@@ -299,6 +318,8 @@ const G = {
   sliders: '<path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/>',
   chat: '<path d="M5 5.500h14a1.5 1.5 0 0 1 1.5 1.500v8a1.5 1.5 0 0 1-1.5 1.500h-8l-4.5 3.500v-3.500H5A1.5 1.5 0 0 1 3.5 15V7A1.5 1.5 0 0 1 5 5.500z"/>',
   trash: '<path d="M4.5 7h15M9.5 7V4.500h5V7M6.5 7l.8 12.500h9.400L17.5 7M10 11v5M14 11v5"/>',
+  bulb: '<path d="M9.5 18h5M10 21h4M12 3.5a5.5 5.5 0 0 0-3.2 10c.7.5 1.2 1.3 1.2 2.2v.3h4v-.3c0-.9.5-1.7 1.2-2.2A5.5 5.5 0 0 0 12 3.5z"/>',
+  star: '<path d="M12 4l2.5 5.2 5.7.8-4.1 4 1 5.7L12 17l-5.1 2.7 1-5.7-4.1-4 5.7-.8z"/>',
   book: '<path d="M5 5.500A1.5 1.5 0 0 1 6.5 4H19v14H6.500A1.5 1.5 0 0 0 5 19.500zM5 19.500A1.5 1.5 0 0 0 6.5 21H19"/>'
 };
 const gl = n => G[n] ? `<svg class="g" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${G[n]}</svg>` : esc(n);
@@ -350,7 +371,9 @@ const REPEAT_OPTS = [['no', 'Nunca'], ['diario', 'Cada día'], ['semanal', 'Cada
 const MEALS = { desayuno: ['coffee', 'Desayuno'], comida: ['food', 'Comida'], cena: ['moon', 'Cena'], snack: ['apple', 'Snack'] };
 const SPORTS = ['Caminar', 'Correr', 'Gimnasio', 'Ciclismo', 'Natación', 'Yoga', 'Fútbol', 'Otro'];
 
-const ui = { tab: 'hoy', prev: 'hoy', sub: null, money: 'mov', scope: 'todo', month: monthKey(new Date()), busy: false, calMonth: monthKey(new Date()), calSel: today(), hseg: 'nut', hday: today() };
+const IDEA_TAGS = ['Negocio', 'Personal', 'Contenido', 'Proyecto', 'Regalo', 'Otros'];
+const IDEA_ST = { nueva: ['Nueva', 'var(--orange)'], desarrollo: ['En marcha', 'var(--blue)'], hecha: ['Hecha', 'var(--green)'], descartada: ['Descartada', '#8e8e93'] };
+const ui = { ifilter: 'activas', tab: 'hoy', prev: 'hoy', sub: null, money: 'mov', scope: 'todo', month: monthKey(new Date()), busy: false, calMonth: monthKey(new Date()), calSel: today(), hseg: 'nut', hday: today() };
 
 // ---------- Tema ----------
 function applyTheme() {
@@ -501,6 +524,7 @@ function viewHoy() {
   const nu = nutrition(t), pct = Math.min(100, nu.kcal / (S.health.kcal || 1) * 100);
   const health = `<div class="section-title">Salud</div><div class="group"><div class="row" data-act="health-open"><div class="ico" style="background:var(--green)">${gl('leaf')}</div><div class="grow"><div style="display:flex;justify-content:space-between"><div class="t">Nutrición</div><div class="amt">${num(nu.kcal)} / ${num(S.health.kcal)} kcal</div></div><div class="prog"><i style="width:${pct}%;${nu.kcal > S.health.kcal ? 'background:var(--orange)' : ''}"></i></div></div></div>${waterRow(t)}</div>`;
   return `${head(greet, fdateL(t), `<button class="icon-btn" data-act="settings" aria-label="Ajustes">${gl('sliders')}</button>`)}
+  <form class="quick" data-quick><input id="qi" placeholder="Apunta una idea…" enterkeyhint="done" autocomplete="off" aria-label="Nueva idea"><button type="submit" aria-label="Guardar idea">${gl('bulb')}</button></form>
   <div class="hero"><div class="lbl">Balance de ${fmonth(mk)}</div><div class="big">${eur(m.in - m.out)}</div>
     <div class="two"><div class="pill"><span class="lbl">Ingresos</span><b>${eur(m.in, 0)}</b></div><div class="pill"><span class="lbl">Gastos</span><b>${eur(m.out, 0)}</b></div></div></div>
   <div class="grid2">
@@ -588,19 +612,20 @@ function viewBiz() {
 
 // ---------- Vista: Más (hub) y subpantallas ----------
 function viewMore() {
-  if (ui.sub) return { tasks: viewTasks, rem: viewRec, bday: viewBday, habits: viewHabits, notes: viewNotes, goals: viewGoals, health: viewHealth }[ui.sub]();
+  if (ui.sub) return { tasks: viewTasks, rem: viewRec, bday: viewBday, habits: viewHabits, notes: viewNotes, ideas: viewIdeas, goals: viewGoals, health: viewHealth }[ui.sub]();
   const nT = S.tasks.filter(t => !t.done).length, nR = S.rem.filter(r => !r.done).length, nB = S.events.filter(e => e.type === 'cumple').length;
   const pl = (n, one, many) => `${n} ${n === 1 ? one : many}`;
   const item = (k, ico, color, title, sub) => row({ ico, color, title, sub, right: '<span class="chev">›</span>', act: 'sub', id: k });
   return `${head('Más', 'Todo lo demás de tu vida')}
   <div class="group">
+    ${item('ideas', 'bulb', '#ffcc00', 'Ideas', pl(S.ideas.filter(i => i.status !== 'hecha' && i.status !== 'descartada').length, 'activa', 'activas'))}
+    ${item('notes', 'note', '#a2845e', 'Notas', pl(S.notes.length, 'nota', 'notas'))}
     ${item('health', 'leaf', 'var(--green)', 'Salud y nutrición', `${num(nutrition(today()).kcal)} kcal hoy`)}
     ${item('tasks', 'checkc', 'var(--orange)', 'Tareas', pl(nT, 'pendiente', 'pendientes'))}
     ${item('rem', 'bell', 'var(--purple)', 'Recordatorios', pl(nR, 'pendiente', 'pendientes'))}
     ${item('bday', 'cake', 'var(--pink)', 'Cumpleaños', pl(nB, 'guardado', 'guardados'))}
     ${item('habits', 'flame', 'var(--red)', 'Hábitos', pl(S.habits.length, 'activo', 'activos'))}
     ${item('goals', 'target', 'var(--teal)', 'Objetivos de ahorro', pl(S.goals.length, 'objetivo', 'objetivos'))}
-    ${item('notes', 'note', '#ffcc00', 'Notas', pl(S.notes.length, 'nota', 'notas'))}
   </div>
   <div class="group">${row({ ico: 'chat', color: 'var(--blue)', title: 'Asistente IA', sub: 'Pregunta o pídele que cree cosas', right: '<span class="chev">›</span>', act: 'ai', id: '' })}
   ${row({ ico: 'sliders', color: '#8e8e93', title: 'Ajustes', sub: 'Apariencia, IA, copia de seguridad', right: '<span class="chev">›</span>', act: 'settings', id: '' })}</div>`;
@@ -640,9 +665,41 @@ function viewGoals() {
   const rows = S.goals.map(g => { const p = g.target ? Math.min(100, g.saved / g.target * 100) : 0; return `<div class="row" data-act="edit-goal" data-id="${g.id}"><div class="ico" style="background:var(--green)">${esc(g.emoji || 'target')}</div><div class="grow"><div style="display:flex;justify-content:space-between"><div class="t">${esc(g.name)}</div><div class="amt">${eur(g.saved, 0)} / ${eur(g.target, 0)}</div></div><div class="prog"><i style="width:${p}%"></i></div><div class="s">${Math.round(p)}%${g.deadline ? ` · meta ${fdate(g.deadline)}` : ''}</div></div></div>`; }).join('');
   return `${head('Objetivos', 'Ahorro con meta', plusBtn('add-goal'), 'Más')}${group(rows, 'Define una meta (viaje, coche, fondo de emergencia) y ve aportando.')}`;
 }
+const searchBox = '<input class="search" id="sq" data-filter placeholder="Buscar" type="search" autocomplete="off" aria-label="Buscar">';
+function viewIdeas() {
+  const f = ui.ifilter;
+  const list = S.ideas.filter(i => f === 'todas' || (f === 'activas' && (i.status === 'nueva' || i.status === 'desarrollo')) || (f === 'favs' && i.star) || (f === 'hechas' && (i.status === 'hecha' || i.status === 'descartada')))
+    .sort((a, b) => (b.star ? 1 : 0) - (a.star ? 1 : 0) || b.date.localeCompare(a.date));
+  const chips = [['activas', 'Activas'], ['favs', 'Favoritas'], ['hechas', 'Cerradas'], ['todas', 'Todas']].map(([k, l]) => `<button class="${f === k ? 'on' : ''}" data-act="ifilter" data-id="${k}">${l}</button>`).join('');
+  const rows = list.map(i => `<div class="row noicon" data-q="${esc((i.text + ' ' + i.tag).toLowerCase())}"><button class="star ${i.star ? 'on' : ''}" data-act="idea-star" data-id="${i.id}" aria-label="Favorita">${gl('star')}</button><div class="grow" data-act="edit-idea" data-id="${i.id}"><div class="t" style="white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical">${esc(i.text)}</div><div class="s">${esc(i.tag)} · ${fdate(i.date)}</div></div><span class="badge" style="background:${IDEA_ST[i.status][1]}">${IDEA_ST[i.status][0]}</span></div>`).join('');
+  return `${head('Ideas', 'Todo lo que se te ocurre', plusBtn('add-idea'), 'Más')}${searchBox}<div class="chips" style="padding-top:0">${chips}</div>${group(rows, 'Aquí caerán tus ideas.<br>Usa el campo de la pantalla Hoy para apuntarlas en un segundo.')}`;
+}
 function viewNotes() {
-  const rows = [...S.notes].sort((a, b) => b.date.localeCompare(a.date)).map(n => row({ ico: 'note', color: '#ffcc00', title: n.title || 'Sin título', sub: (n.text || '').replace(/\s+/g, ' ').slice(0, 80), act: 'edit-note', id: n.id })).join('');
-  return `${head('Notas', '', plusBtn('add-note'), 'Más')}${group(rows, 'Ideas, listas, claves del wifi… lo que quieras apuntar.')}`;
+  const list = [...S.notes].sort((a, b) => (b.pin ? 1 : 0) - (a.pin ? 1 : 0) || b.date.localeCompare(a.date));
+  const rows = list.map(n => `<div class="row" data-act="edit-note" data-id="${n.id}" data-q="${esc(((n.title || '') + ' ' + (n.text || '')).toLowerCase())}"><div class="ico" style="background:#a2845e">${gl(n.pin ? 'star' : 'note')}</div><div class="grow"><div class="t">${esc(n.title || 'Sin título')}</div><div class="s">${esc((n.text || '').replace(/\s+/g, ' ').slice(0, 80))}</div></div></div>`).join('');
+  return `${head('Notas', '', plusBtn('add-note'), 'Más')}${searchBox}${group(rows, 'Listas, claves del wifi, apuntes… lo que quieras guardar.')}`;
+}
+function ideaSheet(it) {
+  const isNew = !it;
+  it = it || { text: '', tag: 'Otros', status: 'nueva', star: false, date: today() };
+  sheet(isNew ? 'Nueva idea' : 'Editar idea', [
+    { k: 'text', label: 'Idea', type: 'textarea', value: it.text, placeholder: 'Qué se te ha ocurrido' },
+    { k: 'tag', label: 'Etiqueta', type: 'select', value: it.tag, options: IDEA_TAGS.map(t => [t, t]) },
+    { k: 'status', label: 'Estado', type: 'select', value: it.status, options: Object.entries(IDEA_ST).map(([k, v]) => [k, v[0]]) },
+    { k: 'star', label: 'Favorita', type: 'select', value: it.star ? 'si' : 'no', options: [['no', 'No'], ['si', 'Sí']] }
+  ], {
+    extra: isNew ? '' : '<button class="btn alt" type="button" data-x="totask" style="margin-top:0">Convertir en tarea</button>',
+    onExtra: (x, close, read, form) => {
+      if (x !== 'totask') return;
+      const text = form.elements.text.value.trim().split('\n')[0].slice(0, 90);
+      if (!text) return toast('La idea está vacía');
+      S.tasks.push({ id: uid(), title: text, due: '', prio: 'media', note: '', done: false });
+      if (it.status === 'nueva') it.status = 'desarrollo';
+      save(); close(); render(); toast('Tarea creada');
+    },
+    onSave: v => { if (!need(v.text, 'Escribe la idea')) return false; v.star = v.star === 'si'; if (isNew) S.ideas.push({ id: uid(), ...v, date: today() }); else Object.assign(it, v); save(); render(); },
+    onDelete: isNew ? null : () => { remove(S.ideas, it); save(); render(); }
+  });
 }
 
 // ---------- Vista: Salud y nutrición ----------
@@ -690,7 +747,7 @@ function bodyEj() {
 }
 
 // ---------- Vista: Asistente ----------
-const SUGGEST = ['¿Cuánto he gastado este mes?', '¿Qué tengo esta semana?', 'Hoy he comido una tortilla de 3 huevos y una ensalada', '¿Qué suscripciones podría cancelar?', 'Apúntame mañana a las 10 llamar al gestor', 'Hazme un resumen de mis finanzas'];
+const SUGGEST = ['Apunta una idea: hacer una guía de subvenciones para clientes','¿Cuánto he gastado este mes?', '¿Qué tengo esta semana?', 'Hoy he comido una tortilla de 3 huevos y una ensalada', '¿Qué suscripciones podría cancelar?', 'Apúntame mañana a las 10 llamar al gestor', 'Hazme un resumen de mis finanzas'];
 function viewIA() {
   const msgs = S.chat.map(m => `<div class="msg ${m.role === 'user' ? 'me' : 'ai'}">${esc(m.content)}</div>`).join('');
   const intro = !S.chat.length ? `<div class="card" style="text-align:center"><div class="ico" style="background:var(--blue);width:52px;height:52px;border-radius:14px;margin:0 auto 4px">${gl('chat')}</div><div class="t" style="margin:6px 0">Tu asistente de Vida</div><div class="s">Conoce tus gastos, negocio, calendario, tareas y nutrición. Pregúntale o pídele que apunte cosas por ti.</div></div><div class="chips">${SUGGEST.map(s => `<button data-act="ask">${esc(s)}</button>`).join('')}</div>` : '';
@@ -868,9 +925,10 @@ function noteSheet(n) {
   n = n || { title: '', text: '', date: today() };
   sheet(isNew ? 'Nueva nota' : 'Editar nota', [
     { k: 'title', label: 'Título', value: n.title },
-    { k: 'text', label: 'Texto', type: 'textarea', value: n.text }
+    { k: 'text', label: 'Texto', type: 'textarea', value: n.text },
+    { k: 'pin', label: 'Fijar arriba', type: 'select', value: n.pin ? 'si' : 'no', options: [['no', 'No'], ['si', 'Sí']] }
   ], {
-    onSave: v => { if (!need(v.title || v.text, 'Escribe algo')) return false; v.date = today(); if (isNew) S.notes.push({ id: uid(), ...v }); else Object.assign(n, v); save(); render(); },
+    onSave: v => { if (!need(v.title || v.text, 'Escribe algo')) return false; v.pin = v.pin === 'si'; v.date = today(); if (isNew) S.notes.push({ id: uid(), ...v }); else Object.assign(n, v); save(); render(); },
     onDelete: isNew ? null : () => { remove(S.notes, n); save(); render(); }
   });
 }
@@ -1007,6 +1065,7 @@ function context() {
       ejercicio_ultimos_7_dias: S.workouts.filter(w => w.date >= addDays(t, -6)).map(w => ({ fecha: w.date, tipo: w.type, min: w.min, kcal: w.kcal }))
     },
     notas: S.notes.slice(-10).map(n => n.title),
+    ideas_activas: S.ideas.filter(i => i.status === 'nueva' || i.status === 'desarrollo').slice(-30).map(i => ({ idea: i.text, etiqueta: i.tag, estado: i.status, favorita: !!i.star })),
     ultimos_movimientos: [...S.tx].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 60).map(x => ({ fecha: x.date, tipo: x.type === 'in' ? 'ingreso' : 'gasto', importe: x.amount, categoria: x.cat, concepto: x.note, ambito: x.scope }))
   });
 }
@@ -1017,6 +1076,8 @@ const TOOLS = [
   { name: 'add_reminder', description: 'Crea un recordatorio con aviso a una hora concreta.', input_schema: { type: 'object', properties: { title: { type: 'string' }, due: { type: 'string', description: 'YYYY-MM-DDTHH:MM' }, repeat: { type: 'string', enum: R } }, required: ['title', 'due'] } },
   { name: 'add_transaction', description: 'Registra un gasto o ingreso.', input_schema: { type: 'object', properties: { type: { type: 'string', enum: ['out', 'in'] }, amount: { type: 'number' }, category: { type: 'string', enum: Object.keys(CATS) }, note: { type: 'string' }, date: { type: 'string', description: 'YYYY-MM-DD, por defecto hoy' }, scope: { type: 'string', enum: ['personal', 'negocio'] } }, required: ['type', 'amount', 'category'] } },
   { name: 'add_meal', description: 'Registra una comida con calorías y macros ESTIMADOS por ti a partir de la descripción del usuario.', input_schema: { type: 'object', properties: { meal: { type: 'string', enum: Object.keys(MEALS) }, name: { type: 'string' }, kcal: { type: 'number' }, protein: { type: 'number' }, carbs: { type: 'number' }, fat: { type: 'number' }, date: { type: 'string', description: 'YYYY-MM-DD, por defecto hoy' } }, required: ['meal', 'name', 'kcal'] } },
+  { name: 'add_idea', description: 'Guarda una idea del usuario.', input_schema: { type: 'object', properties: { text: { type: 'string' }, tag: { type: 'string', enum: IDEA_TAGS } }, required: ['text'] } },
+  { name: 'add_note', description: 'Guarda una nota.', input_schema: { type: 'object', properties: { title: { type: 'string' }, text: { type: 'string' } }, required: ['title'] } },
   { name: 'add_weight', description: 'Registra el peso corporal en kg.', input_schema: { type: 'object', properties: { kg: { type: 'number' }, date: { type: 'string' } }, required: ['kg'] } },
   { name: 'add_workout', description: 'Registra un ejercicio realizado.', input_schema: { type: 'object', properties: { type: { type: 'string', enum: SPORTS }, minutes: { type: 'number' }, kcal: { type: 'number' }, date: { type: 'string' } }, required: ['type', 'minutes'] } }
 ];
@@ -1027,6 +1088,8 @@ function runTool(name, i) {
     if (name === 'add_reminder') { S.rem.push({ id: uid(), title: i.title, due: i.due, repeat: i.repeat || 'no', done: false, notified: false }); return `Recordatorio creado: ${i.title} (${i.due})`; }
     if (name === 'add_transaction') { S.tx.push({ id: uid(), type: i.type, amount: Math.abs(i.amount), cat: CATS[i.category] ? i.category : 'Otros', note: i.note || '', date: i.date || today(), scope: i.scope || 'personal' }); return `Movimiento registrado: ${i.amount} € (${i.category})`; }
     if (name === 'add_meal') { S.meals.push({ id: uid(), meal: i.meal, name: i.name, kcal: Math.round(i.kcal), p: Math.round(i.protein || 0), c: Math.round(i.carbs || 0), f: Math.round(i.fat || 0), date: i.date || today() }); return `Comida registrada: ${i.name} (${Math.round(i.kcal)} kcal)`; }
+    if (name === 'add_idea') { S.ideas.push({ id: uid(), text: i.text, tag: IDEA_TAGS.includes(i.tag) ? i.tag : 'Otros', status: 'nueva', star: false, date: today() }); return `Idea guardada: ${i.text}`; }
+    if (name === 'add_note') { S.notes.push({ id: uid(), title: i.title, text: i.text || '', pin: false, date: today() }); return `Nota guardada: ${i.title}`; }
     if (name === 'add_weight') { S.weights.push({ id: uid(), kg: i.kg, date: i.date || today() }); return `Peso registrado: ${i.kg} kg`; }
     if (name === 'add_workout') { S.workouts.push({ id: uid(), type: i.type, min: i.minutes, kcal: i.kcal || 0, date: i.date || today(), note: '' }); return `Ejercicio registrado: ${i.type} ${i.minutes} min`; }
   } catch (e) { return `Error: ${e.message}`; }
@@ -1045,7 +1108,7 @@ async function ask(text) {
         headers: { 'content-type': 'application/json', 'x-api-key': S.settings.apiKey, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
         body: JSON.stringify({
           model: S.settings.model || 'claude-sonnet-5-5', max_tokens: 1024, tools: TOOLS,
-          system: `Eres el asistente personal de la app "Vida" del usuario. Responde siempre en español, breve, claro y útil, con importes en euros. Usa SOLO los datos de abajo para cifras concretas; si falta información, dilo. No inventes datos. Si el usuario pide apuntar/crear/registrar algo (tareas, eventos, recordatorios, gastos, comidas, peso, ejercicio), usa las herramientas (calcula las fechas a partir de "hoy"). Para comidas estima calorías y macros razonables y avisa de que son aproximados. Confirma qué has creado. No des consejos médicos; para dudas de salud recomienda consultar a un profesional.\n\nDATOS ACTUALES (JSON):\n${context()}`,
+          system: `Eres el asistente personal de la app "Vida" del usuario. Responde siempre en español, breve, claro y útil, con importes en euros. Usa SOLO los datos de abajo para cifras concretas; si falta información, dilo. No inventes datos. Si el usuario pide apuntar/crear/registrar algo (tareas, eventos, recordatorios, gastos, comidas, peso, ejercicio, ideas, notas), usa las herramientas (calcula las fechas a partir de "hoy"). Para comidas estima calorías y macros razonables y avisa de que son aproximados. Confirma qué has creado. No des consejos médicos; para dudas de salud recomienda consultar a un profesional.\n\nDATOS ACTUALES (JSON):\n${context()}`,
           messages: msgs
         })
       });
@@ -1094,6 +1157,9 @@ document.addEventListener('click', e => {
     case 'add-task': taskSheet(); break; case 'edit-task': taskSheet(by(S.tasks)); break;
     case 'add-habit': habitSheet(); break; case 'edit-habit': habitSheet(by(S.habits)); break;
     case 'add-goal': goalSheet(); break; case 'edit-goal': goalSheet(by(S.goals)); break;
+    case 'add-idea': ideaSheet(); break; case 'edit-idea': ideaSheet(by(S.ideas)); break;
+    case 'idea-star': { const it = by(S.ideas); it.star = !it.star; save(); render(); break; }
+    case 'ifilter': ui.ifilter = id; render(); break;
     case 'add-note': noteSheet(); break; case 'edit-note': noteSheet(by(S.notes)); break;
     case 'add-meal': mealSheet(null, MEALS[id] ? id : 'comida'); break; case 'edit-meal': mealSheet(by(S.meals)); break;
     case 'add-weight': weightSheet(); break; case 'edit-weight': weightSheet(by(S.weights)); break;
@@ -1115,6 +1181,19 @@ document.addEventListener('click', e => {
     case 'ask': ask(el.textContent); break;
     case 'clear-chat': if (confirm('¿Borrar la conversación?')) { S.chat = []; save(); render(); } break;
   }
+});
+document.addEventListener('submit', e => {
+  if (!e.target.matches('[data-quick]')) return;
+  e.preventDefault();
+  const inp = e.target.querySelector('input'), text = inp.value.trim();
+  if (!text) return;
+  S.ideas.push({ id: uid(), text, tag: 'Otros', status: 'nueva', star: false, date: today() });
+  save(); inp.value = ''; toast('Idea guardada');
+});
+document.addEventListener('input', e => {
+  if (!e.target.matches('[data-filter]')) return;
+  const q = e.target.value.trim().toLowerCase();
+  document.querySelectorAll('#view .row[data-q]').forEach(r => { r.hidden = !!q && !r.dataset.q.includes(q); });
 });
 document.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.id === 'q') { e.preventDefault(); $('[data-act=send]').click(); } });
 
