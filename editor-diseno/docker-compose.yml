@@ -1,0 +1,34 @@
+# Despliegue en tu VPS:
+#   cp .env.example .env   (y edítalo)
+#   docker compose up -d --build                 -> solo el editor con HTTPS
+#   docker compose --profile ai up -d --build    -> editor + proxy de IA seguro
+services:
+  web:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      DOMAIN: ${DOMAIN:-localhost}
+    volumes:
+      # config.js se monta desde fuera: lo editas sin reconstruir la imagen.
+      - ./config.js:/srv/config.js:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+  ai:
+    profiles: ["ai"]
+    build: ./server
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      PORT: "8787"
+    # No se publica ningún puerto: solo Caddy puede llegar a este servicio.
+    read_only: true
+    cap_drop: ["ALL"]
+
+volumes:
+  caddy_data:
+  caddy_config:

@@ -4,12 +4,15 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Lienzo – Editor de diseño</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Abril+Fatface&family=Anton&family=Bebas+Neue&family=Caveat:wght@400;700&family=Dancing+Script:wght@400;700&family=Lobster&family=Merriweather:wght@400;700&family=Montserrat:wght@400;600;700;800&family=Oswald:wght@400;700&family=Pacifico&family=Permanent+Marker&family=Playfair+Display:wght@400;700&family=Poppins:wght@400;600;700;800&family=Raleway:wght@400;700&family=Roboto:wght@400;700&family=Cinzel:wght@400;700&family=Josefin+Sans:wght@400;700&family=Lora:wght@400;700&family=Righteous&family=Satisfy&family=Space+Grotesk:wght@400;700&display=swap" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
+<meta name="theme-color" content="#6c4cf1">
+<meta name="description" content="Lienzo: editor de diseño gráfico en el navegador con plantillas, animaciones, iconos y exportación.">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="stylesheet" href="fonts.css">
+<script src="vendor/fabric.min.js"></script>
+<script src="vendor/jspdf.umd.min.js"></script>
+<script src="vendor/qrcode.js"></script>
 <script src="config.js"></script>
 <style>
 :root{--bg:#eceff4;--panel:#fff;--panel2:#f7f8fb;--ink:#1f2430;--muted:#6b7280;--line:#e3e6ec;--brand:#6c4cf1;--brand2:#18c5b4;--soft:#f0ecff}
@@ -176,6 +179,7 @@ main{flex:1;display:flex;min-height:0}
   <button class="tb" id="grid" data-ic="grid" title="Mostrar cuadrícula"></button>
   <button class="tb" id="theme" data-ic="moon" title="Tema claro/oscuro"></button>
   <button class="tb" id="help" title="Atajos de teclado">?</button>
+  <button class="tb" id="install" data-ic="download" style="display:none" title="Instalar como aplicación">Instalar</button>
   <button class="tb" id="cloudBtn" data-ic="cloud" title="Cuenta y nube">Nube</button>
   <button class="tb" id="ai" data-ic="sparkle" title="Asistente con IA">IA</button>
   <button class="tb" id="present" data-ic="play" title="Modo presentación">Presentar</button>
@@ -1488,8 +1492,18 @@ $('cloudBtn').onclick=openCloud;
 
 /* ---------- Asistente con IA (clave propia de Anthropic) ---------- */
 const AIcfg={get(){try{return JSON.parse(store.get('lienzo-ai'))||{}}catch(e){return{}}},set(v){store.set('lienzo-ai',JSON.stringify(v))}};
+const AI_PROXY=()=>String(window.LIENZO_AI_PROXY||'').trim();
 async function askClaude(system,user,max=2500){
   const cfg=AIcfg.get();
+  if(AI_PROXY()){
+    const s=SB.cfg()?await SB.fresh():null;
+    const r=await fetch(AI_PROXY(),{method:'POST',headers:Object.assign({'content-type':'application/json'},s?{Authorization:'Bearer '+s.access_token}:{}),
+      body:JSON.stringify({system,user,max_tokens:max,model:cfg.model})});
+    const j=await r.json().catch(()=>({}));
+    if(r.status===401){openCloud();throw new Error('Inicia sesión (botón Nube) para usar la IA')}
+    if(!r.ok)throw new Error(j.error||('Error '+r.status));
+    return j.text||'';
+  }
   if(!cfg.key){openAI();throw new Error('Añade primero tu clave de API')}
   const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',
     headers:{'content-type':'application/json','x-api-key':cfg.key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
@@ -1562,8 +1576,9 @@ function openAI(o){
     store.set('lienzo-brand',JSON.stringify(cols));if(tab==='bg')showPanel();refreshProps();toast('Kit de marca actualizado');$('mAI').classList.remove('on');
   });
   C_.append(h('h2',{},'Asistente con IA'),
-    h('div',{class:'hint'},'Usa tu propia clave de API de Anthropic. Se guarda solo en este navegador y se envía únicamente a api.anthropic.com. Recomendado: una clave con límite de gasto.'),
-    h('div',{class:'fld'},h('label',{},'Clave de API'),key),h('div',{class:'fld'},h('label',{},'Modelo'),model),
+    AI_PROXY()?h('div',{class:'hint'},'La IA funciona a través del servidor de este editor. Necesitas haber iniciado sesión (botón Nube) y hay un límite de peticiones por hora.')
+      :h('div',{class:'hint'},'Usa tu propia clave de API de Anthropic. Se guarda solo en este navegador y se envía únicamente a api.anthropic.com. Recomendado: una clave con límite de gasto.'),
+    !AI_PROXY()&&h('div',{class:'fld'},h('label',{},'Clave de API'),key),h('div',{class:'fld'},h('label',{},'Modelo'),model),
     h('div',{class:'blk'},h('h3',{},'Diseño desde una descripción'),prompt_,h('div',{class:'hint'},'Reemplaza el contenido de la página actual. Se puede deshacer.'),b1,st1),
     h('div',{class:'blk'},h('h3',{},'Redactar con IA'),mode,h('div',{style:'height:6px'}),b2,st2),
     h('div',{class:'blk'},h('h3',{},'Paleta de marca'),pdesc,h('div',{style:'height:6px'}),b3,st3),
@@ -1594,6 +1609,13 @@ addEventListener('keyup',e=>{if(e.code==='Space'){space=false;stage.style.cursor
 stage.addEventListener('mousedown',e=>{if(!space)return;e.stopPropagation();e.preventDefault();pan={x:e.clientX,y:e.clientY,l:stage.scrollLeft,t:stage.scrollTop};stage.style.cursor='grabbing'},true);
 addEventListener('mousemove',e=>{if(pan){stage.scrollLeft=pan.l-(e.clientX-pan.x);stage.scrollTop=pan.t-(e.clientY-pan.y)}});
 addEventListener('mouseup',()=>{if(pan){pan=null;stage.style.cursor=space?'grab':''}});
+
+/* ---------- PWA ---------- */
+let deferredInstall=null;
+addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferredInstall=e;$('install').style.display=''});
+$('install').onclick=async()=>{if(!deferredInstall)return;deferredInstall.prompt();await deferredInstall.userChoice.catch(()=>{});deferredInstall=null;$('install').style.display='none'};
+addEventListener('appinstalled',()=>{$('install').style.display='none'});
+if('serviceWorker' in navigator&&/^https?:$/.test(location.protocol)){addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}))}
 
 /* ---------- Arranque ---------- */
 (async function boot(){

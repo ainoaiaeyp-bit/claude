@@ -1,0 +1,24 @@
+# Servicio systemd para el proxy de IA (sin Docker).
+#   sudo cp deploy/lienzo-ai.service /etc/systemd/system/
+#   sudo mkdir -p /opt/lienzo && sudo cp server/ai-proxy.js /opt/lienzo/
+#   sudo nano /etc/lienzo-ai.env      (ANTHROPIC_API_KEY=..., SUPABASE_URL=..., SUPABASE_ANON_KEY=...)
+#   sudo chmod 600 /etc/lienzo-ai.env
+#   sudo systemctl daemon-reload && sudo systemctl enable --now lienzo-ai
+[Unit]
+Description=Proxy de IA de Lienzo
+After=network.target
+
+[Service]
+ExecStart=/usr/bin/node /opt/lienzo/ai-proxy.js
+EnvironmentFile=/etc/lienzo-ai.env
+Environment=PORT=8787
+Restart=always
+RestartSec=3
+DynamicUser=yes
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+
+[Install]
+WantedBy=multi-user.target

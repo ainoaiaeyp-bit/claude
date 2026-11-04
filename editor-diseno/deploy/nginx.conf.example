@@ -1,0 +1,46 @@
+# Ejemplo para nginx "a pelo" en el VPS (sin Docker).
+# 1) Copia la carpeta del editor a /var/www/lienzo (solo index.html, config.js, sw.js, manifest.webmanifest,
+#    fonts.css, vendor/, fonts/ e icons/).
+# 2) Guarda esto en /etc/nginx/sites-available/lienzo, enlázalo en sites-enabled y recarga nginx.
+# 3) Certificado HTTPS:  sudo certbot --nginx -d lienzo.midominio.com
+server {
+    listen 80;
+    server_name lienzo.midominio.com;
+
+    root /var/www/lienzo;
+    index index.html;
+
+    gzip on;
+    gzip_types text/css application/javascript application/json application/manifest+json image/svg+xml;
+    gzip_min_length 1024;
+
+    add_header X-Content-Type-Options nosniff always;
+    add_header X-Frame-Options SAMEORIGIN always;
+    add_header Referrer-Policy strict-origin-when-cross-origin always;
+    add_header Permissions-Policy "camera=(), microphone=(), geolocation=()" always;
+
+    # Siempre revalidar (cambios y configuración)
+    location ~ ^/(index\.html|config\.js|sw\.js|manifest\.webmanifest)$ {
+        add_header Cache-Control "no-cache";
+        add_header X-Content-Type-Options nosniff always;
+    }
+
+    # Estáticos que casi no cambian
+    location ~* ^/(vendor|fonts|icons)/ {
+        add_header Cache-Control "public, max-age=2592000";
+        add_header X-Content-Type-Options nosniff always;
+    }
+
+    # Proxy de IA (node server/ai-proxy.js escuchando en 127.0.0.1:8787)
+    location /api/ {
+        proxy_pass http://127.0.0.1:8787;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_read_timeout 100s;
+        client_max_body_size 256k;
+    }
+
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+}

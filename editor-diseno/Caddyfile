@@ -1,0 +1,32 @@
+# Caddy sirve el editor con HTTPS automático (Let's Encrypt).
+# DOMAIN viene del archivo .env (p. ej. lienzo.midominio.com). Con "localhost" usa un certificado local.
+{$DOMAIN:localhost} {
+	root * /srv
+	encode zstd gzip
+
+	header {
+		X-Content-Type-Options nosniff
+		X-Frame-Options SAMEORIGIN
+		Referrer-Policy strict-origin-when-cross-origin
+		Permissions-Policy "camera=(), microphone=(), geolocation=()"
+		Strict-Transport-Security "max-age=31536000"
+		-Server
+	}
+
+	# Estos archivos deben revalidarse siempre (cambios y configuración).
+	@fresh path / /index.html /config.js /sw.js /manifest.webmanifest
+	header @fresh Cache-Control "no-cache"
+
+	# Recursos estáticos que casi nunca cambian.
+	@static path /vendor/* /fonts/* /icons/* /fonts.css
+	header @static Cache-Control "public, max-age=2592000"
+
+	# Proxy de IA (solo si arrancas el servicio "ai": docker compose --profile ai up -d)
+	handle /api/* {
+		reverse_proxy ai:8787
+	}
+
+	handle {
+		file_server
+	}
+}
