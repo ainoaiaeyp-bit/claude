@@ -1,0 +1,300 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#000000">
+<title>Aula Accesible</title>
+<style>
+:root{
+  --bg:#000; --fg:#fff; --dim:rgba(235,235,245,.45); --card:rgba(44,44,46,.72);
+  --glass:rgba(28,28,30,.66); --line:rgba(255,255,255,.12); --blue:#0a84ff; --red:#ff453a; --mark:#ffd60a;
+  --fs:44px;
+  font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","SF Pro Text","Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+}
+[data-theme=light]{--bg:#f2f2f7;--fg:#000;--dim:rgba(60,60,67,.6);--card:rgba(255,255,255,.85);--glass:rgba(255,255,255,.72);--line:rgba(0,0,0,.1);--blue:#007aff;--red:#ff3b30;--mark:#ffd60a}
+[data-theme=blue]{--bg:#06163a;--fg:#fff;--card:rgba(20,45,100,.6);--glass:rgba(12,32,80,.66)}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--fg);display:flex;flex-direction:column;overflow:hidden;
+  padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
+body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
+  background:radial-gradient(60% 50% at 15% 0%,rgba(10,132,255,.22),transparent 70%),radial-gradient(50% 40% at 100% 100%,rgba(191,90,242,.18),transparent 70%)}
+button,select,input{font:inherit;color:inherit}
+
+/* barra superior */
+header{display:flex;align-items:center;gap:10px;padding:12px 16px;flex-wrap:wrap}
+.title{font-size:28px;font-weight:700;letter-spacing:-.02em;margin-right:auto}
+.pill{display:inline-flex;align-items:center;gap:8px;border:0;background:var(--glass);backdrop-filter:blur(24px) saturate(180%);-webkit-backdrop-filter:blur(24px) saturate(180%);
+  border-radius:999px;padding:10px 16px;font-weight:600;font-size:15px;cursor:pointer;box-shadow:inset 0 0 0 1px var(--line);transition:transform .12s,background .2s}
+.pill:active{transform:scale(.95)}
+.pill.primary{background:var(--blue);color:#fff;box-shadow:none}
+.pill.live{background:var(--red);color:#fff;box-shadow:none}
+.pill.icon{padding:10px 14px}
+.dot{width:9px;height:9px;border-radius:50%;background:currentColor}
+.live .dot{animation:pulse 1.2s infinite}
+@keyframes pulse{50%{opacity:.25}}
+
+/* escenario */
+main{flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,.42fr);gap:14px;padding:0 16px 12px}
+@media (max-width:820px){main{grid-template-columns:1fr;grid-template-rows:minmax(0,1fr) auto}}
+.panel{background:var(--card);backdrop-filter:blur(30px) saturate(180%);-webkit-backdrop-filter:blur(30px) saturate(180%);
+  border-radius:28px;box-shadow:inset 0 0 0 1px var(--line);overflow:hidden;min-height:0}
+#subs{display:flex;flex-direction:column;justify-content:flex-end;padding:28px 32px;gap:.35em}
+#subs p{margin:0;font-size:var(--fs);line-height:1.2;font-weight:600;letter-spacing:-.015em;transition:opacity .4s}
+#subs p.old{opacity:.35;font-size:.72em}
+#subs p.interim{opacity:.6}
+#subs .hint,#signs .hint{font-size:20px;font-weight:500;color:var(--dim);text-align:center;margin:auto}
+mark{background:var(--mark);color:#000;border-radius:.25em;padding:0 .18em}
+#signs{padding:14px;display:flex;flex-direction:column;gap:12px;overflow:auto}
+.card{margin:0;border-radius:22px;overflow:hidden;background:rgba(120,120,128,.24);position:relative;flex:0 0 auto;animation:pop .35s cubic-bezier(.2,.9,.3,1.2)}
+@keyframes pop{from{transform:scale(.88);opacity:0}}
+.card.big{flex:1 1 auto;min-height:200px;display:flex}
+.card video,.card img{width:100%;height:100%;object-fit:cover;display:block;max-height:46vh}
+.card:not(.big) video,.card:not(.big) img{max-height:120px}
+.card .nomedia{flex:1;display:grid;place-items:center;padding:20px 20px 52px;text-align:center;font-size:15px;color:var(--dim);min-height:90px}
+.card figcaption{position:absolute;left:10px;bottom:10px;background:var(--glass);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+  border-radius:999px;padding:6px 14px;font-weight:700;font-size:16px;text-transform:capitalize}
+.big figcaption{font-size:22px}
+
+/* barra inferior (docente) */
+footer{padding:0 16px 14px;display:flex;gap:10px;align-items:center}
+footer form{flex:1;display:flex;gap:8px;background:var(--glass);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);border-radius:999px;padding:6px 6px 6px 18px;box-shadow:inset 0 0 0 1px var(--line)}
+footer input{flex:1;background:none;border:0;outline:0;font-size:16px;min-width:0}
+footer input::placeholder{color:var(--dim)}
+.send{border:0;background:var(--blue);color:#fff;width:38px;height:38px;border-radius:50%;font-size:18px;cursor:pointer}
+.student .t-only{display:none!important}
+.toast{position:fixed;top:calc(env(safe-area-inset-top) + 12px);left:50%;transform:translate(-50%,-140%);background:var(--glass);backdrop-filter:blur(30px);-webkit-backdrop-filter:blur(30px);
+  padding:12px 20px;border-radius:999px;font-weight:600;box-shadow:inset 0 0 0 1px var(--line);transition:transform .4s cubic-bezier(.2,.9,.3,1.1);z-index:30;max-width:90vw;text-align:center}
+.toast.show{transform:translate(-50%,0)}
+
+/* hoja inferior estilo iOS */
+dialog{border:0;padding:0;background:transparent;color:var(--fg);max-width:none;width:100%;height:100%;margin:0}
+dialog::backdrop{background:rgba(0,0,0,.45);backdrop-filter:blur(4px)}
+.sheet{position:fixed;left:50%;bottom:0;transform:translateX(-50%);width:min(560px,100%);max-height:88vh;overflow:auto;background:var(--glass);backdrop-filter:blur(40px) saturate(180%);-webkit-backdrop-filter:blur(40px) saturate(180%);
+  border-radius:28px 28px 0 0;padding:10px 20px calc(24px + env(safe-area-inset-bottom));box-shadow:inset 0 0 0 1px var(--line);animation:up .35s cubic-bezier(.2,.9,.3,1)}
+@keyframes up{from{transform:translate(-50%,100%)}}
+.grab{width:40px;height:5px;border-radius:3px;background:var(--dim);margin:0 auto 14px;opacity:.6}
+.sheet h2{margin:0 0 4px;font-size:24px;letter-spacing:-.02em}
+.sheet p.sub{margin:0 0 16px;color:var(--dim);font-size:14px}
+.group{background:rgba(120,120,128,.2);border-radius:16px;margin:0 0 16px;overflow:hidden}
+.row{display:flex;align-items:center;gap:12px;padding:12px 16px;min-height:48px}
+.row+.row{border-top:1px solid var(--line)}
+.row input[type=text],.row input[type=url]{flex:1;background:none;border:0;outline:0;font-size:16px;min-width:0}
+.row .name{flex:1;font-weight:600;text-transform:capitalize}
+.row small{color:var(--dim)}
+.row button.del{background:none;border:0;color:var(--red);font-weight:600;cursor:pointer;font-size:15px}
+.seg{display:flex;background:rgba(120,120,128,.24);border-radius:10px;padding:2px;margin-bottom:16px}
+.seg button{flex:1;border:0;background:none;padding:8px;border-radius:8px;font-weight:600;cursor:pointer;font-size:14px}
+.seg button.on{background:rgba(255,255,255,.2);box-shadow:0 1px 3px rgba(0,0,0,.25)}
+[data-theme=light] .seg button.on{background:#fff}
+.full{width:100%;justify-content:center;font-size:17px;padding:14px}
+select{background:rgba(120,120,128,.24);border:0;border-radius:10px;padding:8px 10px;font-size:15px}
+input[type=file]{font-size:14px;max-width:100%}
+input[type=range]{flex:1}
+</style>
+</head>
+<body data-theme="dark">
+
+<header>
+  <div class="title">Aula Accesible</div>
+  <button class="pill primary t-only" id="mic"><span class="dot"></span><span id="micLabel">Empezar a escuchar</span></button>
+  <button class="pill icon t-only" id="openStudent" title="Abrir pantalla del alumno">🖥️ Pantalla alumno</button>
+  <button class="pill icon" id="fs" title="Pantalla completa">⛶</button>
+  <button class="pill icon" id="openSettings" title="Ajustes">Aa</button>
+  <button class="pill icon t-only" id="openGloss" title="Glosario de signos">🤟 Glosario</button>
+</header>
+
+<main>
+  <section class="panel" id="subs"><p class="hint">Los subtítulos aparecerán aquí en cuanto empieces a hablar</p></section>
+  <section class="panel" id="signs"></section>
+</main>
+
+<footer class="t-only">
+  <form id="typeForm" autocomplete="off">
+    <input id="typeInput" placeholder="Escribe un mensaje o simula lo que dices…" enterkeyhint="send">
+    <button class="send" aria-label="Enviar">↑</button>
+  </form>
+  <button class="pill icon" id="save" title="Descargar apuntes">⬇︎ Apuntes</button>
+</footer>
+
+<div class="toast" id="toast"></div>
+
+<!-- Ajustes -->
+<dialog id="dSettings"><div class="sheet">
+  <div class="grab"></div>
+  <h2>Ajustes</h2><p class="sub">Se guardan en este dispositivo.</p>
+  <div class="group">
+    <div class="row"><span style="width:90px">Tamaño</span><input type="range" id="size" min="24" max="96" step="2"></div>
+    <div class="row t-only"><span style="width:90px">Idioma</span>
+      <select id="lang"><option value="es-ES">Español (España)</option><option value="es-419">Español (Latam)</option><option value="ca-ES">Català</option><option value="gl-ES">Galego</option><option value="eu-ES">Euskara</option><option value="en-GB">English</option></select></div>
+  </div>
+  <div class="seg" id="themeSeg">
+    <button data-t="dark">Oscuro</button><button data-t="light">Claro</button><button data-t="blue">Azul</button>
+  </div>
+  <button class="pill primary full" data-close>Listo</button>
+</div></dialog>
+
+<!-- Glosario -->
+<dialog id="dGloss"><div class="sheet">
+  <div class="grab"></div>
+  <h2>Glosario de signos</h2>
+  <p class="sub">Cuando digas una de estas palabras se resaltará y aparecerá su signo. Sube un vídeo o foto de un signante (mejor un intérprete o el propio alumno/familia).</p>
+  <div class="group" id="glossList"></div>
+  <h2 style="font-size:18px">Añadir término</h2>
+  <div class="group">
+    <div class="row"><input type="text" id="gTerm" placeholder="Término (ej. fotosíntesis, fotosintesis)"></div>
+    <div class="row"><input type="file" id="gFile" accept="video/*,image/*"></div>
+    <div class="row"><input type="url" id="gUrl" placeholder="…o enlace a vídeo/imagen (mp4, webm, jpg…)"></div>
+  </div>
+  <button class="pill primary full" id="gAdd">Añadir al glosario</button>
+  <button class="pill full" style="margin-top:10px" data-close>Cerrar</button>
+</div></dialog>
+
+<script>
+const $=s=>document.querySelector(s);
+const STUDENT=new URLSearchParams(location.search).has('alumno');
+if(STUDENT)document.body.classList.add('student');
+const ls={get:k=>{try{return localStorage.getItem(k)}catch{return null}},set:(k,v)=>{try{localStorage.setItem(k,v)}catch{}}};
+const bc='BroadcastChannel' in window?new BroadcastChannel('aula-accesible'):null;
+const norm=s=>s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
+const esc=s=>s.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const escRe=s=>s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+function toast(t){const e=$('#toast');e.textContent=t;e.classList.add('show');clearTimeout(toast.t);toast.t=setTimeout(()=>e.classList.remove('show'),3200)}
+
+/* ---------- ajustes ---------- */
+function setTheme(t){document.body.dataset.theme=t;ls.set('theme',t);document.querySelectorAll('#themeSeg button').forEach(b=>b.classList.toggle('on',b.dataset.t===t))}
+function setSize(v){document.documentElement.style.setProperty('--fs',v+'px');$('#size').value=v;ls.set('size',v)}
+setTheme(ls.get('theme')||'dark'); setSize(+ls.get('size')||44);
+$('#size').oninput=e=>setSize(+e.target.value);
+$('#themeSeg').onclick=e=>{if(e.target.dataset.t)setTheme(e.target.dataset.t)};
+$('#lang').value=ls.get('lang')||'es-ES'; $('#lang').onchange=e=>{ls.set('lang',e.target.value);if(listening){stopRec();startRec()}};
+$('#fs').onclick=()=>document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen?.();
+function wireDialog(d,btn){$(btn).onclick=()=>d.showModal();d.addEventListener('click',e=>{if(e.target===d||e.target.dataset.close!==undefined)d.close()})}
+wireDialog($('#dSettings'),'#openSettings'); wireDialog($('#dGloss'),'#openGloss');
+
+/* ---------- glosario (IndexedDB) ---------- */
+const idb=new Promise((ok,ko)=>{const r=indexedDB.open('aula-accesible',1);r.onupgradeneeded=()=>r.result.createObjectStore('g',{keyPath:'id'});r.onsuccess=()=>ok(r.result);r.onerror=()=>ko(r.error)});
+const tx=async(mode,fn)=>{const db=await idb;return new Promise((ok,ko)=>{const t=db.transaction('g',mode);const rq=fn(t.objectStore('g'));t.oncomplete=()=>ok(rq?.result);t.onerror=()=>ko(t.error)})};
+let glossary=[],byId=new Map();
+async function loadGlossary(){
+  glossary.forEach(e=>e.url&&e.blob&&URL.revokeObjectURL(e.url));
+  const rows=await tx('readonly',s=>s.getAll());
+  if(!rows.length&&!ls.get('seeded')){ // glosario de ejemplo (sin vídeo todavía)
+    ls.set('seeded','1');
+    for(const t of['fotosíntesis','célula','examen','deberes','pregunta','ecuación'])
+      await tx('readwrite',s=>s.put({id:crypto.randomUUID(),label:t,terms:[t],blob:null,src:'',type:''}));
+    return loadGlossary();
+  }
+  glossary=rows.map(e=>({...e,terms:e.terms.map(norm),url:e.blob?URL.createObjectURL(e.blob):e.src||''}));
+  byId=new Map(glossary.map(e=>[e.id,e]));
+  renderGlossList();render(true);
+}
+function renderGlossList(){
+  const box=$('#glossList');
+  box.innerHTML=glossary.length?'':'<div class="row"><small>Aún no hay términos</small></div>';
+  glossary.forEach(e=>{const r=document.createElement('div');r.className='row';
+    r.innerHTML=`<span class="name">${esc(e.label)}</span><small>${e.url?(e.type==='video'?'vídeo':'imagen'):'sin signo'}</small><button class="del">Eliminar</button>`;
+    r.querySelector('.del').onclick=async()=>{await tx('readwrite',s=>s.delete(e.id));await loadGlossary();bc?.postMessage({glossary:1})};
+    box.appendChild(r)});
+}
+$('#gAdd').onclick=async()=>{
+  const raw=$('#gTerm').value.trim(); if(!raw)return toast('Escribe el término');
+  const f=$('#gFile').files[0],u=$('#gUrl').value.trim();
+  const syn=raw.split(',').map(s=>s.trim()).filter(Boolean);
+  const type=f?(f.type.startsWith('video')?'video':'image'):u?(/\.(mp4|webm|mov|m4v)(\?|$)/i.test(u)?'video':'image'):'';
+  await tx('readwrite',s=>s.put({id:crypto.randomUUID(),label:syn[0],terms:syn,blob:f||null,src:f?'':u,type}));
+  $('#gTerm').value='';$('#gFile').value='';$('#gUrl').value='';
+  await loadGlossary();bc?.postMessage({glossary:1});toast('Añadido: '+syn[0]);
+};
+
+/* ---------- detección de términos ---------- */
+function scan(text){
+  const n=norm(text);if(n.length!==text.length)return[];
+  const sp=[];
+  for(const e of glossary)for(const t of e.terms){
+    const re=new RegExp('(?<![a-z0-9])'+escRe(t)+'(?:e?s)?(?![a-z0-9])','g');let m;
+    while((m=re.exec(n)))sp.push([m.index,m.index+m[0].length,e.id]);
+  }
+  return sp.sort((a,b)=>a[0]-b[0]||b[1]-a[1]);
+}
+function highlight(text){
+  let out='',pos=0;
+  for(const[s,e]of scan(text)){if(s<pos)continue;out+=esc(text.slice(pos,s))+'<mark>'+esc(text.slice(s,e))+'</mark>';pos=e}
+  return out+esc(text.slice(pos));
+}
+
+/* ---------- estado y render ---------- */
+let lines=[],interim='',recent=[],utter=new Set(),transcript=[],lastSigns='';
+function touch(text){
+  for(const[,,id]of scan(text)){
+    if(utter.has(id))continue;utter.add(id);
+    recent=[id,...recent.filter(x=>x!==id)].slice(0,3);
+  }
+}
+function render(force){
+  const box=$('#subs');
+  if(!lines.length&&!interim)box.innerHTML='<p class="hint">Los subtítulos aparecerán aquí en cuanto empieces a hablar</p>';
+  else box.innerHTML=lines.slice(-3).map((l,i,a)=>`<p class="${i<a.length-1||interim?'old':''}">${highlight(l)}</p>`).join('')+(interim?`<p class="interim">${highlight(interim)}</p>`:'');
+  const key=recent.join(',')+glossary.length;
+  if(force||key!==lastSigns){lastSigns=key;renderSigns()}
+}
+function renderSigns(){
+  const box=$('#signs');box.innerHTML='';
+  const items=recent.map(id=>byId.get(id)).filter(Boolean);
+  if(!items.length){box.innerHTML='<p class="hint">Aquí aparecerá el signo de los términos clave de la clase</p>';return}
+  items.forEach((e,i)=>{
+    const f=document.createElement('figure');f.className='card'+(i===0?' big':'');
+    let m;
+    if(e.url&&e.type==='video'){m=document.createElement('video');m.src=e.url;m.loop=m.muted=m.autoplay=m.playsInline=true;m.play?.().catch(()=>{})}
+    else if(e.url){m=document.createElement('img');m.src=e.url;m.alt='Signo de '+e.label}
+    else{m=document.createElement('div');m.className='nomedia';m.textContent='Sin vídeo todavía — añádelo en el Glosario'}
+    f.append(m);const c=document.createElement('figcaption');c.textContent=e.label;f.append(c);box.append(f);
+  });
+}
+function publish(){bc?.postMessage({lines:lines.slice(-3),interim,recent})}
+function setInterim(t){interim=t;touch(t);render();publish()}
+function addFinal(t){
+  if(!t)return;touch(t);utter.clear();interim='';
+  lines.push(t);transcript.push({t:new Date(),text:t});render();publish();
+}
+if(bc)bc.onmessage=async e=>{
+  const d=e.data;
+  if(d.glossary)return loadGlossary();
+  if(d.hello&&!STUDENT)return publish();
+  if(STUDENT&&d.lines){lines=d.lines;interim=d.interim;recent=d.recent;
+    if(recent.some(id=>!byId.has(id)))await loadGlossary();render()}
+};
+
+/* ---------- reconocimiento de voz ---------- */
+const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+let rec,listening=false;
+function startRec(){
+  if(!SR)return toast('Tu navegador no reconoce voz. Usa Chrome o Edge (o escribe abajo).');
+  rec=new SR();rec.lang=$('#lang').value;rec.continuous=true;rec.interimResults=true;
+  rec.onresult=e=>{
+    let it='';
+    for(let i=e.resultIndex;i<e.results.length;i++){const r=e.results[i];
+      if(r.isFinal)addFinal(r[0].transcript.trim());else it+=r[0].transcript}
+    if(it)setInterim(it.trim());
+  };
+  rec.onend=()=>{if(listening)try{rec.start()}catch{}};
+  rec.onerror=e=>{if(['not-allowed','service-not-allowed'].includes(e.error)){stopRec();toast('Permite el micrófono para continuar')}};
+  listening=true;try{rec.start()}catch{}ui();
+}
+function stopRec(){listening=false;try{rec?.stop()}catch{}ui()}
+function ui(){const b=$('#mic');b.classList.toggle('live',listening);b.classList.toggle('primary',!listening);$('#micLabel').textContent=listening?'Escuchando… (parar)':'Empezar a escuchar'}
+$('#mic').onclick=()=>listening?stopRec():startRec();
+$('#typeForm').onsubmit=e=>{e.preventDefault();const v=$('#typeInput').value.trim();if(v){addFinal(v);$('#typeInput').value=''}};
+$('#openStudent').onclick=()=>{window.open(location.pathname+'?alumno','aula-alumno','width=1100,height=700');toast('Arrastra esa ventana al proyector o a la pantalla del alumno')};
+$('#save').onclick=()=>{
+  if(!transcript.length)return toast('Todavía no hay nada que guardar');
+  const txt=transcript.map(x=>`[${x.t.toLocaleTimeString('es-ES')}] ${x.text}`).join('\n');
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([txt],{type:'text/plain'}));
+  a.download='apuntes-clase-'+new Date().toISOString().slice(0,10)+'.txt';a.click();
+};
+
+loadGlossary().then(()=>{if(STUDENT)bc?.postMessage({hello:1})});
+</script>
+</body>
+</html>
