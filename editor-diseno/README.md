@@ -22,11 +22,13 @@ Abre `index.html` en el navegador (por ejemplo con `python3 -m http.server`). La
 ## Qué guarda y cómo se protege
 - Tabla `designs`: un diseño por fila (JSON de Fabric.js, miniatura, nombre, tamaño, si es público).
 - Tabla `design_versions`: hasta 20 versiones por diseño (se crea una en cada guardado manual).
+- Bucket de Storage `design-images`: las imágenes de tus diseños, en la carpeta de tu usuario (sin duplicados: el nombre es el hash del contenido).
 - **RLS activado**: cada usuario solo ve y modifica sus diseños. Un diseño marcado como *público* puede **leerse** con su enlace (`index.html?d=<id>`), pero nadie salvo su dueño puede modificarlo.
 - Solo se usa la clave `anon`. No pongas nunca la `service_role` en el navegador.
 
 ## Limitaciones
-- Las imágenes subidas se guardan dentro del JSON del diseño (en base64). Con muchas fotos grandes el diseño puede pesar varios MB.
+- En la nube, las imágenes se guardan en **Supabase Storage** (bucket `design-images`, creado por `schema.sql`) y el diseño solo guarda su URL, así pesa muy poco. Si el bucket no existe, el editor guarda las imágenes dentro del diseño (en base64) y avisa. Sin sesión y en local, las imágenes siguen yendo dentro del diseño.
+- Las imágenes borradas de un diseño no se eliminan de Storage automáticamente (puedes limpiar el bucket desde el panel de Supabase). Cualquiera que conozca la URL exacta de una imagen puede verla; las URL no son adivinables, pero tenlo en cuenta con contenido sensible.
 - La edición colaborativa sincroniza la página actual; si dos personas tocan el mismo elemento a la vez, gana el último cambio (ver abajo).
 - El asistente de IA usa la clave de Anthropic de cada usuario (guardada solo en su navegador) o, si montas el proxy de `server/`, la clave de tu servidor con límites por usuario (ver `DEPLOY.md`).
 

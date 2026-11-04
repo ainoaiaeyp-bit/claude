@@ -60,3 +60,36 @@ create policy "versions_owner_all" on public.design_versions
   for all to authenticated
   using (exists (select 1 from public.designs d where d.id = design_id and d.owner = auth.uid()))
   with check (exists (select 1 from public.designs d where d.id = design_id and d.owner = auth.uid()));
+
+-- ============ Imágenes (Storage) ============
+-- Las imágenes de los diseños se guardan aquí en vez de dentro del JSON del diseño.
+-- El bucket es público para LEER por URL (las URL llevan la carpeta del usuario y un hash: no son adivinables),
+-- pero solo cada usuario puede subir, cambiar o borrar dentro de su propia carpeta (<uid>/...).
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('design-images', 'design-images', true, 10485760, array['image/png','image/jpeg','image/webp'])
+on conflict (id) do update
+  set public = true,
+      file_size_limit = excluded.file_size_limit,
+      allowed_mime_types = excluded.allowed_mime_types;
+
+drop policy if exists "design_images_insert_own" on storage.objects;
+create policy "design_images_insert_own" on storage.objects
+  for insert to authenticated
+  with check (bucket_id = 'design-images' and (storage.foldername(name))[1] = auth.uid()::text);
+
+drop policy if exists "design_images_update_own" on storage.objects;
+create policy "design_images_update_own" on storage.objects
+  for update to authenticated
+  using (bucket_id = 'design-images' and (storage.foldername(name))[1] = auth.uid()::text)
+  with check (bucket_id = 'design-images' and (storage.foldername(name))[1] = auth.uid()::text);
+
+-- SELECT solo del propio usuario (necesario para "upsert"); así nadie puede LISTAR las imágenes de otros.
+drop policy if exists "design_images_select_own" on storage.objects;
+create policy "design_images_select_own" on storage.objects
+  for select to authenticated
+  using (bucket_id = 'design-images' and (storage.foldername(name))[1] = auth.uid()::text);
+
+drop policy if exists "design_images_delete_own" on storage.objects;
+create policy "design_images_delete_own" on storage.objects
+  for delete to authenticated
+  using (bucket_id = 'design-images' and (storage.foldername(name))[1] = auth.uid()::text);

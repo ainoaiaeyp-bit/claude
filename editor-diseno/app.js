@@ -1044,13 +1044,19 @@ $('fileJson').onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new Fi
   r.onload=async()=>{try{await loadProject(JSON.parse(r.result));toast('Proyecto abierto')}catch(err){toast('Archivo no válido')}};r.readAsText(f);e.target.value=''};
 async function loadProject(p){
   if(!p.pages&&p.c)p={pages:[p.c],W:p.W,H:p.H};
-  W=p.W||1080;H=p.H||1080;pages=p.pages;thumbs=p.thumbs||pages.map(()=>null);cur=clamp(p.cur||0,0,pages.length-1);cloud.id=p.cloudId||null;userGuides=(Array.isArray(p.guides)?p.guides:[]).filter(g=>g&&(g.o==='h'||g.o==='v')&&isFinite(g.pos)).map(g=>({o:g.o,pos:+g.pos}));
+  W=p.W||1080;H=p.H||1080;pages=p.pages;pages.forEach(pg=>(pg.objects||[]).forEach(markCors));thumbs=p.thumbs||pages.map(()=>null);cur=clamp(p.cur||0,0,pages.length-1);cloud.id=p.cloudId||null;userGuides=(Array.isArray(p.guides)?p.guides:[]).filter(g=>g&&(g.o==='h'||g.o==='v')&&isFinite(g.pos)).map(g=>({o:g.o,pos:+g.pos}));
   if(p.name)$('name').value=p.name;syncSize();fit();cv.discardActiveObject();
   await loadAsync(pages[cur]);await ensureFonts();ensureBg();resetHist();refresh();
 }
 $('name').oninput=()=>{clearTimeout(chT);chT=setTimeout(autosave,600)};
 $('theme').onclick=()=>{const d=document.documentElement.dataset.theme==='dark'?'light':'dark';document.documentElement.dataset.theme=d;store.set('lienzo-theme',d)};
-if(store.get('lienzo-theme')==='dark')document.documentElement.dataset.theme='dark';
+{const th=store.get('lienzo-theme');if(th==='dark'||(!th&&window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches))document.documentElement.dataset.theme='dark'}
+
+/* ---------- Guardar (Ctrl+S) ---------- */
+function saveNow(){
+  if(SB.cfg()&&SB.sess())cloudSave().then(()=>toast('Guardado en la nube')).catch(err=>toast(err.message||'No se pudo guardar'));
+  else{download(URL.createObjectURL(new Blob([JSON.stringify(projectObj())],{type:'application/json'})),safeName()+'.json');toast('Proyecto descargado (.json). Inicia sesión en Nube para guardar online')}
+}
 
 /* ---------- Teclado ---------- */
 addEventListener('keydown',e=>{
@@ -1065,6 +1071,7 @@ addEventListener('keydown',e=>{
   const mod=e.ctrlKey||e.metaKey,k=e.key.toLowerCase();
   if(e.key==='Escape'){if(drawing)setDrawing(false);cv.discardActiveObject();cv.requestRenderAll();document.querySelectorAll('.modal.on').forEach(m=>m.classList.remove('on'));return}
   if(e.key==='Delete'||e.key==='Backspace'){del();e.preventDefault();return}
+  if(mod&&k==='s'){e.preventDefault();saveNow();return}
   if(mod&&k==='z'){restore(e.shiftKey?hi+1:hi-1);e.preventDefault();return}
   if(mod&&k==='y'){restore(hi+1);e.preventDefault();return}
   if(mod&&k==='d'){dup();e.preventDefault();return}
@@ -1263,6 +1270,38 @@ async function sbGetDesign(id){
   const r=await sbReq(`/rest/v1/designs?id=eq.${id}&select=id,owner,name,data`);
   if(!r||!r[0])throw new Error('Diseño no encontrado o no es público');return r[0];
 }
+/* ---- Imágenes en Supabase Storage ---- */
+let storageFailed=false;
+const upHashes=(()=>{try{return new Set(JSON.parse(store.get('lienzo-up'))||[])}catch(e){return new Set()}})();
+async function sha256hex(bytes){const d=await crypto.subtle.digest('SHA-256',bytes);return [...new Uint8Array(d)].map(b=>b.toString(16).padStart(2,'0')).join('')}
+async function uploadImage(dataUrl){
+  const m=/^data:(image\/(?:png|jpeg|webp));base64,([A-Za-z0-9+/=]+)$/.exec(dataUrl);if(!m)return dataUrl;
+  const c=SB.cfg(),s=await SB.fresh();if(!c||!s)return dataUrl;
+  const bin=Uint8Array.from(atob(m[2]),ch=>ch.charCodeAt(0)),ext=m[1]==='image/png'?'png':m[1]==='image/jpeg'?'jpg':'webp';
+  const key=`${s.user.id}/${await sha256hex(bin)}.${ext}`,url=`${c.url}/storage/v1/object/public/design-images/${key}`;
+  if(upHashes.has(key))return url;
+  const r=await fetch(`${c.url}/storage/v1/object/design-images/${key}`,{method:'POST',headers:{apikey:c.key,Authorization:'Bearer '+s.access_token,'Content-Type':m[1],'x-upsert':'true','cache-control':'max-age=31536000'},body:bin});
+  if(!r.ok){const j=await r.json().catch(()=>({}));throw new Error(j.message||j.error||('Error '+r.status))}
+  upHashes.add(key);store.set('lienzo-up',JSON.stringify([...upHashes].slice(-800)));return url;
+}
+async function externalizeImages(proj){
+  if(storageFailed||!SB.sess())return proj;
+  const copy=JSON.parse(JSON.stringify(proj));
+  const walk=async o=>{
+    if(!o||typeof o!=='object')return;
+    if(typeof o.src==='string'&&o.src.startsWith('data:image/')){o.src=await uploadImage(o.src);if(o.src.startsWith('http'))o.crossOrigin='anonymous'}
+    if(Array.isArray(o.objects))for(const x of o.objects)await walk(x);
+    if(o.clipPath)await walk(o.clipPath);
+  };
+  try{for(const pg of copy.pages)for(const o of (pg.objects||[]))await walk(o)}
+  catch(e){storageFailed=true;toast('No se pudo usar Supabase Storage ('+(e.message||'error')+'). Las imágenes se guardan dentro del diseño.');return proj}
+  return copy;
+}
+function markCors(o){
+  if(!o||typeof o!=='object')return;
+  if(typeof o.src==='string'&&/^https?:/.test(o.src))o.crossOrigin='anonymous';
+  if(Array.isArray(o.objects))o.objects.forEach(markCors);if(o.clipPath)markCors(o.clipPath);
+}
 const safeImg=u=>typeof u==='string'&&/^data:image\/(jpeg|png|webp);base64,/.test(u)?u:'';
 let cloudT;
 function scheduleCloud(){
@@ -1272,7 +1311,8 @@ function scheduleCloud(){
 async function cloudSave({asNew=false,quiet=false}={}){
   if(!SB.sess())throw new Error('Inicia sesión primero');
   const proj=projectObj();proj.cloudId=undefined;
-  const row={name:(proj.name||'Sin título').slice(0,120),width:W,height:H,data:proj,thumb:thumbs[0]||thumbs[cur]||null};
+  const stored=await externalizeImages(proj);
+  const row={name:(proj.name||'Sin título').slice(0,120),width:W,height:H,data:stored,thumb:thumbs[0]||thumbs[cur]||null};
   let id=null;
   if(cloud.id&&!asNew){
     const r=await sbReq(`/rest/v1/designs?id=eq.${cloud.id}`,{method:'PATCH',body:row,headers:{Prefer:'return=representation'}});
@@ -1281,7 +1321,7 @@ async function cloudSave({asNew=false,quiet=false}={}){
   if(!id){const r=await sbReq('/rest/v1/designs',{method:'POST',body:row,headers:{Prefer:'return=representation'}});id=r[0].id}
   cloud.id=id;
   if(!quiet){
-    await sbReq('/rest/v1/design_versions',{method:'POST',body:{design_id:id,data:proj}});
+    await sbReq('/rest/v1/design_versions',{method:'POST',body:{design_id:id,data:row.data}});
     try{const old=await sbReq(`/rest/v1/design_versions?design_id=eq.${id}&select=id&order=created_at.desc&offset=20`);
       if(old&&old.length)await sbReq(`/rest/v1/design_versions?id=in.(${old.map(v=>v.id).join(',')})`,{method:'DELETE'})}catch(e){}
   }
@@ -1465,12 +1505,12 @@ function onCollabMsg(m){
   if(m.k==='ops'){collab.q=collab.q.then(()=>applyRemote(m)).catch(()=>{});return}
   if(m.k==='state'&&(m.to===collab.id||m.to==='*')){collab.q=collab.q.then(()=>applyState(m)).catch(()=>{})}
 }
-const enliven=j=>new Promise(r=>fabric.util.enlivenObjects([j],o=>r(o[0]||null)));
+const enliven=j=>{markCors(j);return new Promise(r=>fabric.util.enlivenObjects([j],o=>r(o[0]||null)))};
 async function applyState(m){
   collab.applying=true;
   try{
     if(m.W!==W||m.H!==H){W=m.W;H=m.H;syncSize();fit()}
-    cv.discardActiveObject();await loadAsync(m.json);await ensureFonts();ensureBg();
+    cv.discardActiveObject();(m.json.objects||[]).forEach(markCors);await loadAsync(m.json);await ensureFonts();ensureBg();
     collab.last=sigMap();collab.order=orderStr();resetHist();refresh();changedSoon();
   }finally{collab.applying=false}
 }

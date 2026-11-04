@@ -49,8 +49,8 @@ Sin Docker: copia `server/ai-proxy.js` a `/opt/lienzo/`, crea `/etc/lienzo-ai.en
 Controles del proxy: verifica el token de sesión con Supabase, límite por usuario (`AI_RATE_PER_HOUR`), tope de tokens (`AI_MAX_TOKENS`), lista de modelos permitidos (`AI_MODELS`) y entradas limitadas a 20 000 caracteres. **Pon un límite de gasto en tu cuenta de Anthropic** igualmente.
 
 ## Seguridad (CSP)
-El editor se sirve con una *Content-Security-Policy* estricta (ya incluida en `Caddyfile` y en `deploy/nginx.conf.example`): solo se ejecuta JavaScript de tu propio dominio y solo se permiten conexiones a tu dominio, `*.supabase.co`, y `api.anthropic.com`. Esto frena la mayoría de ataques XSS.
-- Si usas **Supabase autoalojado** u otro dominio, añádelo a `connect-src` (https y wss).
+El editor se sirve con una *Content-Security-Policy* estricta (ya incluida en `Caddyfile` y en `deploy/nginx.conf.example`): solo se ejecuta JavaScript de tu propio dominio y solo se permiten conexiones a tu dominio, `*.supabase.co`, y `api.anthropic.com`; las imágenes de los diseños en la nube se cargan desde `*.supabase.co` (Storage). Esto frena la mayoría de ataques XSS.
+- Si usas **Supabase autoalojado** u otro dominio, añádelo a `connect-src` (https y wss) y a `img-src`.
 - Si no usas la IA con clave propia en el navegador (solo el proxy), puedes quitar `https://api.anthropic.com`.
 
 ## Instalable (PWA) y modo sin conexión
