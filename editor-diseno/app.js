@@ -108,6 +108,7 @@ let W=1080,H=1080,zoom=1,fitMode=true;
 let pages=[null],thumbs=[null],cur=0;
 let hist=[],hi=-1,lock=false,guides=[];
 let cloud={id:null};
+let cropMode=null;
 const cv=new fabric.Canvas('c',{backgroundColor:'#ffffff',preserveObjectStacking:true,stopContextMenu:true,fireRightClick:false});
 
 /* ---------- Zoom ---------- */
@@ -150,7 +151,7 @@ function unpackSrc(json){
 function snapshot(){return JSON.stringify({c:packSrc(cv.toJSON(CUSTOM)),W,H})}
 function resetHist(){hist=[snapshot()];hi=0}
 let chT;
-function push(){if(lock)return;$('saved').textContent='Guardando…';hist=hist.slice(0,hi+1);hist.push(snapshot());if(hist.length>40)hist.shift();hi=hist.length-1;clearTimeout(chT);chT=setTimeout(changed,600);collabSchedule()}
+function push(){if(lock||cropMode)return;$('saved').textContent='Guardando…';hist=hist.slice(0,hi+1);hist.push(snapshot());if(hist.length>40)hist.shift();hi=hist.length-1;clearTimeout(chT);chT=setTimeout(changed,600);collabSchedule()}
 function changed(){thumbs[cur]=thumb();renderPages();autosave()}
 let warned=false;
 function saveCur(){pages[cur]=cv.toJSON(CUSTOM)}
@@ -543,6 +544,7 @@ const PANELS={
   im(){return h('div',{},h('h3',{},'Tus imágenes'),
     h('button',{class:'btn big wide on',onclick:()=>$('file').click()},icl('upload','Subir imagen')),
     h('p',{class:'hint'},'También puedes arrastrar imágenes al lienzo o pegarlas con Ctrl+V.'),
+    libSection(),
     h('h3',{},'Fondo de página'),h('button',{class:'btn wide',onclick:()=>$('fileBg').click()},'Usar imagen como fondo'),
     h('p',{class:'hint'},'Selecciona una imagen y usa los ajustes de la derecha: filtros, brillo, bordes redondeados, sombra…'))},
   ic(){
@@ -614,6 +616,8 @@ const ibtn=(icon,act,fn,title,text)=>h('button',{class:'btn sm'+(act?' on':''),t
 /* ---------- Panel de propiedades ---------- */
 function refreshProps(){
   const P=$('props');P.textContent='';const o=cv.getActiveObject();
+  if(cropMode&&o===cropMode.cr){P.append(sec('Recortar imagen',h('div',{class:'hint',style:'margin-bottom:8px'},'Arrastra el recuadro y sus bordes. Enter aplica, Esc cancela.'),
+    h('div',{class:'row'},tbtn('Aplicar',1,()=>endCrop(true)),tbtn('Cancelar',0,()=>endCrop(false)))));return}
   if(!o){P.append(sec('Página',h('div',{class:'hint'},`${W} × ${H} px`),h('div',{class:'hint',style:'margin:6px 0'},'Selecciona un elemento para editarlo, o cambia el fondo:'),
     h('div',{},['#ffffff','#1f2430','#fff3d6','#e8f0ff','#ffe14d','#6c4cf1'].map(c=>h('i',{class:'sw s',style:`background:${c}`,onclick:()=>batch(()=>setBg(c))})))));P.append(pageColorsSection());P.append(pageAnimSection());return}
   const isText=o.type==='textbox',isImg=o.type==='image',lv=leaves(o),fillable=lv.filter(x=>x.type!=='image'&&!x.isBg);
@@ -804,7 +808,7 @@ function imageSection(o){
     sec('Ajustes de imagen',fr('Brillo','br',-.5,.5,.01),fr('Contraste','ct',-.5,.5,.01),fr('Saturación','sat',-1,1,.01),fr('Intensidad','vib',-1,1,.01),fr('Matiz','hue',-1,1,.01),
       fr('Desenfoque','blur',0,.5,.01),fr('Grano','noise',0,400,5),fr('Pixelar','pix',0,40,1),
       h('div',{class:'row'},tog('B/N','gray'),tog('Sepia','sepia'),tog('Invertir','inv'))),
-    sec('Recorte',cr('Izquierda','l','r'),cr('Derecha','r','l'),cr('Arriba','t','b'),cr('Abajo','b','t'),
+    sec('Recorte',ibtn('image',0,()=>startCrop(o),'Recortar con el ratón (o doble clic en la imagen)','Recortar con el ratón'),cr('Izquierda','l','r'),cr('Derecha','r','l'),cr('Arriba','t','b'),cr('Abajo','b','t'),
       rng('Bordes redondeados',0,1,.01,o._round||0,v=>{o._round=v;applyClip(o)}),maskSel(o)),
     sec('Herramientas inteligentes',
       rng('Tolerancia del fondo',5,120,1,tol,v=>{tol=v},()=>{}),
@@ -902,7 +906,7 @@ function objName(o){
 }
 function refreshLayers(){
   const L=$('layers');L.textContent='';const act=cv.getActiveObjects();
-  const list=cv.getObjects().filter(o=>!o.isBg).slice().reverse();
+  const list=cv.getObjects().filter(o=>!o.isBg&&!o.excludeFromExport).slice().reverse();
   if(!list.length)L.append(h('div',{class:'hint',style:'margin-top:8px'},'Aún no hay elementos.'));
   list.forEach(ob=>L.append(h('div',{class:'l'+(act.includes(ob)?' on':''),onclick:()=>{cv.discardActiveObject();cv.setActiveObject(ob);cv.requestRenderAll()}},
     ic(ob.type==='textbox'?'layerT':ob.type==='image'?'layerImg':ob.type==='group'?'layerGrp':'layerShape'),h('span',{class:'nm'},objName(ob)),
@@ -987,13 +991,38 @@ $('size').onchange=e=>{
 /* ---------- Exportar / abrir ---------- */
 function download(url,name){const a=h('a',{href:url,download:name});document.body.append(a);a.click();a.remove()}
 const safeName=()=>($('name').value||'diseno').normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().replace(/[^\w\- ]+/g,'').replace(/\s+/g,'-')||'diseno';
-async function exportPDF(sc){
+function pageCanvas(bp,sc){
+  const bgs=cv.getObjects().filter(o=>o.isBg),saved=bgs.map(o=>({o,w:o.width,h:o.height,sx:o.scaleX,sy:o.scaleY}));
+  if(bp>0)bgs.forEach(o=>{
+    if(o.type==='image'){const k=Math.max((W+2*bp)/W,(H+2*bp)/H);o.set({scaleX:o.scaleX*k,scaleY:o.scaleY*k})}
+    else{o.set({width:W+2*bp,height:H+2*bp});if(o._g)setGrad(o)}
+  });
+  const el=cv.toCanvasElement(sc/zoom,{left:-bp*zoom,top:-bp*zoom,width:(W+2*bp)*zoom,height:(H+2*bp)*zoom});
+  saved.forEach(s=>{s.o.set({width:s.w,height:s.h,scaleX:s.sx,scaleY:s.sy});if(s.o._g)setGrad(s.o)});
+  return el;
+}
+function drawMarks(pdf,x0,y0,pw,ph,bleed){
+  pdf.setDrawColor(0,0,0);pdf.setLineWidth(.15);const gap=bleed+1,len=4;
+  [[x0,y0,-1,-1],[x0+pw,y0,1,-1],[x0,y0+ph,-1,1],[x0+pw,y0+ph,1,1]].forEach(([x,y,sx,sy])=>{
+    pdf.line(x+sx*gap,y,x+sx*(gap+len),y);pdf.line(x,y+sy*gap,x,y+sy*(gap+len));
+  });
+}
+async function exportPDF(sc,print){
   const {jsPDF}=window.jspdf;saveCur();const orig=cur;let pdf;
+  const pxmm=print?print.dpi/25.4:1,b=print?print.bleed:0,bp=b*pxmm,slug=print&&print.marks?6:0;
+  const pw=W/pxmm,ph=H/pxmm,PW=pw+2*(b+slug),PH=ph+2*(b+slug);
   for(let i=0;i<pages.length;i++){
     await loadAsync(pages[i]);await ensureFonts();
-    const url=cv.toDataURL({format:'jpeg',quality:.95,multiplier:sc/zoom});
-    if(!pdf)pdf=new jsPDF({orientation:W>H?'l':'p',unit:'px',format:[W,H],hotfixes:['px_scaling']});else pdf.addPage([W,H],W>H?'l':'p');
-    pdf.addImage(url,'JPEG',0,0,W,H);
+    if(print){
+      const url=pageCanvas(bp,sc).toDataURL('image/jpeg',.96);
+      if(!pdf)pdf=new jsPDF({orientation:PW>PH?'l':'p',unit:'mm',format:[PW,PH]});else pdf.addPage([PW,PH],PW>PH?'l':'p');
+      pdf.addImage(url,'JPEG',slug,slug,pw+2*b,ph+2*b);
+      if(print.marks)drawMarks(pdf,slug+b,slug+b,pw,ph,b);
+    }else{
+      const url=cv.toDataURL({format:'jpeg',quality:.95,multiplier:sc/zoom});
+      if(!pdf)pdf=new jsPDF({orientation:W>H?'l':'p',unit:'px',format:[W,H],hotfixes:['px_scaling']});else pdf.addPage([W,H],W>H?'l':'p');
+      pdf.addImage(url,'JPEG',0,0,W,H);
+    }
   }
   await loadAsync(pages[orig]);await ensureFonts();refresh();pdf.save(safeName()+'.pdf');
 }
@@ -1019,6 +1048,7 @@ $('present').onclick=present;$('presX').onclick=e=>{e.stopPropagation();closePre
 $('pres').onclick=e=>{if(!presImgs)return;const x=e.clientX/innerWidth;if(x<.3)presI=Math.max(0,presI-1);else presI=Math.min(presImgs.length-1,presI+1);showPres()};
 document.addEventListener('fullscreenchange',()=>{if(!document.fullscreenElement&&presImgs)closePres()});
 async function doExport(){
+  endCrop(true);
   const fmt=$('xf').value,sc=+$('xs').value,base=safeName();
   cv.discardActiveObject();guides=[];cv.renderAll();
   try{
@@ -1028,14 +1058,22 @@ async function doExport(){
     else if(fmt==='png'||fmt==='jpg')download(cv.toDataURL({format:fmt==='jpg'?'jpeg':'png',quality:.95,multiplier:sc/zoom}),`${base}.${fmt}`);
     else if(fmt==='svg')download(URL.createObjectURL(new Blob([cv.toSVG({viewBox:{x:0,y:0,width:W,height:H},width:W,height:H})],{type:'image/svg+xml'})),`${base}.svg`);
     else if(fmt==='clip'){const blob=await new Promise(r=>cv.toCanvasElement(Math.min(sc,2)/zoom).toBlob(r,'image/png'));await navigator.clipboard.write([new ClipboardItem({'image/png':blob})]);toast('Imagen copiada al portapapeles')}
-    else if(fmt==='pdf')await exportPDF(sc);
+    else if(fmt==='pdf')await exportPDF(sc,$('xm').value==='print'?{dpi:+$('xdpi').value||96,bleed:+$('xbleed').value||0,marks:$('xmarks').checked}:null);
     else if(fmt==='webm')await exportVideo(base);
     else download(URL.createObjectURL(new Blob([JSON.stringify(projectObj())],{type:'application/json'})),`${base}.json`);
     if(fmt!=='clip')toast('¡Descargado!');
   }catch(e){toast('Error al exportar')}
   $('mExport').classList.remove('on');
 }
-$('export').onclick=()=>$('mExport').classList.add('on');
+function syncExportUi(){
+  const f=$('xf').value;$('xmWrap').style.display=f==='pdf'?'':'none';
+  $('xprint').style.display=(f==='pdf'&&$('xm').value==='print')?'':'none';
+  const d=+$('xdpi').value||96,bl=$('xbleed').value;
+  $('xsize').textContent=`Tamaño final: ${(W/d*25.4).toFixed(0)} × ${(H/d*25.4).toFixed(0)} mm`+(bl!=='0'?` (más ${bl} mm de sangrado por lado)`:'');
+}
+['xf','xm','xdpi','xbleed'].forEach(id=>$(id).addEventListener('change',syncExportUi));
+function guessDpi(){const m=Math.max(W,H),n=Math.min(W,H),near=(x,y)=>Math.abs(x-y)<6;if(near(m,1754)&&near(n,1240))return 150;if(near(m,3508)&&near(n,2480))return 300;return 96}
+$('export').onclick=()=>{endCrop(true);$('xdpi').value=String(guessDpi());syncExportUi();$('mExport').classList.add('on')};
 $('xc').onclick=()=>$('mExport').classList.remove('on');$('xd').onclick=doExport;
 $('help').onclick=()=>$('mHelp').classList.add('on');$('hc').onclick=()=>$('mHelp').classList.remove('on');
 document.querySelectorAll('.modal').forEach(m=>m.addEventListener('mousedown',e=>{if(e.target===m)m.classList.remove('on')}));
@@ -1066,8 +1104,10 @@ addEventListener('keydown',e=>{
     else if(['ArrowLeft','ArrowUp','PageUp','Backspace'].includes(e.key)){presI=Math.max(0,presI-1);showPres()}
     e.preventDefault();return;
   }
+  if(e.key==='Escape'){const md=document.querySelector('.modal.on');if(md){md.classList.remove('on');return}}
   if(/INPUT|TEXTAREA|SELECT/.test((e.target||{}).tagName||''))return;
   const a=cv.getActiveObject();if(a&&a.isEditing)return;
+  if(cropMode){if(e.key==='Enter'){e.preventDefault();endCrop(true)}else if(e.key==='Escape'){e.preventDefault();endCrop(false)}return}
   const mod=e.ctrlKey||e.metaKey,k=e.key.toLowerCase();
   if(e.key==='Escape'){if(drawing)setDrawing(false);cv.discardActiveObject();cv.requestRenderAll();document.querySelectorAll('.modal.on').forEach(m=>m.classList.remove('on'));return}
   if(e.key==='Delete'||e.key==='Backspace'){del();e.preventDefault();return}
@@ -1363,20 +1403,49 @@ function openCloud(){
     C_.append(h('div',{class:'row',style:'align-items:center'},h('div',{},h('div',{class:'hint'},'Sesión iniciada como'),h('b',{},me.email||'tu cuenta')),
       h('button',{class:'btn',onclick:()=>{SB.setSess(null);cloud.id=null;toast('Sesión cerrada');openCloud()}},'Cerrar sesión')));
     const list=h('div',{class:'dgrid'});
+    const fq=h('input',{type:'text',placeholder:'Buscar por nombre o etiqueta…',style:'flex:1;min-width:0'}),ff=h('select',{class:'sel',style:'max-width:190px'});
+    const meta=h('div',{class:'row',style:'margin-bottom:8px'},fq,ff);
+    let all=[],hasMeta=true,curFolder='*';
+    const tagsOf=d=>Array.isArray(d.tags)?d.tags:[];
+    const draw=()=>{
+      list.textContent='';const q=fq.value.trim().toLowerCase(),fol=curFolder;
+      const rows=all.filter(d=>(!q||d.name.toLowerCase().includes(q)||tagsOf(d).some(t=>t.toLowerCase().includes(q)))&&(!hasMeta||fol==='*'||(fol===''?!d.folder:d.folder===fol)));
+      if(!rows.length)list.append(h('div',{class:'hint'},all.length?'Ningún diseño coincide con la búsqueda.':'Aún no tienes diseños en la nube.'));
+      rows.forEach(d=>list.append(card(d)));
+    };
+    fq.oninput=draw;ff.onchange=()=>{curFolder=ff.value;draw()};
+    const card=d=>{
+      const th=h('div',{class:'th'});const im=safeImg(d.thumb);if(im)th.style.backgroundImage=`url(${im})`;
+      const link=location.href.split(/[?#]/)[0]+'?d='+d.id,patch=body=>sbReq(`/rest/v1/designs?id=eq.${d.id}`,{method:'PATCH',body});
+      return h('div',{class:'dcard'},th,h('div',{class:'in'},h('div',{class:'nm',title:d.name},d.name),
+        h('div',{class:'hint'},`${d.width}×${d.height} · ${fmtDate(d.updated_at)}`),
+        hasMeta&&(d.folder||tagsOf(d).length>0)&&h('div',{},d.folder&&h('div',{class:'hint'},'Carpeta: '+d.folder),tagsOf(d).map(t=>h('span',{class:'tag'},'#'+t))),
+        h('div',{class:'row'},h('button',{class:'btn sm',onclick:guard(async()=>{await cloudOpen(d.id);$('mCloud').classList.remove('on');toast('Diseño abierto')})},'Abrir'),
+          h('button',{class:'btn sm',onclick:guard(async()=>{if(!confirm('¿Eliminar este diseño de la nube?'))return;await sbReq(`/rest/v1/designs?id=eq.${d.id}`,{method:'DELETE'});if(cloud.id===d.id)cloud.id=null;render()})},'Borrar')),
+        h('div',{class:'row'},d.is_public
+          ?[h('button',{class:'btn sm on',onclick:guard(async()=>{try{await navigator.clipboard.writeText(link);toast('Enlace copiado')}catch(e){prompt('Copia el enlace:',link)}status.textContent=''})},'Copiar enlace'),
+            h('button',{class:'btn sm',onclick:guard(async()=>{await patch({is_public:false});render()})},'Dejar de compartir')]
+          :h('button',{class:'btn sm',onclick:guard(async()=>{await patch({is_public:true});try{await navigator.clipboard.writeText(link);toast('Compartido. Enlace copiado')}catch(e){prompt('Enlace para compartir:',link)}render()})},'Compartir')),
+        h('div',{class:'row'},
+          h('button',{class:'btn sm',onclick:guard(async()=>{const n=prompt('Nuevo nombre',d.name);if(n===null||!n.trim())return;await patch({name:n.trim().slice(0,120)});if(cloud.id===d.id)$('name').value=n.trim();render()})},'Renombrar'),
+          h('button',{class:'btn sm',onclick:guard(async()=>{
+            const r=await sbReq(`/rest/v1/designs?id=eq.${d.id}&select=${hasMeta?'name,width,height,data,thumb,folder,tags':'name,width,height,data,thumb'}`);const s=r&&r[0];if(!s)throw new Error('No se encontró el diseño');
+            const row={name:(s.name+' (copia)').slice(0,120),width:s.width,height:s.height,data:s.data,thumb:s.thumb};if(hasMeta){row.folder=s.folder;row.tags=s.tags}
+            await sbReq('/rest/v1/designs',{method:'POST',body:row,headers:{Prefer:'return=representation'}});toast('Diseño duplicado');render()})},'Duplicar')),
+        hasMeta&&h('div',{class:'row'},
+          h('button',{class:'btn sm',onclick:guard(async()=>{const f=prompt('Carpeta (déjalo vacío para quitarla)',d.folder||'');if(f===null)return;await patch({folder:f.trim().slice(0,60)||null});render()})},'Carpeta'),
+          h('button',{class:'btn sm',onclick:guard(async()=>{const t=prompt('Etiquetas separadas por comas',tagsOf(d).join(', '));if(t===null)return;
+            const arr=[...new Set(t.split(',').map(x=>x.trim().replace(/^#/,'').slice(0,30)).filter(Boolean))].slice(0,10);await patch({tags:arr});render()})},'Etiquetas'))));
+    };
     const render=guard(async()=>{
-      list.textContent='';const rows=await sbReq('/rest/v1/designs?select=id,name,width,height,thumb,is_public,updated_at&order=updated_at.desc');status.textContent='';
-      if(!rows.length)list.append(h('div',{class:'hint'},'Aún no tienes diseños en la nube.'));
-      rows.forEach(d=>{
-        const th=h('div',{class:'th'});const im=safeImg(d.thumb);if(im)th.style.backgroundImage=`url(${im})`;
-        const link=location.href.split(/[?#]/)[0]+'?d='+d.id;
-        list.append(h('div',{class:'dcard'},th,h('div',{class:'in'},h('div',{class:'nm',title:d.name},d.name),h('div',{class:'hint'},`${d.width}×${d.height} · ${fmtDate(d.updated_at)}`),
-          h('div',{class:'row'},h('button',{class:'btn sm',onclick:guard(async()=>{await cloudOpen(d.id);$('mCloud').classList.remove('on');toast('Diseño abierto')})},'Abrir'),
-            h('button',{class:'btn sm',onclick:guard(async()=>{if(!confirm('¿Eliminar este diseño de la nube?'))return;await sbReq(`/rest/v1/designs?id=eq.${d.id}`,{method:'DELETE'});if(cloud.id===d.id)cloud.id=null;render()})},'Borrar')),
-          h('div',{class:'row'},d.is_public
-            ?[h('button',{class:'btn sm on',onclick:guard(async()=>{try{await navigator.clipboard.writeText(link);toast('Enlace copiado')}catch(e){prompt('Copia el enlace:',link)}status.textContent=''})},'Copiar enlace'),
-              h('button',{class:'btn sm',onclick:guard(async()=>{await sbReq(`/rest/v1/designs?id=eq.${d.id}`,{method:'PATCH',body:{is_public:false}});render()})},'Dejar de compartir')]
-            :h('button',{class:'btn sm',onclick:guard(async()=>{await sbReq(`/rest/v1/designs?id=eq.${d.id}`,{method:'PATCH',body:{is_public:true}});try{await navigator.clipboard.writeText(link);toast('Compartido. Enlace copiado')}catch(e){prompt('Enlace para compartir:',link)}render()})},'Compartir')))));
-      });
+      list.textContent='';
+      try{all=await sbReq('/rest/v1/designs?select=id,name,width,height,thumb,is_public,updated_at,folder,tags&order=updated_at.desc');hasMeta=true}
+      catch(e){all=await sbReq('/rest/v1/designs?select=id,name,width,height,thumb,is_public,updated_at&order=updated_at.desc');hasMeta=false}
+      status.textContent='';
+      const folders=[...new Set(all.map(d=>d.folder).filter(Boolean))].sort();
+      ff.textContent='';ff.append(h('option',{value:'*'},'Todas las carpetas'),h('option',{value:''},'Sin carpeta'),...folders.map(f=>h('option',{value:f},f)));
+      if(![...ff.options].some(o=>o.value===curFolder))curFolder='*';ff.value=curFolder;ff.style.display=hasMeta?'':'none';
+      draw();
     });
     const vers=h('div');
     const showVersions=guard(async()=>{
@@ -1391,7 +1460,7 @@ function openCloud(){
         cloud.id&&h('button',{class:'btn',onclick:guard(async()=>{await cloudSave({asNew:true});toast('Copia guardada');status.textContent='';render()})},'Guardar como copia'),
         cloud.id&&h('button',{class:'btn',onclick:showVersions},'Versiones')),
       cloud.id&&h('div',{class:'hint',style:'margin-top:6px'},'Los cambios se sincronizan solos unos segundos después de editar.'),vers),
-      h('div',{class:'blk'},h('h3',{},'Mis diseños'),list),status,closeRow());
+      h('div',{class:'blk'},h('h3',{},'Mis diseños'),meta,list),status,closeRow());
     render();
   }
   $('mCloud').classList.add('on');
@@ -1634,6 +1703,119 @@ function autoJoin(){
   }
 }
 window.addEventListener('beforeunload',()=>{if(collab.on)rtSend({k:'bye'})});
+
+/* ---------- Recorte interactivo ---------- */
+function startCrop(img){
+  if(cropMode||!img||img.type!=='image')return;
+  if(Math.abs(((img.angle%360)+360)%360)>.01&&Math.abs(((img.angle%360)+360)%360-360)>.01){toast('Pon la imagen a 0° para recortarla con el ratón');return}
+  cv.discardActiveObject();
+  const saved=img.clipPath;img.clipPath=null;img.dirty=true;
+  const ib=img.getBoundingRect(true,true),c=img._crop||{l:0,r:0,t:0,b:0},m=img.calcTransformMatrix();
+  const p1=fabric.util.transformPoint({x:-img.width/2+c.l*img.width,y:-img.height/2+c.t*img.height},m);
+  const p2=fabric.util.transformPoint({x:img.width/2-c.r*img.width,y:img.height/2-c.b*img.height},m);
+  const x0=Math.min(p1.x,p2.x),x1=Math.max(p1.x,p2.x),y0=Math.min(p1.y,p2.y),y1=Math.max(p1.y,p2.y);
+  const mk=()=>new fabric.Rect({fill:'rgba(0,0,0,.5)',selectable:false,evented:false,excludeFromExport:true,hoverCursor:'default',strokeWidth:0});
+  const dims=[mk(),mk(),mk(),mk()];
+  const cr=new fabric.Rect({left:(x0+x1)/2,top:(y0+y1)/2,width:x1-x0,height:y1-y0,fill:'rgba(255,255,255,.04)',stroke:'#ffffff',strokeWidth:2,strokeDashArray:[8,6],excludeFromExport:true,lockRotation:true,name:'Recorte'});
+  cr.setControlsVisibility({mtr:false});
+  cropMode={img,cr,dims,ib,saved};
+  lock=true;dims.forEach(d=>cv.add(d));cv.add(cr);lock=false;
+  updateDim();cv.setActiveObject(cr);cv.requestRenderAll();refreshProps();
+  toast('Arrastra los bordes del recuadro. Enter aplica, Esc cancela');
+}
+function updateDim(){
+  if(!cropMode)return;const {cr,ib,dims}=cropMode;
+  const w=cr.width*cr.scaleX,hh=cr.height*cr.scaleY,x0=cr.left-w/2,y0=cr.top-hh/2,x1=x0+w,y1=y0+hh,L=ib.left,T=ib.top,R=ib.left+ib.width,B=ib.top+ib.height;
+  const set=(o,l,t,r,b)=>{o.set({left:(l+r)/2,top:(t+b)/2,width:Math.max(0,r-l),height:Math.max(0,b-t),scaleX:1,scaleY:1});o.setCoords()};
+  set(dims[0],L,T,R,y0);set(dims[1],L,y1,R,B);set(dims[2],L,y0,x0,y1);set(dims[3],x1,y0,R,y1);
+}
+function clampCrop(){
+  if(!cropMode)return;const {cr,ib}=cropMode;
+  let w=cr.width*cr.scaleX,hh=cr.height*cr.scaleY;
+  w=clamp(w,24,ib.width);hh=clamp(hh,24,ib.height);cr.set({scaleX:w/cr.width,scaleY:hh/cr.height});
+  cr.set({left:clamp(cr.left,ib.left+w/2,ib.left+ib.width-w/2),top:clamp(cr.top,ib.top+hh/2,ib.top+ib.height-hh/2)});
+  cr.setCoords();updateDim();
+}
+function endCrop(apply){
+  if(!cropMode)return;const {img,cr,dims,saved}=cropMode;cropMode=null;
+  if(apply){
+    const m=fabric.util.invertTransform(img.calcTransformMatrix());
+    const w=cr.width*cr.scaleX,hh=cr.height*cr.scaleY;
+    const p1=fabric.util.transformPoint({x:cr.left-w/2,y:cr.top-hh/2},m),p2=fabric.util.transformPoint({x:cr.left+w/2,y:cr.top+hh/2},m);
+    const minX=Math.min(p1.x,p2.x),maxX=Math.max(p1.x,p2.x),minY=Math.min(p1.y,p2.y),maxY=Math.max(p1.y,p2.y);
+    const L=clamp((minX+img.width/2)/img.width,0,.95),R=clamp((img.width/2-maxX)/img.width,0,.95),T=clamp((minY+img.height/2)/img.height,0,.95),B=clamp((img.height/2-maxY)/img.height,0,.95);
+    const r4=v=>Math.round(v*1000)/1000;
+    img._crop={l:r4(L),r:r4(R),t:r4(T),b:r4(B)};
+  }
+  lock=true;cv.discardActiveObject();dims.forEach(d=>cv.remove(d));cv.remove(cr);lock=false;
+  if(apply)applyClip(img);else img.clipPath=saved;
+  img.dirty=true;cv.setActiveObject(img);cv.requestRenderAll();
+  if(apply)push();refreshProps();refreshLayers();
+}
+['object:moving','object:scaling'].forEach(ev=>cv.on(ev,e=>{if(cropMode&&e.target===cropMode.cr)clampCrop()}));
+cv.on('object:modified',e=>{if(cropMode&&e.target===cropMode.cr)clampCrop()});
+cv.on('mouse:down',e=>{if(cropMode&&e.target!==cropMode.cr)endCrop(true)});
+cv.on('mouse:dblclick',e=>{if(!cropMode&&e.target&&e.target.type==='image'&&!e.target.isBg&&!e.target.locked)startCrop(e.target)});
+
+/* ---------- Mi biblioteca de imágenes (Supabase Storage) ---------- */
+const myUid=()=>{const s=SB.sess();return s&&s.user&&s.user.id};
+async function stFetch(path,method,body){
+  const c=SB.cfg(),s=await SB.fresh();if(!c||!s)throw new Error('Inicia sesión (botón Nube) para usar tu biblioteca');
+  const r=await fetch(c.url+path,{method,headers:{apikey:c.key,Authorization:'Bearer '+s.access_token,'Content-Type':'application/json'},body:body?JSON.stringify(body):undefined});
+  const j=await r.json().catch(()=>null);if(!r.ok)throw new Error((j&&(j.message||j.error))||('Error '+r.status));
+  return{j,c};
+}
+async function libList(offset,limit){
+  const uid=myUid(),{j,c}=await stFetch('/storage/v1/object/list/design-images','POST',{prefix:uid+'/',limit,offset,sortBy:{column:'created_at',order:'desc'}});
+  return(j||[]).filter(f=>f&&/\.(png|jpe?g|webp)$/i.test(f.name||'')).map(f=>({name:f.name,size:(f.metadata&&f.metadata.size)||0,created:f.created_at,url:`${c.url}/storage/v1/object/public/design-images/${uid}/${f.name}`}));
+}
+async function libDelete(names){
+  const uid=myUid();await stFetch('/storage/v1/object/design-images','DELETE',{prefixes:names.map(n=>uid+'/'+n)});
+  names.forEach(n=>upHashes.delete(uid+'/'+n));store.set('lienzo-up',JSON.stringify([...upHashes].slice(-800)));
+}
+async function libCleanup(){
+  const files=[];for(let off=0;;off+=100){const part=await libList(off,100);files.push(...part);if(part.length<100)break}
+  const old=files.filter(f=>Date.now()-new Date(f.created||0).getTime()>3600e3);
+  const used=JSON.stringify(projectObj())+JSON.stringify(await sbReq('/rest/v1/designs?select=data'))+JSON.stringify(await sbReq('/rest/v1/design_versions?select=data'));
+  return{total:files.length,unused:old.filter(f=>!used.includes(f.name))};
+}
+function libSection(){
+  const wrap=h('div');wrap.append(h('h3',{},'Mi biblioteca'));
+  if(!(SB.cfg()&&SB.sess())){wrap.append(h('div',{class:'hint'},'Inicia sesión (botón Nube) para guardar y reutilizar tus imágenes en la nube.'));return wrap}
+  const grid=h('div',{class:'grid g2'}),status=h('div',{class:'hint',style:'margin:6px 0'});let offset=0,more=true,busy=false;
+  const reset=async()=>{grid.textContent='';offset=0;more=true;busy=false;await load()};
+  const addItem=it=>{
+    const cell=h('div',{class:'libitem',title:'Añadir al diseño',onclick:()=>fabric.Image.fromURL(it.url,img=>{
+      if(!img||!img.width){toast('No se pudo cargar la imagen');return}const k=Math.min(W*.6/img.width,H*.6/img.height,1);img.scale(k);addObj(img,'Imagen')},{crossOrigin:'anonymous'})},
+      h('img',{src:it.url,loading:'lazy',alt:''}),
+      h('button',{class:'x',title:'Eliminar de la biblioteca',onclick:async e=>{e.stopPropagation();
+        if(!confirm('¿Eliminar esta imagen de tu biblioteca? Si la usas en algún diseño dejará de verse.'))return;
+        try{await libDelete([it.name]);cell.remove();toast('Imagen eliminada')}catch(err){toast(err.message)}}},'×'));
+    grid.append(cell);
+  };
+  const moreBtn=h('button',{class:'btn sm wide',onclick:()=>load()},'Cargar más');
+  async function load(){
+    if(busy||!more)return;busy=true;status.textContent='Cargando…';
+    try{const part=await libList(offset,24);offset+=24;if(part.length<24)more=false;part.forEach(addItem);
+      status.textContent=grid.children.length?'':'Todavía no tienes imágenes en la biblioteca.';moreBtn.style.display=more?'':'none'}
+    catch(e){status.textContent=e.message}
+    busy=false;
+  }
+  const up=h('input',{type:'file',accept:'image/*',multiple:'multiple',hidden:'hidden'});
+  up.onchange=async()=>{status.textContent='Subiendo…';
+    try{for(const f of [...up.files])await uploadImage(await readImage(f));await reset();toast('Imágenes subidas')}catch(e){status.textContent=e.message}up.value=''};
+  const clean=h('button',{class:'btn sm',onclick:async()=>{
+    status.textContent='Buscando imágenes sin usar…';
+    try{const {total,unused}=await libCleanup();status.textContent='';
+      if(!unused.length){toast(`No hay imágenes sin usar (${total} en total)`);return}
+      const mb=(unused.reduce((s,f)=>s+f.size,0)/1048576).toFixed(1);
+      if(!confirm(`Hay ${unused.length} imágenes sin usar (${mb} MB): no aparecen en ningún diseño ni versión guardada. ¿Eliminarlas?`))return;
+      for(let i=0;i<unused.length;i+=50)await libDelete(unused.slice(i,i+50).map(f=>f.name));
+      await reset();toast(`${unused.length} imágenes eliminadas`)}
+    catch(e){status.textContent=e.message}}},'Limpiar sin usar');
+  wrap.append(h('div',{class:'row'},h('button',{class:'btn sm',onclick:()=>up.click()},icl('upload','Subir')),clean),up,status,grid,moreBtn);
+  load();return wrap;
+}
 
 /* ---------- Asistente con IA (clave propia de Anthropic) ---------- */
 const AIcfg={get(){try{return JSON.parse(store.get('lienzo-ai'))||{}}catch(e){return{}}},set(v){store.set('lienzo-ai',JSON.stringify(v))}};

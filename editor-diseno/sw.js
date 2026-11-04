@@ -1,6 +1,6 @@
 /* Service worker de Lienzo: instalable y con modo sin conexión.
    Sube la versión de CACHE cuando publiques cambios para forzar la actualización. */
-const CACHE = 'lienzo-v4';
+const CACHE = 'lienzo-v5';
 const CORE = ['./', 'index.html', 'config.js', 'fonts.css', 'manifest.webmanifest', 'icons/icon.svg',
   'app.js', 'vendor/fabric.min.js', 'vendor/jspdf.umd.min.js', 'vendor/qrcode.js'];
 

@@ -93,3 +93,8 @@ drop policy if exists "design_images_delete_own" on storage.objects;
 create policy "design_images_delete_own" on storage.objects
   for delete to authenticated
   using (bucket_id = 'design-images' and (storage.foldername(name))[1] = auth.uid()::text);
+
+-- ============ Organización de diseños (carpetas y etiquetas) ============
+alter table public.designs add column if not exists folder text;
+alter table public.designs add column if not exists tags text[] not null default '{}';
+create index if not exists designs_owner_folder_idx on public.designs (owner, folder);

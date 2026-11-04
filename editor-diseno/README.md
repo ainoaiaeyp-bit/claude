@@ -50,3 +50,9 @@ Botón **Reglas**: arrastra desde la regla superior o izquierda para crear guía
   ```bash
   npm install && npx playwright install chromium && npm test
   ```
+
+## Biblioteca de imágenes, organización e impresión
+- **Mi biblioteca** (pestaña *Imágenes*, con sesión iniciada): lista las imágenes que has subido a Supabase Storage. Un clic la añade al diseño; puedes subir más o eliminarlas. **Limpiar sin usar** borra las imágenes que no aparecen en ningún diseño ni versión guardada (y que tienen más de una hora, para no tocar lo que acabas de subir). Antes de borrar te muestra cuántas son y cuánto ocupan.
+- **Mis diseños** (botón *Nube*): buscador por nombre o etiqueta, carpetas, etiquetas, renombrar y duplicar. Requiere volver a ejecutar `supabase/schema.sql` (añade las columnas `folder` y `tags`); sin ellas el editor sigue funcionando y oculta carpetas y etiquetas.
+- **Impresión** (Exportar → PDF → *Impresión*): indica la resolución a la que está pensado el diseño (p. ej. 150 ppp para un A4 de 1240×1754 px) y elige sangrado (3 o 5 mm) y marcas de corte. El PDF sale en milímetros; el fondo se extiende por el sangrado y las marcas quedan fuera de él (6 mm de margen). No genera CMYK: el PDF es RGB, así que confirma los colores con tu imprenta.
+- **Recortar con el ratón**: doble clic sobre una imagen (o el botón *Recortar con el ratón*), ajusta el recuadro, **Enter** aplica y **Esc** cancela. La imagen debe estar sin rotar (0°).
