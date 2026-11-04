@@ -186,7 +186,7 @@ main{flex:1;display:flex;min-height:0}
 <div class="modal" id="mExport"><div class="card">
   <h2>Exportar diseño</h2>
   <div class="fld"><label>Formato</label>
-    <select id="xf" class="sel"><option value="png">PNG (imagen)</option><option value="pngall">PNG de todas las páginas</option><option value="jpg">JPG (imagen ligera)</option><option value="pdf">PDF (todas las páginas)</option><option value="svg">SVG (vectorial)</option><option value="json">Proyecto editable (.json)</option></select></div>
+    <select id="xf" class="sel"><option value="png">PNG (imagen)</option><option value="pngall">PNG de todas las páginas</option><option value="jpg">JPG (imagen ligera)</option><option value="pdf">PDF (todas las páginas)</option><option value="webm">Vídeo animado (WebM)</option><option value="svg">SVG (vectorial)</option><option value="json">Proyecto editable (.json)</option></select></div>
   <div class="fld"><label>Calidad / escala</label>
     <select id="xs" class="sel"><option value="1">1× (tamaño original)</option><option value="2">2× (alta resolución)</option><option value="3">3× (máxima)</option></select></div>
   <div class="fld"><label>Fondo (solo PNG)</label>
@@ -231,7 +231,7 @@ const FONTS=['Poppins','Montserrat','Roboto','Raleway','Playfair Display','Merri
 const PALETTE=['#1f2430','#ffffff','#6c4cf1','#18c5b4','#ff5c7a','#ffb020','#2f80ed','#27ae60','#ff3d3d','#9b59b6','#f1c40f','#8d6e63'];
 const FILLS=['#6c4cf1','#18c5b4','#ff5c7a','#ffb020','#2f80ed','#27ae60'];
 const SIZES=[['Post Instagram',1080,1080],['Story / Reel',1080,1920],['Presentación 16:9',1920,1080],['Facebook / OG',1200,630],['Banner 16:9 grande',2560,1440],['Póster A4',1240,1754],['Tarjeta',1050,600]];
-const CUSTOM=['_arc','_crop','_round','isBg','locked','lockMovementX','lockMovementY','lockRotation','lockScalingX','lockScalingY','hasControls','selectable','evented','_g','_f','name'];
+const CUSTOM=['_anim','_arc','_crop','_round','isBg','locked','lockMovementX','lockMovementY','lockRotation','lockScalingX','lockScalingY','hasControls','selectable','evented','_g','_f','name'];
 const GRADS=[['#6c4cf1','#18c5b4'],['#ff5c7a','#ffb020'],['#2f80ed','#56ccf2'],['#11998e','#38ef7d'],['#fc466b','#3f5efb'],['#0f2027','#2c5364'],['#f6d365','#fda085'],['#a18cd1','#fbc2eb']];
 
 fabric.Object.prototype.originX=fabric.Object.prototype.originY='center';
@@ -748,7 +748,7 @@ const ibtn=(icon,act,fn,title,text)=>h('button',{class:'btn sm'+(act?' on':''),t
 function refreshProps(){
   const P=$('props');P.textContent='';const o=cv.getActiveObject();
   if(!o){P.append(sec('Página',h('div',{class:'hint'},`${W} × ${H} px`),h('div',{class:'hint',style:'margin:6px 0'},'Selecciona un elemento para editarlo, o cambia el fondo:'),
-    h('div',{},['#ffffff','#1f2430','#fff3d6','#e8f0ff','#ffe14d','#6c4cf1'].map(c=>h('i',{class:'sw s',style:`background:${c}`,onclick:()=>batch(()=>setBg(c))})))));return}
+    h('div',{},['#ffffff','#1f2430','#fff3d6','#e8f0ff','#ffe14d','#6c4cf1'].map(c=>h('i',{class:'sw s',style:`background:${c}`,onclick:()=>batch(()=>setBg(c))})))));P.append(pageAnimSection());return}
   const isText=o.type==='textbox',isImg=o.type==='image',lv=leaves(o),fillable=lv.filter(x=>x.type!=='image'&&!x.isBg);
   P.append(sec('Transparencia',rng('Opacidad',0,1,.01,o.opacity,v=>tg(o).forEach(x=>x.set('opacity',v)))));
   if(isText)P.append(textSection(o));
@@ -759,6 +759,7 @@ function refreshProps(){
   P.append(shadowSection(o));
   if(o.type==='rect')P.append(sec('Esquinas',rng('Redondeo',0,Math.min(o.width,o.height)/2,1,o.rx||0,v=>o.set({rx:v,ry:v}))));
   if(isImg)P.append(imageSection(o));
+  P.append(animSection(o));
   P.append(transformSection(o));
   P.append(sec('Alinear a la página',h('div',{class:'grid'},[['l','al_l','Izquierda'],['c','al_c','Centro'],['r','al_r','Derecha'],['t','al_t','Arriba'],['m','al_m','Medio'],['b','al_b','Abajo']].map(([m,i,n])=>ibtn(i,0,()=>alignTo(o,m),n,n)))));
   if(o.type==='activeSelection')P.append(sec('Alinear entre sí',h('div',{class:'grid'},[['l','al_l','Izquierda'],['c','al_c','Centro'],['r','al_r','Derecha'],['t','al_t','Arriba'],['m','al_m','Medio'],['b','al_b','Abajo'],['dh','distH','Distribuir horizontal'],['dv','distV','Distribuir vertical']].map(([m,i,n])=>ibtn(i,0,()=>arrange(o,m),n))))) ;
@@ -1138,6 +1139,7 @@ async function doExport(){
     else if(fmt==='png'||fmt==='jpg')download(cv.toDataURL({format:fmt==='jpg'?'jpeg':'png',quality:.95,multiplier:sc/zoom}),`${base}.${fmt}`);
     else if(fmt==='svg')download(URL.createObjectURL(new Blob([cv.toSVG({viewBox:{x:0,y:0,width:W,height:H},width:W,height:H})],{type:'image/svg+xml'})),`${base}.svg`);
     else if(fmt==='pdf')await exportPDF(sc);
+    else if(fmt==='webm')await exportVideo(base);
     else download(URL.createObjectURL(new Blob([JSON.stringify(projectObj())],{type:'application/json'})),`${base}.json`);
     toast('¡Descargado!');
   }catch(e){toast('Error al exportar')}
@@ -1194,6 +1196,84 @@ addEventListener('keydown',e=>{
   }
 });
 let nudgeT;
+
+/* ---------- Animaciones ---------- */
+const ANIMS=[['','Ninguna'],['fade','Aparecer'],['up','Subir'],['down','Bajar'],['left','Entrar por la derecha'],['right','Entrar por la izquierda'],['zoom','Zoom'],['pop','Pop'],['spin','Girar']];
+const easeOut=p=>1-Math.pow(1-p,3);
+const easeBack=p=>{const c=2.70158;return 1+c*Math.pow(p-1,3)+(c-1)*Math.pow(p-1,2)};
+function applyAnim(o,t){
+  const a=o._anim,b=o.__base;if(!a||!b)return;
+  const p=clamp((t-(a.delay||0))/(a.dur||.8),0,1),e=easeOut(p),st={left:b.left,top:b.top,scaleX:b.scaleX,scaleY:b.scaleY,opacity:b.opacity,angle:b.angle};
+  switch(a.type){
+    case'fade':st.opacity=b.opacity*e;break;
+    case'up':st.top=b.top+(1-e)*H*.08;st.opacity=b.opacity*e;break;
+    case'down':st.top=b.top-(1-e)*H*.08;st.opacity=b.opacity*e;break;
+    case'left':st.left=b.left+(1-e)*W*.12;st.opacity=b.opacity*e;break;
+    case'right':st.left=b.left-(1-e)*W*.12;st.opacity=b.opacity*e;break;
+    case'zoom':{const k=.6+.4*e;st.scaleX=b.scaleX*k;st.scaleY=b.scaleY*k;st.opacity=b.opacity*e;break}
+    case'pop':{const k=easeBack(p);st.scaleX=b.scaleX*k;st.scaleY=b.scaleY*k;st.opacity=b.opacity*Math.min(1,p*5);break}
+    case'spin':{const k=.5+.5*e;st.angle=b.angle-(1-e)*180;st.scaleX=b.scaleX*k;st.scaleY=b.scaleY*k;st.opacity=b.opacity*e;break}
+  }
+  o.set(st);
+}
+function runAnim(objs,end,onFrame){
+  return new Promise(res=>{
+    objs.forEach(o=>{o.__base={left:o.left,top:o.top,scaleX:o.scaleX,scaleY:o.scaleY,opacity:o.opacity,angle:o.angle}});
+    const t0=performance.now();
+    const tick=now=>{
+      const t=(now-t0)/1000;objs.forEach(o=>applyAnim(o,t));cv.renderAll();onFrame&&onFrame(t);
+      if(t<end)requestAnimationFrame(tick);
+      else{objs.forEach(o=>{o.set(o.__base);o.setCoords();delete o.__base});cv.renderAll();res()}
+    };
+    requestAnimationFrame(tick);
+  });
+}
+const animEnd=objs=>(objs.length?Math.max(...objs.map(o=>(o._anim.delay||0)+(o._anim.dur||.8))):0)+.5;
+let animBusy=false;
+async function previewAnim(){
+  if(animBusy)return;cv.discardActiveObject();
+  const objs=cv.getObjects().filter(o=>!o.isBg&&o._anim);
+  if(!objs.length){toast('Añade una animación a algún elemento');return}
+  animBusy=true;try{await runAnim(objs,animEnd(objs))}finally{animBusy=false;refresh()}
+}
+async function exportVideo(base){
+  if(!window.MediaRecorder){toast('Tu navegador no puede grabar vídeo');return}
+  const sc=Math.min(1,1280/W),rw=Math.round(W*sc)&~1,rh=Math.round(H*sc)&~1;
+  const rc=document.createElement('canvas');rc.width=rw;rc.height=rh;const rx=rc.getContext('2d');
+  const mime=['video/webm;codecs=vp9','video/webm;codecs=vp8','video/webm'].find(m=>MediaRecorder.isTypeSupported(m));
+  const rec=new MediaRecorder(rc.captureStream(30),{mimeType:mime,videoBitsPerSecond:6e6}),chunks=[];
+  rec.ondataavailable=e=>{if(e.data.size)chunks.push(e.data)};const done=new Promise(r=>{rec.onstop=r});
+  toast('Grabando vídeo… mantén esta pestaña visible');
+  saveCur();const orig=cur;cv.discardActiveObject();guides=[];animBusy=true;
+  const frame=()=>{rx.fillStyle='#fff';rx.fillRect(0,0,rw,rh);rx.drawImage(cv.toCanvasElement(rw/(W*zoom)),0,0,rw,rh)};
+  try{
+    rec.start();
+    for(let i=0;i<pages.length;i++){
+      await loadAsync(pages[i]);await ensureFonts();
+      const objs=cv.getObjects().filter(o=>!o.isBg&&o._anim);
+      await runAnim(objs,animEnd(objs)+(objs.length?.8:1.8),frame);
+    }
+    rec.stop();await done;
+  }finally{animBusy=false;await loadAsync(pages[orig]);await ensureFonts();refresh()}
+  download(URL.createObjectURL(new Blob(chunks,{type:'video/webm'})),`${base}.webm`);
+}
+function animSection(o){
+  const T_=tg(o),a0=T_[0]._anim||{type:'',dur:.8,delay:0};
+  const sel=h('select',{class:'sel'},ANIMS.map(([v,l])=>h('option',{value:v},l)));sel.value=a0.type||'';
+  const upd=(k,v)=>T_.forEach(t=>{t._anim=Object.assign({type:'fade',dur:.8,delay:0},t._anim||{},{[k]:v})});
+  sel.onchange=()=>{if(!sel.value)T_.forEach(t=>{t._anim=null});else upd('type',sel.value);push();refreshProps()};
+  return sec('Animación',h('div',{class:'fld'},sel),
+    a0.type&&rng('Duración (s)',.2,3,.1,a0.dur||.8,v=>upd('dur',v)),
+    a0.type&&rng('Retraso (s)',0,8,.1,a0.delay||0,v=>upd('delay',v)),
+    ibtn('play',0,previewAnim,'Vista previa','Vista previa'));
+}
+function pageAnimSection(){
+  const sel=h('select',{class:'sel'},ANIMS.slice(1).map(([v,l])=>h('option',{value:v},l)));sel.value='up';
+  return sec('Animación de la página',h('div',{class:'hint',style:'margin-bottom:6px'},'Anima todos los elementos en cascada. Expórtalo como vídeo WebM desde Exportar.'),h('div',{class:'fld'},sel),
+    h('div',{class:'row'},tbtn('Aplicar a todo',0,()=>{let i=0;cv.getObjects().filter(o=>!o.isBg).forEach(o=>{o._anim={type:sel.value,dur:.7,delay:i++*.15}});push();toast('Animación aplicada')}),
+      tbtn('Quitar',0,()=>{cv.getObjects().forEach(o=>{o._anim=null});push();toast('Animaciones quitadas')})),
+    ibtn('play',0,previewAnim,'Vista previa','Vista previa de animación'));
+}
 
 /* ---------- Asistente con IA (clave propia de Anthropic) ---------- */
 const AIcfg={get(){try{return JSON.parse(store.get('lienzo-ai'))||{}}catch(e){return{}}},set(v){store.set('lienzo-ai',JSON.stringify(v))}};
