@@ -10,6 +10,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
+<script src="config.js"></script>
 <style>
 :root{--bg:#eceff4;--panel:#fff;--panel2:#f7f8fb;--ink:#1f2430;--muted:#6b7280;--line:#e3e6ec;--brand:#6c4cf1;--brand2:#18c5b4;--soft:#f0ecff}
 [data-theme=dark]{--bg:#12141a;--panel:#1c1f27;--panel2:#242832;--ink:#e8eaf0;--muted:#9aa3b2;--line:#2e3340;--soft:#2b2650}
@@ -54,6 +55,15 @@ button,input,select{font:inherit;color:inherit}
 .sw.big{width:30px;height:30px}
 .pal{display:flex;gap:4px;flex-wrap:wrap;margin:6px 0}
 .pal i{width:28px;height:28px;border-radius:8px;border:1px solid var(--line);cursor:pointer}
+#cloudCard input[type=text],#cloudCard input[type=email],#cloudCard input[type=password],#cloudCard textarea{width:100%;border:1px solid var(--line);border-radius:8px;padding:8px;background:var(--panel2);font:inherit}
+#cloudCard .blk{border-top:1px solid var(--line);padding-top:12px;margin-top:12px}
+#cloudCard h3{margin:0 0 8px;font-size:13px}
+.dgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px}
+.dcard{border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--panel2)}
+.dcard .th{height:110px;background:#ddd center/cover no-repeat}
+.dcard .in{padding:8px}.dcard .nm{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dcard .row{margin:6px 0 0}
+.vrow{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 8px;border:1px solid var(--line);border-radius:8px;margin-top:6px}
 #ctx{position:fixed;display:none;background:var(--panel);border:1px solid var(--line);border-radius:10px;box-shadow:0 10px 30px rgba(0,0,0,.3);padding:5px;z-index:70;min-width:190px}
 #ctx.on{display:block}
 #ctx button{display:flex;align-items:center;gap:8px;width:100%;border:0;background:none;text-align:left;padding:7px 10px;border-radius:7px;cursor:pointer}
@@ -166,6 +176,7 @@ main{flex:1;display:flex;min-height:0}
   <button class="tb" id="grid" data-ic="grid" title="Mostrar cuadrícula"></button>
   <button class="tb" id="theme" data-ic="moon" title="Tema claro/oscuro"></button>
   <button class="tb" id="help" title="Atajos de teclado">?</button>
+  <button class="tb" id="cloudBtn" data-ic="cloud" title="Cuenta y nube">Nube</button>
   <button class="tb" id="ai" data-ic="sparkle" title="Asistente con IA">IA</button>
   <button class="tb" id="present" data-ic="play" title="Modo presentación">Presentar</button>
   <button class="tb" id="open" data-ic="folder" title="Abrir proyecto (.json)">Abrir</button>
@@ -216,6 +227,7 @@ main{flex:1;display:flex;min-height:0}
   <div class="row" style="margin-top:14px"><button class="btn on" id="hc">Cerrar</button></div>
 </div></div>
 
+<div class="modal" id="mCloud"><div class="card" id="cloudCard" style="width:min(680px,94vw);max-height:90vh;overflow:auto"></div></div>
 <div class="modal" id="mAI"><div class="card" id="aiCard" style="width:min(540px,94vw);max-height:90vh;overflow:auto"></div></div>
 <input type="file" id="file" accept="image/*" hidden>
 <input type="file" id="fileBg" accept="image/*" hidden>
@@ -277,6 +289,7 @@ const UI={
  pagecopy:'M7 7h12v14H7z M5 17V3h12',
  sliders:'M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0 M14 4v4M8 10v4M16 16v4',
  chart:'M4 20V10M10 20V4M16 20v-8M22 20H2',arc:'M3 17a9 9 0 0 1 18 0',
+ cloud:'M7 18a4 4 0 0 1 0-8 5 5 0 0 1 9.6-1A4.5 4.5 0 0 1 17 18z',
  list:'M9 6h12M9 12h12M9 18h12M4 6h.01M4 12h.01M4 18h.01',pencil:'M4 20l1-5L16 4l4 4L9 19z',
  play:'M7 4l13 8-13 8z',close:'M5 5l14 14M19 5L5 19',chevL:'M15 6l-6 6 6 6',chevR:'M9 6l6 6-6 6',
  distH:'M4 3v18 M20 3v18 M10 7h4v10h-4z',distV:'M3 4h18 M3 20h18 M7 10h10v4H7z',
@@ -332,6 +345,7 @@ const store={get(k){try{return localStorage.getItem(k)}catch(e){return null}},se
 let W=1080,H=1080,zoom=1,fitMode=true;
 let pages=[null],thumbs=[null],cur=0;
 let hist=[],hi=-1,lock=false,guides=[];
+let cloud={id:null};
 const cv=new fabric.Canvas('c',{backgroundColor:'#ffffff',preserveObjectStacking:true,stopContextMenu:true,fireRightClick:false});
 
 /* ---------- Zoom ---------- */
@@ -361,8 +375,8 @@ function push(){if(lock)return;$('saved').textContent='Guardando…';hist=hist.s
 function changed(){thumbs[cur]=thumb();renderPages();autosave()}
 let warned=false;
 function saveCur(){pages[cur]=cv.toJSON(CUSTOM)}
-function projectObj(){saveCur();return{v:2,name:$('name').value,W,H,pages,thumbs,cur}}
-function autosave(){try{const ok=store.set('lienzo-v2',JSON.stringify(projectObj()));if(ok)$('saved').textContent='Guardado';if(!ok&&!warned){warned=true;toast('Autoguardado lleno: usa Exportar > Proyecto (.json)')}}catch(e){}}
+function projectObj(){saveCur();return{v:2,name:$('name').value,W,H,pages,thumbs,cur,cloudId:cloud.id}}
+function autosave(){try{scheduleCloud();const ok=store.set('lienzo-v2',JSON.stringify(projectObj()));if(ok)$('saved').textContent='Guardado';if(!ok&&!warned){warned=true;toast('Autoguardado lleno: usa Exportar > Proyecto (.json)')}}catch(e){}}
 function thumb(){try{return cv.toDataURL({format:'jpeg',quality:.6,multiplier:200/(W*zoom)})}catch(e){return null}}
 function loadAsync(c){return new Promise(r=>{lock=true;cv.loadFromJSON(c,()=>{lock=false;r()})})}
 function ensureBg(){if(!cv.getObjects().some(o=>o.isBg)){const was=lock;lock=true;setBg('#ffffff');lock=was}}
@@ -1191,7 +1205,7 @@ $('fileJson').onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new Fi
   r.onload=async()=>{try{await loadProject(JSON.parse(r.result));toast('Proyecto abierto')}catch(err){toast('Archivo no válido')}};r.readAsText(f);e.target.value=''};
 async function loadProject(p){
   if(!p.pages&&p.c)p={pages:[p.c],W:p.W,H:p.H};
-  W=p.W||1080;H=p.H||1080;pages=p.pages;thumbs=p.thumbs||pages.map(()=>null);cur=clamp(p.cur||0,0,pages.length-1);
+  W=p.W||1080;H=p.H||1080;pages=p.pages;thumbs=p.thumbs||pages.map(()=>null);cur=clamp(p.cur||0,0,pages.length-1);cloud.id=p.cloudId||null;
   if(p.name)$('name').value=p.name;syncSize();fit();cv.discardActiveObject();
   await loadAsync(pages[cur]);await ensureFonts();ensureBg();resetHist();refresh();
 }
@@ -1340,6 +1354,138 @@ function pageAnimSection(){
     ibtn('play',0,previewAnim,'Vista previa','Vista previa de animación'));
 }
 
+/* ---------- Nube con Supabase (cuentas, guardado, versiones, compartir) ---------- */
+const SQL_SCHEMA="-- Lienzo \u00b7 esquema de Supabase\n-- P\u00e9galo en Supabase > SQL Editor > New query > Run. Es seguro ejecutarlo varias veces.\n\n-- ============ Dise\u00f1os ============\ncreate table if not exists public.designs (\n  id          uuid primary key default gen_random_uuid(),\n  owner       uuid not null default auth.uid() references auth.users(id) on delete cascade,\n  name        text not null default 'Sin t\u00edtulo',\n  width       int  not null,\n  height      int  not null,\n  data        jsonb not null,\n  thumb       text,\n  is_public   boolean not null default false,\n  created_at  timestamptz not null default now(),\n  updated_at  timestamptz not null default now()\n);\n\ncreate index if not exists designs_owner_updated_idx on public.designs (owner, updated_at desc);\n\ncreate or replace function public.set_updated_at()\nreturns trigger language plpgsql as $$\nbegin\n  new.updated_at = now();\n  return new;\nend $$;\n\ndrop trigger if exists designs_set_updated_at on public.designs;\ncreate trigger designs_set_updated_at\n  before update on public.designs\n  for each row execute function public.set_updated_at();\n\nalter table public.designs enable row level security;\n\ndrop policy if exists \"designs_owner_all\" on public.designs;\ncreate policy \"designs_owner_all\" on public.designs\n  for all to authenticated\n  using (owner = auth.uid())\n  with check (owner = auth.uid());\n\n-- Cualquiera (con el enlace) puede LEER los dise\u00f1os marcados como p\u00fablicos.\ndrop policy if exists \"designs_public_read\" on public.designs;\ncreate policy \"designs_public_read\" on public.designs\n  for select to anon, authenticated\n  using (is_public);\n\n-- ============ Historial de versiones ============\ncreate table if not exists public.design_versions (\n  id         bigint generated always as identity primary key,\n  design_id  uuid not null references public.designs(id) on delete cascade,\n  data       jsonb not null,\n  created_at timestamptz not null default now()\n);\n\ncreate index if not exists design_versions_design_idx on public.design_versions (design_id, created_at desc);\n\nalter table public.design_versions enable row level security;\n\ndrop policy if exists \"versions_owner_all\" on public.design_versions;\ncreate policy \"versions_owner_all\" on public.design_versions\n  for all to authenticated\n  using (exists (select 1 from public.designs d where d.id = design_id and d.owner = auth.uid()))\n  with check (exists (select 1 from public.designs d where d.id = design_id and d.owner = auth.uid()));\n";
+const SB={
+  cfg(){const w=window.LIENZO_SUPABASE||{};let l={};try{l=JSON.parse(store.get('lienzo-sb'))||{}}catch(e){}
+    const url=String(w.url||l.url||'').trim().replace(/\/+$/,''),key=String(w.key||l.key||'').trim();
+    return/^https:\/\/.+/.test(url)&&key?{url,key,fixed:!!(w.url&&w.key)}:null},
+  sess(){try{return JSON.parse(store.get('lienzo-sb-session'))}catch(e){return null}},
+  setSess(v){store.set('lienzo-sb-session',v?JSON.stringify(v):'')},
+  norm(j){return{access_token:j.access_token,refresh_token:j.refresh_token,expires_at:j.expires_at||Math.floor(Date.now()/1000)+(j.expires_in||3600),user:j.user}},
+  async fresh(){
+    const s=SB.sess();if(!s)return null;if(s.expires_at-60>Date.now()/1000)return s;
+    try{const c=SB.cfg();const r=await fetch(c.url+'/auth/v1/token?grant_type=refresh_token',{method:'POST',headers:{apikey:c.key,'Content-Type':'application/json'},body:JSON.stringify({refresh_token:s.refresh_token})});
+      const j=await r.json();if(!r.ok||!j.access_token)throw 0;const n=SB.norm(j);SB.setSess(n);return n}
+    catch(e){SB.setSess(null);return null}
+  }
+};
+async function sbReq(path,{method='GET',body,headers={},auth=true}={}){
+  const c=SB.cfg();if(!c)throw new Error('Configura Supabase primero');
+  let tok=c.key;if(auth){const s=await SB.fresh();if(s)tok=s.access_token}
+  const r=await fetch(c.url+path,{method,headers:Object.assign({apikey:c.key,Authorization:'Bearer '+tok,'Content-Type':'application/json'},headers),body:body!==undefined?JSON.stringify(body):undefined});
+  const t=await r.text();let j=null;try{j=t?JSON.parse(t):null}catch(e){}
+  if(!r.ok)throw new Error((j&&(j.message||j.msg||j.error_description||j.error))||('Error '+r.status));
+  return j;
+}
+async function sbAuth(mode,email,pw){
+  const c=SB.cfg();
+  const r=await fetch(c.url+(mode==='signup'?'/auth/v1/signup':'/auth/v1/token?grant_type=password'),{method:'POST',headers:{apikey:c.key,'Content-Type':'application/json'},body:JSON.stringify({email,password:pw})});
+  const j=await r.json().catch(()=>({}));
+  if(!r.ok)throw new Error(j.msg||j.error_description||j.message||j.error||('Error '+r.status));
+  if(!j.access_token)return null;
+  SB.setSess(SB.norm(j));return SB.sess();
+}
+async function sbGetDesign(id){
+  if(!/^[0-9a-f-]{36}$/i.test(id))throw new Error('Enlace no válido');
+  const r=await sbReq(`/rest/v1/designs?id=eq.${id}&select=id,owner,name,data`);
+  if(!r||!r[0])throw new Error('Diseño no encontrado o no es público');return r[0];
+}
+const safeImg=u=>typeof u==='string'&&/^data:image\/(jpeg|png|webp);base64,/.test(u)?u:'';
+let cloudT;
+function scheduleCloud(){
+  if(!cloud.id||!SB.cfg()||!SB.sess())return;clearTimeout(cloudT);
+  cloudT=setTimeout(()=>cloudSave({quiet:true}).catch(()=>{$('saved').textContent='Sin conexión con la nube'}),5000);
+}
+async function cloudSave({asNew=false,quiet=false}={}){
+  if(!SB.sess())throw new Error('Inicia sesión primero');
+  const proj=projectObj();proj.cloudId=undefined;
+  const row={name:(proj.name||'Sin título').slice(0,120),width:W,height:H,data:proj,thumb:thumbs[0]||thumbs[cur]||null};
+  let id=null;
+  if(cloud.id&&!asNew){
+    const r=await sbReq(`/rest/v1/designs?id=eq.${cloud.id}`,{method:'PATCH',body:row,headers:{Prefer:'return=representation'}});
+    if(r&&r[0])id=r[0].id;
+  }
+  if(!id){const r=await sbReq('/rest/v1/designs',{method:'POST',body:row,headers:{Prefer:'return=representation'}});id=r[0].id}
+  cloud.id=id;
+  if(!quiet){
+    await sbReq('/rest/v1/design_versions',{method:'POST',body:{design_id:id,data:proj}});
+    try{const old=await sbReq(`/rest/v1/design_versions?design_id=eq.${id}&select=id&order=created_at.desc&offset=20`);
+      if(old&&old.length)await sbReq(`/rest/v1/design_versions?id=in.(${old.map(v=>v.id).join(',')})`,{method:'DELETE'})}catch(e){}
+  }
+  $('saved').textContent='Guardado en la nube';autosave();return id;
+}
+async function cloudOpen(id){
+  const d=await sbReq(`/rest/v1/designs?id=eq.${id}&select=id,name,data`);if(!d||!d[0])throw new Error('No se encontró el diseño');
+  await loadProject(d[0].data);cloud.id=d[0].id;$('name').value=d[0].name;autosave();
+}
+function fmtDate(t){try{return new Date(t).toLocaleString('es')}catch(e){return ''}}
+function openCloud(){
+  const C_=$('cloudCard');C_.textContent='';const cfg=SB.cfg(),sess=SB.sess();
+  const status=h('div',{class:'hint',style:'min-height:18px;margin-top:6px'});
+  const guard=fn=>async(...a)=>{status.textContent='Trabajando…';try{await fn(...a)}catch(e){status.textContent='';toast(e.message||'Error')}};
+  C_.append(h('h2',{},'Cuenta y nube'));
+  const closeRow=()=>h('div',{class:'row',style:'margin-top:14px'},h('button',{class:'btn',onclick:()=>$('mCloud').classList.remove('on')},'Cerrar'));
+  if(!cfg){
+    const url=h('input',{type:'text',placeholder:'https://tu-proyecto.supabase.co'}),key=h('input',{type:'password',placeholder:'anon public key'});
+    const ta=h('textarea',{rows:6,readonly:'readonly',style:'font:12px monospace'});ta.value=SQL_SCHEMA;
+    C_.append(h('div',{class:'hint'},'Conecta tu proyecto de Supabase para tener cuentas, guardado en la nube, historial de versiones y enlaces para compartir. Pasos completos en README.md.'),
+      h('div',{class:'blk'},h('h3',{},'1. Crea las tablas'),h('div',{class:'hint'},'En Supabase > SQL Editor, pega este SQL y pulsa Run.'),ta,
+        h('div',{class:'row',style:'margin-top:6px'},h('button',{class:'btn',onclick:async()=>{try{await navigator.clipboard.writeText(SQL_SCHEMA);toast('SQL copiado')}catch(e){ta.select()}}},'Copiar SQL'))),
+      h('div',{class:'blk'},h('h3',{},'2. Pega tus claves'),h('div',{class:'hint'},'Project Settings > API: Project URL y anon public key (nunca la service_role).'),
+        h('div',{class:'fld'},h('label',{},'Project URL'),url),h('div',{class:'fld'},h('label',{},'anon public key'),key),
+        h('button',{class:'btn on wide',onclick:()=>{const u=url.value.trim(),k=key.value.trim();if(!/^https:\/\//.test(u)||!k)return toast('Revisa la URL (https://…) y la clave');store.set('lienzo-sb',JSON.stringify({url:u,key:k}));openCloud()}},'Guardar y continuar')),closeRow());
+  }else if(!sess){
+    const em=h('input',{type:'email',placeholder:'tu@correo.com',autocomplete:'email'}),pw=h('input',{type:'password',placeholder:'Contraseña (mínimo 6)',autocomplete:'current-password'});
+    const go=mode=>guard(async()=>{
+      if(!em.value||pw.value.length<6)throw new Error('Escribe un correo y una contraseña de al menos 6 caracteres');
+      const r=await sbAuth(mode,em.value.trim(),pw.value);
+      if(!r){status.textContent='Cuenta creada. Revisa tu correo para confirmarla y luego pulsa Entrar.';return}
+      toast('Sesión iniciada');openCloud();
+    });
+    C_.append(h('div',{class:'fld'},h('label',{},'Correo'),em),h('div',{class:'fld'},h('label',{},'Contraseña'),pw),
+      h('div',{class:'row'},h('button',{class:'btn on',onclick:go('login')},'Entrar'),h('button',{class:'btn',onclick:go('signup')},'Crear cuenta')),status,
+      !cfg.fixed&&h('div',{class:'row',style:'margin-top:8px'},h('button',{class:'btn sm',onclick:()=>{store.set('lienzo-sb','');openCloud()}},'Cambiar proyecto de Supabase')),closeRow());
+  }else{
+    const me=sess.user||{};
+    C_.append(h('div',{class:'row',style:'align-items:center'},h('div',{},h('div',{class:'hint'},'Sesión iniciada como'),h('b',{},me.email||'tu cuenta')),
+      h('button',{class:'btn',onclick:()=>{SB.setSess(null);cloud.id=null;toast('Sesión cerrada');openCloud()}},'Cerrar sesión')));
+    const list=h('div',{class:'dgrid'});
+    const render=guard(async()=>{
+      list.textContent='';const rows=await sbReq('/rest/v1/designs?select=id,name,width,height,thumb,is_public,updated_at&order=updated_at.desc');status.textContent='';
+      if(!rows.length)list.append(h('div',{class:'hint'},'Aún no tienes diseños en la nube.'));
+      rows.forEach(d=>{
+        const th=h('div',{class:'th'});const im=safeImg(d.thumb);if(im)th.style.backgroundImage=`url(${im})`;
+        const link=location.href.split(/[?#]/)[0]+'?d='+d.id;
+        list.append(h('div',{class:'dcard'},th,h('div',{class:'in'},h('div',{class:'nm',title:d.name},d.name),h('div',{class:'hint'},`${d.width}×${d.height} · ${fmtDate(d.updated_at)}`),
+          h('div',{class:'row'},h('button',{class:'btn sm',onclick:guard(async()=>{await cloudOpen(d.id);$('mCloud').classList.remove('on');toast('Diseño abierto')})},'Abrir'),
+            h('button',{class:'btn sm',onclick:guard(async()=>{if(!confirm('¿Eliminar este diseño de la nube?'))return;await sbReq(`/rest/v1/designs?id=eq.${d.id}`,{method:'DELETE'});if(cloud.id===d.id)cloud.id=null;render()})},'Borrar')),
+          h('div',{class:'row'},d.is_public
+            ?[h('button',{class:'btn sm on',onclick:guard(async()=>{try{await navigator.clipboard.writeText(link);toast('Enlace copiado')}catch(e){prompt('Copia el enlace:',link)}status.textContent=''})},'Copiar enlace'),
+              h('button',{class:'btn sm',onclick:guard(async()=>{await sbReq(`/rest/v1/designs?id=eq.${d.id}`,{method:'PATCH',body:{is_public:false}});render()})},'Dejar de compartir')]
+            :h('button',{class:'btn sm',onclick:guard(async()=>{await sbReq(`/rest/v1/designs?id=eq.${d.id}`,{method:'PATCH',body:{is_public:true}});try{await navigator.clipboard.writeText(link);toast('Compartido. Enlace copiado')}catch(e){prompt('Enlace para compartir:',link)}render()})},'Compartir')))));
+      });
+    });
+    const vers=h('div');
+    const showVersions=guard(async()=>{
+      vers.textContent='';const rows=await sbReq(`/rest/v1/design_versions?design_id=eq.${cloud.id}&select=id,created_at&order=created_at.desc&limit=20`);status.textContent='';
+      vers.append(h('h3',{style:'margin-top:12px'},'Versiones anteriores'));if(!rows.length)vers.append(h('div',{class:'hint'},'Todavía no hay versiones guardadas.'));
+      rows.forEach(v=>vers.append(h('div',{class:'vrow'},h('span',{},fmtDate(v.created_at)),h('button',{class:'btn sm',onclick:guard(async()=>{
+        const r=await sbReq(`/rest/v1/design_versions?id=eq.${v.id}&select=data`);if(!r||!r[0])throw new Error('Versión no encontrada');
+        const keep=cloud.id;await loadProject(r[0].data);cloud.id=keep;autosave();$('mCloud').classList.remove('on');toast('Versión restaurada. Guarda para conservarla');})},'Restaurar'))));
+    });
+    C_.append(h('div',{class:'blk'},h('h3',{},cloud.id?'Este diseño está en la nube':'Guardar este diseño'),
+      h('div',{class:'row'},h('button',{class:'btn on',onclick:guard(async()=>{await cloudSave();toast('Guardado en la nube');status.textContent='';render()})},cloud.id?'Guardar cambios':'Guardar en la nube'),
+        cloud.id&&h('button',{class:'btn',onclick:guard(async()=>{await cloudSave({asNew:true});toast('Copia guardada');status.textContent='';render()})},'Guardar como copia'),
+        cloud.id&&h('button',{class:'btn',onclick:showVersions},'Versiones')),
+      cloud.id&&h('div',{class:'hint',style:'margin-top:6px'},'Los cambios se sincronizan solos unos segundos después de editar.'),vers),
+      h('div',{class:'blk'},h('h3',{},'Mis diseños'),list),status,closeRow());
+    render();
+  }
+  $('mCloud').classList.add('on');
+}
+$('cloudBtn').onclick=openCloud;
+
 /* ---------- Asistente con IA (clave propia de Anthropic) ---------- */
 const AIcfg={get(){try{return JSON.parse(store.get('lienzo-ai'))||{}}catch(e){return{}}},set(v){store.set('lienzo-ai',JSON.stringify(v))}};
 async function askClaude(system,user,max=2500){
@@ -1452,6 +1598,12 @@ addEventListener('mouseup',()=>{if(pan){pan=null;stage.style.cursor=space?'grab'
 /* ---------- Arranque ---------- */
 (async function boot(){
   fillIcons();$('logo').append(ic('logo',22),' Lienzo');buildSizes();buildRail();showPanel();
+  const shared=new URLSearchParams(location.search).get('d');
+  if(shared&&SB.cfg()){
+    try{const d=await sbGetDesign(shared);await loadProject(d.data);const me=SB.sess();cloud.id=(me&&me.user&&me.user.id===d.owner)?d.id:null;
+      toast(cloud.id?'Diseño abierto desde la nube':'Diseño compartido abierto como copia (guárdalo en tu cuenta para conservarlo)');return}
+    catch(e){toast('No se pudo abrir el diseño compartido')}
+  }
   let p=null;try{p=JSON.parse(store.get('lienzo-v2'))}catch(e){}
   if(p&&p.pages&&p.pages[0]){try{await loadProject(p);return}catch(e){}}
   W=1080;H=1080;syncSize();fit();
