@@ -10,11 +10,12 @@
 		Referrer-Policy strict-origin-when-cross-origin
 		Permissions-Policy "camera=(), microphone=(), geolocation=()"
 		Strict-Transport-Security "max-age=31536000"
+		Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.anthropic.com; media-src 'self' blob:; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'"
 		-Server
 	}
 
 	# Estos archivos deben revalidarse siempre (cambios y configuración).
-	@fresh path / /index.html /config.js /sw.js /manifest.webmanifest
+	@fresh path / /index.html /app.js /config.js /sw.js /manifest.webmanifest
 	header @fresh Cache-Control "no-cache"
 
 	# Recursos estáticos que casi nunca cambian.

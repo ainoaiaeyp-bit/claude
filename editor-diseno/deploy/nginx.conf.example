@@ -1,6 +1,6 @@
 # Ejemplo para nginx "a pelo" en el VPS (sin Docker).
 # 1) Copia la carpeta del editor a /var/www/lienzo (solo index.html, config.js, sw.js, manifest.webmanifest,
-#    fonts.css, vendor/, fonts/ e icons/).
+#    app.js, fonts.css, vendor/, fonts/ e icons/).
 # 2) Guarda esto en /etc/nginx/sites-available/lienzo, enlázalo en sites-enabled y recarga nginx.
 # 3) Certificado HTTPS:  sudo certbot --nginx -d lienzo.midominio.com
 server {
@@ -18,9 +18,11 @@ server {
     add_header X-Frame-Options SAMEORIGIN always;
     add_header Referrer-Policy strict-origin-when-cross-origin always;
     add_header Permissions-Policy "camera=(), microphone=(), geolocation=()" always;
+    add_header Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.anthropic.com; media-src 'self' blob:; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'" always;
+    # Si usas Supabase autoalojado, añade su dominio a connect-src (https y wss).
 
     # Siempre revalidar (cambios y configuración)
-    location ~ ^/(index\.html|config\.js|sw\.js|manifest\.webmanifest)$ {
+    location ~ ^/(index\.html|app\.js|config\.js|sw\.js|manifest\.webmanifest)$ {
         add_header Cache-Control "no-cache";
         add_header X-Content-Type-Options nosniff always;
     }

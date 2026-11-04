@@ -1,6 +1,6 @@
 # Lienzo – editor de diseño
 
-Editor de diseño tipo Canva en un solo archivo (`index.html`). Funciona sin servidor; con Supabase añade **cuentas, guardado en la nube, historial de versiones y enlaces para compartir**.
+Editor de diseño tipo Canva (`index.html` + `app.js`, sin paso de compilación). Funciona sin servidor; con Supabase añade **cuentas, guardado en la nube, historial de versiones y enlaces para compartir**.
 
 ## Uso sin nube
 Abre `index.html` en el navegador (por ejemplo con `python3 -m http.server`). Las librerías (`vendor/`) y las fuentes (`fonts/`) van incluidas: **no necesita internet** salvo para la nube y la IA. El autoguardado local usa el navegador; también puedes exportar/abrir proyectos `.json`.
@@ -41,3 +41,10 @@ Botón **Colaborar** → *Crear sala* → copia el enlace (`index.html?room=<có
 
 ## Reglas y guías
 Botón **Reglas**: arrastra desde la regla superior o izquierda para crear guías; arrástralas para moverlas o llévalas de vuelta a la regla para quitarlas. Los elementos se imantan a las guías y se guardan con el diseño.
+
+## Atajos y pruebas
+- Atajos de herramientas: `T` texto, `R` rectángulo, `O` círculo, `L` línea, `P` lápiz, `G` cuadrícula (la lista completa está en el botón `?`).
+- Prueba de humo automática (comprueba también que no hay violaciones de la CSP ni peticiones externas):
+  ```bash
+  npm install && npx playwright install chromium && npm test
+  ```

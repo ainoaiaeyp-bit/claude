@@ -5,3 +5,5 @@ README.md
 DEPLOY.md
 deploy
 supabase
+tests
+package.json

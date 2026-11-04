@@ -21,7 +21,7 @@ Para actualizar tras cambiar archivos: `docker compose up -d --build`.
 
 ## Opción B · nginx sin Docker
 
-1. Copia al VPS **solo** estos archivos a `/var/www/lienzo`: `index.html`, `config.js`, `sw.js`, `manifest.webmanifest`, `fonts.css`, y las carpetas `vendor/`, `fonts/` e `icons/`.
+1. Copia al VPS **solo** estos archivos a `/var/www/lienzo`: `index.html`, `app.js`, `config.js`, `sw.js`, `manifest.webmanifest`, `fonts.css`, y las carpetas `vendor/`, `fonts/` e `icons/`.
 2. Usa `deploy/nginx.conf.example` como sitio de nginx (cambia `server_name`).
 3. `sudo certbot --nginx -d lienzo.midominio.com` para el HTTPS.
 
@@ -47,6 +47,11 @@ curl https://lienzo.midominio.com/api/health     # -> {"ok":true}
 Sin Docker: copia `server/ai-proxy.js` a `/opt/lienzo/`, crea `/etc/lienzo-ai.env` y activa `deploy/lienzo-ai.service` (instrucciones dentro del archivo). El ejemplo de nginx ya reenvía `/api/` a `127.0.0.1:8787`.
 
 Controles del proxy: verifica el token de sesión con Supabase, límite por usuario (`AI_RATE_PER_HOUR`), tope de tokens (`AI_MAX_TOKENS`), lista de modelos permitidos (`AI_MODELS`) y entradas limitadas a 20 000 caracteres. **Pon un límite de gasto en tu cuenta de Anthropic** igualmente.
+
+## Seguridad (CSP)
+El editor se sirve con una *Content-Security-Policy* estricta (ya incluida en `Caddyfile` y en `deploy/nginx.conf.example`): solo se ejecuta JavaScript de tu propio dominio y solo se permiten conexiones a tu dominio, `*.supabase.co`, y `api.anthropic.com`. Esto frena la mayoría de ataques XSS.
+- Si usas **Supabase autoalojado** u otro dominio, añádelo a `connect-src` (https y wss).
+- Si no usas la IA con clave propia en el navegador (solo el proxy), puedes quitar `https://api.anthropic.com`.
 
 ## Instalable (PWA) y modo sin conexión
 Con HTTPS el navegador ofrece «Instalar» (aparece un botón en la cabecera) y el editor funciona sin conexión gracias a `sw.js`.

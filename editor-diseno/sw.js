@@ -1,8 +1,8 @@
 /* Service worker de Lienzo: instalable y con modo sin conexión.
    Sube la versión de CACHE cuando publiques cambios para forzar la actualización. */
-const CACHE = 'lienzo-v2';
+const CACHE = 'lienzo-v3';
 const CORE = ['./', 'index.html', 'config.js', 'fonts.css', 'manifest.webmanifest', 'icons/icon.svg',
-  'vendor/fabric.min.js', 'vendor/jspdf.umd.min.js', 'vendor/qrcode.js'];
+  'app.js', 'vendor/fabric.min.js', 'vendor/jspdf.umd.min.js', 'vendor/qrcode.js'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => Promise.all(CORE.map(u => c.add(u).catch(() => {})))).then(() => self.skipWaiting()));
