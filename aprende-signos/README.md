@@ -2,8 +2,8 @@
 
 Web estática (sin dependencias ni build). Abre `index.html` o sirve la carpeta con cualquier servidor estático.
 
-- **Lecciones** con signos, tarjetas de repaso y test (≥70 % para completar).
-- **Progreso** en `localStorage`: XP, racha diaria y dominio por signo (cajas 0–3).
+- **10 lecciones y 57 signos** con ilustración animada (mano, lugar del cuerpo y trayectoria), tarjetas, test y juego de parejas.
+- **Repaso espaciado**, meta diaria, nivel, racha, logros y estadísticas en `localStorage`.
 - **Diccionario** con búsqueda, **modo oscuro**, accesible por teclado y móvil.
 
 ## Añadir contenido
@@ -11,3 +11,6 @@ Edita `data.js`. Cada signo: `{ id, word, emoji, how, media }`. Pon en `media` l
 
 ## Importante
 Las descripciones de `data.js` son un **borrador**. Antes de publicar, valídalas con una persona sorda signante o con el diccionario de la CNSE, y sustituye las descripciones por vídeos.
+
+## Versión de un solo archivo
+`python3 build.py` regenera `signa-artifact.html` (CSS, datos y JS en línea) a partir de los fuentes.

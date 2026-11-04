@@ -44,7 +44,7 @@ h2{font:800 1.2rem var(--disp);margin:28px 0 12px}
 .hand .cstroke{fill:none;stroke-linecap:round}
 .mv{fill:none;stroke:var(--hot);stroke-width:3.2;stroke-linecap:round;stroke-linejoin:round}
 .mvhead{fill:var(--hot)}
-.ghost{opacity:.4}
+.hghost{opacity:.4}
 /* Visor de lección */
 .viewer{display:grid;grid-template-columns:1.3fr 1fr;gap:16px;background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:16px}
 .viewer>*{min-width:0}
@@ -85,3 +85,38 @@ input[type=search]{width:100%;padding:12px 14px;font:inherit;border-radius:12px;
 .media{width:100%;max-height:260px;border-radius:12px;background:#000}
 @media (max-width:640px){.hero,.viewer{grid-template-columns:1fr}.top nav{order:3;flex-basis:100%}}
 @media (prefers-reduced-motion:no-preference){.mv-anim{stroke-dasharray:6 5;animation:dash 1.2s linear infinite}@keyframes dash{to{stroke-dashoffset:-22}}}
+/* v3 */
+.eyebrow{font:700 .78rem var(--text);letter-spacing:.1em;text-transform:uppercase;color:var(--accent);margin:0 0 8px}
+.btn.sm{padding:8px 14px;font-size:.88rem}
+.row.between{justify-content:space-between}
+.iconbtn{border:0;background:var(--soft);color:var(--accent);width:36px;height:36px;border-radius:10px;display:grid;place-items:center;padding:0}
+.top nav{order:0}
+.daily{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-bottom:8px}
+.dcard{display:flex;align-items:center;gap:14px;background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:14px;text-align:left}
+button.dcard:hover{border-color:var(--accent)}
+.dcard>div{min-width:0}
+.num{font:800 2rem/1 var(--disp);color:var(--accent);min-width:2.2ch;text-align:center;font-variant-numeric:tabular-nums}
+.ring .rg-bg{fill:none;stroke:var(--line);stroke-width:7}
+.ring .rg-fg{fill:none;stroke:var(--accent);stroke-width:7;stroke-linecap:round}
+.ring .rg-t{font:800 16px var(--disp);fill:var(--ink)}
+.sm{font-size:.88rem}
+.q span{font-size:1rem;color:var(--muted)}
+.memo{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.tile{aspect-ratio:1;border:2px solid var(--line);border-radius:14px;background:var(--soft);padding:4px;display:grid;place-items:center;font-weight:800;font-family:var(--disp);overflow:hidden}
+.tile.up{background:var(--surface);border-color:var(--accent)}.tile.found{border-color:var(--ok);background:var(--okbg)}
+.tile .stage{height:100%;aspect-ratio:auto}.tile .q2{font-size:2rem;color:var(--accent)}
+.tile span{font-size:clamp(.85rem,3.6vw,1.2rem);padding:2px;text-align:center}
+.week{display:grid;grid-template-columns:repeat(7,1fr);gap:8px;align-items:end;height:150px;background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:12px}
+.week .col{display:grid;grid-template-rows:1fr auto auto;height:100%;text-align:center;font-size:.75rem;color:var(--muted);align-items:end;gap:2px}
+.week .col i{display:block;background:var(--accent);border-radius:6px 6px 2px 2px;min-height:3px;width:60%;justify-self:center}
+.week .col b{color:var(--ink);font-variant-numeric:tabular-nums}
+.badges{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px}
+.bdg{display:grid;gap:2px;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px;opacity:.55}
+.bdg.got{opacity:1;border-color:var(--ok)}.bdg b{font-family:var(--disp)}.bdg span{font-size:.85rem;color:var(--muted)}.bdg em{font-size:.78rem;font-style:normal;font-weight:700;color:var(--muted)}.bdg.got em{color:var(--ok)}
+.list{display:grid;gap:8px}
+.lrow{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(60px,1fr) auto;gap:12px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px 14px;text-align:left}
+.lrow:hover{border-color:var(--accent)}
+.filters{display:flex;gap:6px;overflow-x:auto;padding-bottom:8px;margin-bottom:8px}
+.fchip{border:1px solid var(--line);background:var(--surface);border-radius:99px;padding:6px 12px;white-space:nowrap;font-size:.85rem;font-weight:600}
+.fchip.on{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+@media (max-width:640px){.top{gap:8px 12px}.top nav{order:5;flex-basis:100%}.stats{margin-left:auto}}
