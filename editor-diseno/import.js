@@ -214,7 +214,7 @@ async function openImport(file){
   let pdfjs;try{pdfjs=await loadPdfJs()}catch(e){toast(e.message);return}
   toast('Leyendo el PDF…');
   let doc;
-  try{doc=await pdfjs.getDocument({data:await file.arrayBuffer(),standardFontDataUrl:PDFJS_BASE+'standard_fonts/',isEvalSupported:false}).promise}
+  try{doc=await pdfjs.getDocument({data:await file.arrayBuffer(),standardFontDataUrl:PDFJS_BASE+'standard_fonts/',cMapUrl:PDFJS_BASE+'cmaps/',cMapPacked:true,isEvalSupported:false}).promise}
   catch(e){toast(e&&e.name==='PasswordException'?'El PDF está protegido con contraseña':'No se pudo leer el PDF');return}
   const C_=$('importCard');C_.textContent='';
   const total=doc.numPages,empty=pages.length===1&&cv.getObjects().filter(x=>!x.isBg).length<=1;

@@ -6,6 +6,8 @@ Qué necesitas: un VPS con Linux, un dominio (o subdominio) apuntando a su IP co
 
 ## Opción A · Docker + Caddy (HTTPS automático) — recomendada
 
+Atajo: `bash deploy/install.sh` (con `--dry-run` primero) hace todo lo de abajo de forma guiada; `deploy/update.sh` actualiza y `deploy/backup.sh` guarda `.env`/`config.js`. Para hacerlo con Claude Code en el VPS: `deploy/PROMPT_CLAUDE_CODE.md`.
+
 ```bash
 git clone <tu-repositorio> && cd <tu-repositorio>/editor-diseno
 cp .env.example .env

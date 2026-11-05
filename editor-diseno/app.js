@@ -154,9 +154,15 @@ let chT;
 function push(){if(lock||cropMode)return;$('saved').textContent='Guardando…';hist=hist.slice(0,hi+1);hist.push(snapshot());if(hist.length>40)hist.shift();hi=hist.length-1;clearTimeout(chT);chT=setTimeout(changed,600);collabSchedule()}
 function changed(){thumbs[cur]=thumb();renderPages();autosave()}
 let warned=false;
+/* Autoguardado grande en IndexedDB (sin el límite de ~5 MB de localStorage) */
+const idb={db:null,open(){return this.db||(this.db=new Promise((res,rej)=>{try{const r=indexedDB.open('lienzo',1);r.onupgradeneeded=()=>r.result.createObjectStore('kv');r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)}catch(e){rej(e)}}))},
+  async get(k){const d=await this.open();return new Promise((res,rej)=>{const q=d.transaction('kv').objectStore('kv').get(k);q.onsuccess=()=>res(q.result);q.onerror=()=>rej(q.error)})},
+  async set(k,v){const d=await this.open();return new Promise((res,rej)=>{const t=d.transaction('kv','readwrite');t.objectStore('kv').put(v,k);t.oncomplete=()=>res(true);t.onerror=()=>rej(t.error)})}};
 function saveCur(){pages[cur]=cv.toJSON(CUSTOM)}
 function projectObj(){saveCur();return{v:2,name:$('name').value,W,H,pages,thumbs,cur,cloudId:cloud.id,guides:userGuides}}
-function autosave(){try{scheduleCloud();const ok=store.set('lienzo-v2',JSON.stringify(projectObj()));if(ok)$('saved').textContent='Guardado';if(!ok&&!warned){warned=true;toast('Autoguardado lleno: usa Exportar > Proyecto (.json)')}}catch(e){}}
+function autosave(){try{scheduleCloud();const str=JSON.stringify(projectObj());
+  idb.set('lienzo-v2',str).then(()=>{$('saved').textContent='Guardado';store.set('lienzo-v2',str)&&0},()=>{const ok=store.set('lienzo-v2',str);if(ok)$('saved').textContent='Guardado';else if(!warned){warned=true;toast('Autoguardado lleno: usa Exportar > Proyecto (.json)')}});
+  }catch(e){}}
 function thumb(){try{return cv.toDataURL({format:'jpeg',quality:.6,multiplier:200/(W*zoom)})}catch(e){return null}}
 function loadAsync(c){return new Promise(r=>{lock=true;cv.loadFromJSON(c,()=>{lock=false;r()})})}
 function ensureBg(){if(!cv.getObjects().some(o=>o.isBg)){const was=lock;lock=true;setBg('#ffffff');lock=was}}
@@ -1043,6 +1049,21 @@ function drawMarks(pdf,x0,y0,pw,ph,bleed){
     pdf.line(x+sx*gap,y,x+sx*(gap+len),y);pdf.line(x,y+sy*gap,x,y+sy*(gap+len));
   });
 }
+/* Capa de texto invisible: el PDF exportado se puede buscar y copiar */
+function textLayer(pdf,k,ox,oy,fs){
+  try{
+    cv.getObjects().forEach(o=>{
+      if(o.type!=='textbox'||o.visible===false||!o.text)return;
+      const lines=o.textLines||String(o.text).split('\n');if(!lines.length)return;
+      const sy=o.scaleY||1,lh=o.fontSize*o.lineHeight*sy,c=o.getCenterPoint(),top=c.y-(o.height*sy)/2,left=c.x-(o.width*(o.scaleX||1))/2;
+      pdf.setFontSize(o.fontSize*sy*fs);
+      lines.forEach((ln,i)=>{
+        const t=String(ln).replace(/[^\x20-\x7E\u00A0-\u00FF]/g,' ').trimEnd();if(!t.trim())return;
+        pdf.text(t,ox+left*k,oy+(top+i*lh+o.fontSize*sy*0.879)*k,{renderingMode:'invisible'});
+      });
+    });
+  }catch(e){}
+}
 async function exportPDF(sc,print){
   const {jsPDF}=window.jspdf;saveCur();const orig=cur;let pdf;
   const pxmm=print?print.dpi/25.4:1,b=print?print.bleed:0,bp=b*pxmm,slug=print&&print.marks?6:0;
@@ -1053,11 +1074,13 @@ async function exportPDF(sc,print){
       const url=pageCanvas(bp,sc).toDataURL('image/jpeg',.96);
       if(!pdf)pdf=new jsPDF({orientation:PW>PH?'l':'p',unit:'mm',format:[PW,PH]});else pdf.addPage([PW,PH],PW>PH?'l':'p');
       pdf.addImage(url,'JPEG',slug,slug,pw+2*b,ph+2*b);
+      textLayer(pdf,1/pxmm,slug+b,slug+b,2.835/pxmm);
       if(print.marks)drawMarks(pdf,slug+b,slug+b,pw,ph,b);
     }else{
       const url=cv.toDataURL({format:'jpeg',quality:.95,multiplier:sc/zoom});
       if(!pdf)pdf=new jsPDF({orientation:W>H?'l':'p',unit:'px',format:[W,H],hotfixes:['px_scaling']});else pdf.addPage([W,H],W>H?'l':'p');
       pdf.addImage(url,'JPEG',0,0,W,H);
+      textLayer(pdf,1,0,0,1);
     }
   }
   await loadAsync(pages[orig]);await ensureFonts();refresh();pdf.save(safeName()+'.pdf');
@@ -1299,7 +1322,7 @@ async function exportVideo(base){
   if(!window.MediaRecorder){toast('Tu navegador no puede grabar vídeo');return}
   const sc=Math.min(1,1280/W),rw=Math.round(W*sc)&~1,rh=Math.round(H*sc)&~1;
   const rc=document.createElement('canvas');rc.width=rw;rc.height=rh;const rx=rc.getContext('2d');
-  const mime=['video/webm;codecs=vp9','video/webm;codecs=vp8','video/webm'].find(m=>MediaRecorder.isTypeSupported(m));
+  const mime=['video/webm;codecs=vp9','video/webm;codecs=vp8','video/webm','video/mp4;codecs=avc1','video/mp4'].find(m=>MediaRecorder.isTypeSupported(m));
   const rec=new MediaRecorder(rc.captureStream(30),{mimeType:mime,videoBitsPerSecond:6e6}),chunks=[];
   rec.ondataavailable=e=>{if(e.data.size)chunks.push(e.data)};const done=new Promise(r=>{rec.onstop=r});
   toast('Grabando vídeo… mantén esta pestaña visible');
@@ -1314,7 +1337,7 @@ async function exportVideo(base){
     }
     rec.stop();await done;
   }finally{animBusy=false;await loadAsync(pages[orig]);await ensureFonts();refresh()}
-  download(URL.createObjectURL(new Blob(chunks,{type:'video/webm'})),`${base}.webm`);
+  const vt=mime.startsWith('video/mp4')?'mp4':'webm';download(URL.createObjectURL(new Blob(chunks,{type:'video/'+vt})),`${base}.${vt}`);
 }
 function animSection(o){
   const T_=tg(o),a0=T_[0]._anim||{type:'',dur:.8,delay:0};
@@ -2157,6 +2180,10 @@ async function aiRestyle(desc){
 const AIcfg={get(){try{return JSON.parse(store.get('lienzo-ai'))||{}}catch(e){return{}}},set(v){store.set('lienzo-ai',JSON.stringify(v))}};
 const AI_PROXY=()=>String(window.LIENZO_AI_PROXY||'').trim();
 async function askClaude(system,user,max=2500,images=[]){
+  if(store.get('lienzo-ai-ok')!=='1'){
+    if(!confirm('Para usar la IA, el texto de tu diseño (y las imágenes que elijas) se enviará a Anthropic (Claude) para procesarlo. No se envía nada más. ¿Aceptas?'))throw new Error('Has cancelado el uso de la IA');
+    store.set('lienzo-ai-ok','1');
+  }
   const cfg=AIcfg.get();
   if(AI_PROXY()){
     const s=SB.cfg()?await SB.fresh():null;
@@ -2297,7 +2324,8 @@ if('serviceWorker' in navigator&&/^https?:$/.test(location.protocol)){addEventLi
       toast(cloud.id?'Diseño abierto desde la nube':'Diseño compartido abierto como copia (guárdalo en tu cuenta para conservarlo)');return}
     catch(e){toast('No se pudo abrir el diseño compartido')}
   }
-  let p=null;try{p=JSON.parse(store.get('lienzo-v2'))}catch(e){}
+  let p=null;try{const r=await idb.get('lienzo-v2');if(r)p=JSON.parse(r)}catch(e){}
+  if(!p)try{p=JSON.parse(store.get('lienzo-v2'))}catch(e){}
   if(p&&p.pages&&p.pages[0]){try{await loadProject(p);return}catch(e){}}
   W=1080;H=1080;syncSize();fit();
   lock=true;setBg('#ffffff');lock=false;
