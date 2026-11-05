@@ -545,6 +545,7 @@ const PANELS={
   im(){return h('div',{},h('h3',{},'Tus imágenes'),
     h('button',{class:'btn big wide on',onclick:()=>$('file').click()},icl('upload','Subir imagen')),
     h('button',{class:'btn wide',style:'margin-top:6px',onclick:()=>$('filePdf').click()},icl('upload','Importar PDF editable')),
+    h('button',{class:'btn wide',style:'margin-top:6px',onclick:async()=>{try{const r=await fetch('ejemplos/informe-de-ejemplo.pdf');if(!r.ok)throw 0;handleFiles([new File([await r.blob()],'informe-de-ejemplo.pdf',{type:'application/pdf'})])}catch(e){toast('El PDF de ejemplo solo está disponible si abres el editor desde un servidor (http://…)')}}},'Probar con un PDF de ejemplo'),
     h('p',{class:'hint'},'También puedes arrastrar al lienzo imágenes, PDF, SVG o texto, o pegar imágenes con Ctrl+V.'),
     libSection(),
     h('h3',{},'Fondo de página'),h('button',{class:'btn wide',onclick:()=>$('fileBg').click()},'Usar imagen como fondo'),

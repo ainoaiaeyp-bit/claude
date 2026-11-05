@@ -248,6 +248,39 @@ async function agUndo(){
   agStat('Cambios de la IA deshechos.',false);
 }
 
+/* ---------- Modo básico (sin clave de IA): entiende órdenes sencillas con reglas ---------- */
+const AG_COLORS={blanco:'#ffffff',negro:'#111111','gris claro':'#e5e7eb','gris oscuro':'#374151',gris:'#8b93a5',rojo:'#dc2626',naranja:'#f97316',amarillo:'#facc15','verde oscuro':'#14532d','verde claro':'#86efac',verde:'#16a34a',turquesa:'#14b8a6','azul oscuro':'#0b1b3a','azul claro':'#93c5fd',celeste:'#7dd3fc',azul:'#2563eb',morado:'#7c3aed',violeta:'#7c3aed','rosa claro':'#fbcfe8',rosa:'#ec4899','marrón':'#92400e',marron:'#92400e',beige:'#f5e6c8',crema:'#fdf6e3',dorado:'#d4a017'};
+function colorFromText(t){
+  const hx=/#[0-9a-f]{6}\b/i.exec(t);if(hx)return hx[0].toLowerCase();
+  for(const k of Object.keys(AG_COLORS).sort((a,b)=>b.length-a.length)){if(new RegExp('(^|[^a-záéíóúñ])'+k+'($|[^a-záéíóúñ])','i').test(t))return AG_COLORS[k]}
+  return null;
+}
+function agLocalParse(text){
+  const t=String(text).toLowerCase(),ops=[],scope=/p[aá]gina actual|esta p[aá]gina|esta hoja/.test(t)?'current':'all',notes=[],nPages=pages.length;
+  for(const seg of t.split(/[,;]|\sy\s|\se\s/)){
+    const col=colorFromText(seg),title=/t[ií]tulo/.test(seg),where=Object.assign({kind:'text'},title&&!/texto/.test(seg)?{largestText:true}:{});
+    if(/fondo/.test(seg)&&col){ops.push({op:'background',pages:scope,color:col});notes.push('fondo '+col);continue}
+    if(col&&/(texto|letra|t[ií]tulo)/.test(seg)){ops.push({op:'style',pages:scope,where,set:{fill:col}});notes.push('color del texto '+col)}
+    if(/may[uú]scula/.test(seg)){ops.push({op:'style',pages:scope,where,set:{uppercase:true}});notes.push('mayúsculas')}
+    if(/min[uú]scula/.test(seg)){ops.push({op:'style',pages:scope,where,set:{lowercase:true}});notes.push('minúsculas')}
+    const f=FONTS.find(x=>seg.includes(x.toLowerCase()));
+    if(f&&/(fuente|letra|tipograf)/.test(seg)){ops.push({op:'style',pages:scope,where:{kind:'text'},set:{fontFamily:f}});notes.push('fuente '+f)}
+    if(/(m[aá]s grande|agranda|aumenta)/.test(seg)&&/(texto|letra|fuente|t[ií]tulo)/.test(seg)){ops.push({op:'style',pages:scope,where,set:{fontScale:1.25}});notes.push('texto un 25 % más grande')}
+    if(/(m[aá]s peque[ñn]o|reduce|encoge)/.test(seg)&&/(texto|letra|fuente|t[ií]tulo)/.test(seg)){ops.push({op:'style',pages:scope,where,set:{fontScale:.8}});notes.push('texto más pequeño')}
+    if(/negrita/.test(seg)){ops.push({op:'style',pages:scope,where,set:{fontWeight:700}});notes.push('negrita')}
+    if(/cursiva/.test(seg)){ops.push({op:'style',pages:scope,where,set:{fontStyle:'italic'}});notes.push('cursiva')}
+    if(/centra/.test(seg)&&/(texto|t[ií]tulo|letra)/.test(seg)){ops.push({op:'move',pages:scope,where,set:{align:'center'}},{op:'style',pages:scope,where,set:{textAlign:'center'}});notes.push('centrado')}
+    if(/(quita|elimina|borra|saca)\s+(todas\s+)?(las\s+)?(im[aá]genes|fotos)/.test(seg)){ops.push({op:'delete',pages:scope,where:{kind:'image'}});notes.push('sin imágenes')}
+    if(/(a[ñn]ade|crea|agrega)\s+(una\s+)?(nueva\s+)?p[aá]gina/.test(seg)){
+      ops.push({op:'page',action:'add'});notes.push('página nueva');
+      const q=/[«"“]([^»"”]+)[»"”]/.exec(text);if(q)ops.push({op:'add',page:nPages+1,element:{type:'text',text:q[1],x:.5,y:.2,size:.07,weight:700,color:'#1f2430'}});
+    }
+    if(/duplica\s+(la\s+)?p[aá]gina/.test(seg)){ops.push({op:'page',action:'duplicate',page:cur+1});notes.push('página duplicada')}
+  }
+  if(!ops.length)return{say:'Modo básico (sin IA): entiendo «cambia el fondo a azul», «pon el texto en rojo», «fuente Lora», «títulos en mayúsculas», «texto más grande», «centra los textos», «quita las imágenes» o «añade una página». Para traducir o reescribir conecta una clave de IA (botón IA).',ops:[]};
+  return{say:'Modo básico (sin IA): '+[...new Set(notes)].join(', ')+'.',ops};
+}
+
 /* ---------- Ejecución ---------- */
 async function agRun(ops){
   endCrop(true);cv.discardActiveObject();saveCur();agBackup();
@@ -282,10 +315,10 @@ async function agCommand(text){
     cv.discardActiveObject();
     const summary=agSummary(selIds),images=[];
     try{const u=cv.toDataURL({format:'jpeg',quality:.72,multiplier:Math.min(1,720/W)/zoom});images.push({media_type:'image/jpeg',data:u.split(',')[1]})}catch(e){}
-    const raw=await askClaude(agSystem(),JSON.stringify({orden:text,documento:summary}),4000,images);
-    const spec=parseJSON(raw),say=String(spec.say||'').slice(0,300);
+    const basic=!AIcfg.get().key&&!AI_PROXY();
+    const spec=basic?agLocalParse(text):parseJSON(await askClaude(agSystem(),JSON.stringify({orden:text,documento:summary}),4000,images)),say=String(spec.say||'').slice(0,300);
     const ops=(Array.isArray(spec.ops)?spec.ops:[]).filter(o=>o&&typeof o==='object'&&AG_OPS.has(o.op)).slice(0,AG_MAX_OPS);
-    if(!ops.length){agStat(say||'No sé cómo hacer eso con las herramientas disponibles. Prueba a describirlo de otra forma.',false);return}
+    if(!ops.length){agStat(say||'No sé cómo hacer eso con las herramientas disponibles. Prueba a describirlo de otra forma.',false);if(basic)toast('Para órdenes libres conecta una clave de IA (botón IA)');return}
     const risky=ops.some(o=>(o.op==='page'&&o.action==='delete')||(o.op==='delete'&&!o.where&&!o.id));
     if(risky&&!confirm((say||'La IA quiere eliminar contenido')+'\n\nPodrás deshacerlo después. ¿Aplicar?')){agStat('Cancelado.',false);return}
     const st=await agRun(ops);

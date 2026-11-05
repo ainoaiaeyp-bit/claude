@@ -5,3 +5,4 @@ COPY index.html app.js import.js agent.js config.js sw.js manifest.webmanifest f
 COPY vendor /srv/vendor
 COPY fonts /srv/fonts
 COPY icons /srv/icons
+COPY ejemplos /srv/ejemplos
