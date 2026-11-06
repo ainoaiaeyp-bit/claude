@@ -95,5 +95,6 @@ mimetypes.add_type("application/manifest+json", ".webmanifest")
 
 if __name__ == "__main__":
     puerto = int(os.environ.get("PORT", "8160"))
-    print(f"Mielec en http://127.0.0.1:{puerto}")
-    ThreadingHTTPServer(("0.0.0.0", puerto), H).serve_forever()
+    host = os.environ.get("HOST", "127.0.0.1")  # en el VPS solo escucha en local; el proxy da la cara
+    print(f"Mielec en http://{host}:{puerto}")
+    ThreadingHTTPServer((host, puerto), H).serve_forever()

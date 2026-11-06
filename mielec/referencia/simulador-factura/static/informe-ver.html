@@ -1,0 +1,24 @@
+<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="preload" href="/fonts/Outfit-Variable.ttf" as="font" type="font/ttf" crossorigin>
+<link rel="preload" href="/fonts/DMSerifDisplay-Regular.ttf" as="font" type="font/ttf" crossorigin>
+<link rel="stylesheet" href="/app.css"><link rel="stylesheet" href="/informe.css"></head>
+<body class="app"><main><div id="cuerpo"><section id="res"><div id="inf-doc"></div></section></div></main>
+<script src="/lib/html2canvas.min.js"></script>
+<script src="/lib/html-to-image.min.js"></script>
+<script type="module">
+import { comparar } from '/calculo.js'; import { renderInforme } from '/informe.js';
+const b = await (await fetch('/ejemplo.json')).json();
+const q = new URLSearchParams(location.search);
+if (q.get('h')) b.datos.horizonte = q.get('h');
+if (q.get('mal')) { b.datos.propuesta.energia.precios = ['25', '20', '', '', '', '']; }
+if (q.get('rico')) { const d = b.datos; d.cliente.excedentes = '40'; d.propuesta.compensacion.precio = '0.05'; d.cliente.cargos = [{ nombre: 'Bono social', tipo: 'fijo', importe: '0.03', unidad: 'dia', tributaIEE: true }]; d.propuesta.otros = [{ nombre: 'Reactiva', importe: '3.2', tributaIEE: true }]; d.cliente.cups = 'ES0021000000000000XX'; d.actual.real.total = ''; d.cliente.nombre = 'Comercial Hermanos García Martínez e Hijos S.L.'; }
+if (q.get('ov')) document.head.insertAdjacentHTML('beforeend', '<style>@media print{.pag.uno{overflow:visible!important;height:auto!important}}</style>');
+if (q.get('sinperm')) { const d = b.datos; for (const k of ['actual', 'propuesta']) { d[k].permanencia = { meses: '', penalizacion: '' }; d[k].servicios = []; d[k].descuentos = []; } }
+if (q.get('modo')) { b.datos.perfil.modo = q.get('modo'); if (q.get('modo') === 'real') { b.datos.perfil.real[0] = { total: '600', kwh: Array(6).fill('') }; b.datos.perfil.real[6] = { total: '900', kwh: Array(6).fill('') }; } }
+const secs = {}; (q.get('off') || '').split(',').filter(Boolean).forEach((k) => (secs[k] = false));
+await renderInforme(document.getElementById('inf-doc'), b.datos, comparar(b.datos), b.nombre, secs, q.get('v') || 'uno');
+const pg = document.querySelector('.pag'); document.body.dataset.diag = JSON.stringify({ cls: pg.className, sh: pg.scrollHeight, ch: pg.clientHeight, ww: innerWidth, kids: [...pg.children].map((k) => k.className + ':' + Math.round(k.getBoundingClientRect().height)), fila: [...(pg.querySelector('.fila')||{children:[]}).children].map((k) => k.className + ':' + Math.round(k.getBoundingClientRect().top - pg.getBoundingClientRect().top) + '/' + Math.round(k.getBoundingClientRect().height)), pg: Math.round(pg.getBoundingClientRect().height) });
+window.__exportarHTI = async () => { const hoja = document.querySelector('.hoja'); hoja.classList.add('exportando'); await document.fonts.ready; const out = []; for (const p of hoja.querySelectorAll('.pag')) { out.push(await htmlToImage.toPng(p, { pixelRatio: 2.5, backgroundColor: '#ffffff', width: 794, height: 1123 })); } hoja.classList.remove('exportando'); return out; };
+window.__exportar = async () => { const hoja = document.querySelector('.hoja'); hoja.classList.add('exportando'); await document.fonts.ready; const out = []; for (const p of hoja.querySelectorAll('.pag')) { const cv = await html2canvas(p, { scale: 2.5, backgroundColor: '#ffffff', logging: false, useCORS: true, scrollX: 0, scrollY: -window.scrollY }); out.push(cv.toDataURL('image/png')); } hoja.classList.remove('exportando'); return out; };
+document.body.dataset.listo = '1';
+</script></body></html>
