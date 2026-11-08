@@ -1,0 +1,21 @@
+REVOKE ALL ON FUNCTION public.add_creator_as_member() FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.handle_new_user() FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.update_updated_at_column() FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.validate_expense_input() FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.calculate_group_balances(uuid) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.join_group_by_code(text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.is_group_member(uuid) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.shares_group_with(uuid) FROM PUBLIC;
+
+GRANT EXECUTE ON FUNCTION public.calculate_group_balances(uuid) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.join_group_by_code(text) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.is_group_member(uuid) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.shares_group_with(uuid) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.calculate_group_balances(uuid) TO service_role;
+GRANT EXECUTE ON FUNCTION public.join_group_by_code(text) TO service_role;
+GRANT EXECUTE ON FUNCTION public.is_group_member(uuid) TO service_role;
+GRANT EXECUTE ON FUNCTION public.shares_group_with(uuid) TO service_role;
+GRANT EXECUTE ON FUNCTION public.add_creator_as_member() TO service_role;
+GRANT EXECUTE ON FUNCTION public.handle_new_user() TO service_role;
+GRANT EXECUTE ON FUNCTION public.update_updated_at_column() TO service_role;
+GRANT EXECUTE ON FUNCTION public.validate_expense_input() TO service_role;

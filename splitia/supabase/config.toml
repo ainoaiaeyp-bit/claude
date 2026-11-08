@@ -1,0 +1,8 @@
+project_id = "splitia"
+
+[functions.extract-expenses]
+verify_jwt = true
+
+# La ejecuta un cron (ver README): usa la service role, no sesión de usuario.
+[functions.process-recurring-expenses]
+verify_jwt = false
