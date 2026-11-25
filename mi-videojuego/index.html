@@ -163,7 +163,7 @@ function pos(e) {
 cv.addEventListener('pointerdown', e => { if (state !== 'playing') start(); target = pos(e); });
 cv.addEventListener('pointermove', e => { if (e.buttons || e.pointerType === 'mouse') target = pos(e); });
 cv.addEventListener('pointerup', e => { if (e.pointerType !== 'mouse') target = null; });
-addEventListener('keydown', e => { keys[e.key] = true; if (e.key === ' ') { start(); e.preventDefault(); } });
+addEventListener('keydown', e => { keys[e.key] = true; if (e.key.startsWith('Arrow') || 'wasd'.includes(e.key)) target = null; if (e.key === ' ') { start(); e.preventDefault(); } });
 addEventListener('keyup', e => { keys[e.key] = false; });
 
 reset(); loop();
