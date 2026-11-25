@@ -180,7 +180,7 @@ addEventListener('keyup', e => { keys[e.key] = false; });
 
 // Ajusta el lienzo a la pantalla manteniendo la proporción
 function fit() {
-  const s = Math.min(innerWidth / W, innerHeight / H);
+  const s = Math.min(document.body.clientWidth / W, document.body.clientHeight / H);
   cv.style.width = W * s + 'px'; cv.style.height = H * s + 'px';
 }
 addEventListener('resize', fit); addEventListener('orientationchange', fit); fit();
